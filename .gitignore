@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+*.local
+.DS_Store
+
+# per-workspace agent config/memory (user-specific; generated on demand in-app)
+.eveglyph/
+
+# secrets — never commit
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+
+# dev scratch / diagnostics
+dev-server*.log
+_monitor_baseline.txt
+*.tmp
+zz-*

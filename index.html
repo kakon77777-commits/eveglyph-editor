@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EveGlyph Editor — EveMissLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-hex">⬡</span>
+      <span class="brand-name">EveGlyph Editor</span>
+      <span class="brand-sub">EveMissLab</span>
+      <span class="brand-ver" id="brand-version" title="EveGlyph-MD · EG-MD-2026"></span>
+    </div>
+    <div class="sep"></div>
+    <div class="topbar-actions">
+      <button class="btn-p" id="btn-open">Open Folder</button>
+      <button class="btn-s" id="btn-save" disabled>Save</button>
+      <button class="btn-s" id="btn-new" disabled>+ New</button>
+      <button class="btn-s" id="btn-import" title="Import a .docx as Markdown">Import DOCX</button>
+      <button class="btn-s" id="btn-print" title="Print / Save-as-PDF the preview">Print</button>
+      <input type="file" id="docx-input" accept=".docx" style="display:none">
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+      <div id="folder-hdr">
+        <span id="folder-name">No folder open</span>
+      </div>
+      <div id="file-tree"></div>
+    </aside>
+
+    <!-- EDITOR PANE -->
+    <div id="editor-pane">
+      <div id="tab-bar"></div>
+      <div id="editor-container">
+        <div id="editor-placeholder">
+          <div class="ph-icon">⬡</div>
+          <p>Open a folder — Ctrl+F to search &amp; replace</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <aside id="right-panel">
+      <div id="panel-tabs">
+        <button class="ptab active" data-t="preview">Preview</button>
+        <button class="ptab" data-t="ai">AI</button>
+        <button class="ptab" data-t="search">🔍</button>
+        <button class="ptab" data-t="log" title="Monitor — diagnostic stream">◷</button>
+        <button class="ptab" data-t="settings">⚙</button>
+      </div>
+
+      <!-- Preview -->
+      <div id="t-preview" class="tcontent active">
+        <div id="preview-body"></div>
+      </div>
+
+      <!-- AI -->
+      <div id="t-ai" class="tcontent">
+        <div class="ai-sec">
+          <label>Selection</label>
+          <div class="code-disp" id="ai-sel">—</div>
+        </div>
+        <div class="ai-sec">
+          <label>Quick actions</label>
+          <div class="preset-list" id="preset-list"></div>
+        </div>
+        <div class="ai-sec">
+          <label>Custom prompt <span style="color:var(--t3)">(Ctrl+Enter)</span></label>
+          <textarea id="ai-input" placeholder="Ask about selection or document..."></textarea>
+          <select id="ai-mode" title="Local-agent modify mode">
+            <option value="patch">Patch — edit, then review the diff</option>
+            <option value="suggest">Suggest — advice only, no file edits</option>
+            <option value="direct">Direct — apply, with one-click revert</option>
+          </select>
+          <button class="btn-p" id="btn-ai-send">Send</button>
+        </div>
+        <div class="ai-sec" id="ai-resp-wrap" style="display:none">
+          <label>Response</label>
+          <div id="ai-resp"></div>
+          <div class="resp-actions">
+            <button class="btn-g" id="btn-replace">Replace</button>
+            <button class="btn-g" id="btn-append">Append</button>
+            <button class="btn-g" id="btn-copy-r">Copy</button>
+            <button class="btn-g danger" id="btn-agent-stop" disabled>Stop</button>
+          </div>
+          <div class="resp-actions" id="diff-actions" style="display:none">
+            <button class="btn-p" id="btn-diff-accept">✓ Accept</button>
+            <button class="btn-g danger" id="btn-diff-reject">✗ Reject</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search (exact, human-owned navigator — §12.1) -->
+      <div id="t-search" class="tcontent">
+        <div class="ai-sec">
+          <label>Find in files <span style="color:var(--t3)">(Enter)</span></label>
+          <input type="text" id="search-input" placeholder="Search text or regex…">
+          <input type="text" id="search-replace" placeholder="Replace with… (empty = delete)">
+          <div class="search-opts">
+            <label title="Case sensitive"><input type="checkbox" id="search-case"> Aa</label>
+            <label title="Whole word"><input type="checkbox" id="search-word"> W</label>
+            <label title="Regular expression"><input type="checkbox" id="search-regex"> .*</label>
+          </div>
+          <div class="search-scope">
+            <label><input type="radio" name="search-scope" value="file" checked> Current file</label>
+            <label><input type="radio" name="search-scope" value="workspace"> Workspace</label>
+          </div>
+          <button class="btn-s" id="btn-replace-all" style="margin-top:7px;width:100%">Replace all…</button>
+        </div>
+        <div id="search-results"></div>
+      </div>
+
+      <!-- Monitor (diagnostic stream — back-stage; reads eveglyph-monitor.jsonl) -->
+      <div id="t-log" class="tcontent">
+        <div class="ai-sec">
+          <label>Monitor stream <span style="color:var(--t3)">(diagnostic log)</span></label>
+          <input type="text" id="monitor-filter" placeholder="Filter by type or payload…">
+          <div class="mon-controls">
+            <button class="btn-s" id="btn-monitor-refresh">↻ Refresh</button>
+            <label class="mon-auto"><input type="checkbox" id="monitor-auto"> Auto</label>
+            <span id="monitor-status" class="mon-status"></span>
+          </div>
+        </div>
+        <div id="monitor-body" class="mon-body"></div>
+      </div>
+
+      <!-- Settings -->
+      <div id="t-settings" class="tcontent">
+        <div class="sg">
+          <label>Theme</label>
+          <select id="s-theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+        <div class="sg">
+          <label>Editor font size <span style="color:var(--t3)">(px)</span></label>
+          <input type="number" id="s-font-size" min="10" max="28" step="0.5">
+        </div>
+        <div class="sg">
+          <label>Editor font <span style="color:var(--t3)">(CSS family)</span></label>
+          <input type="text" id="s-font-family" placeholder="'JetBrains Mono', monospace">
+        </div>
+        <div class="sg">
+          <label>AI Provider</label>
+          <select id="s-provider">
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai">OpenAI-compatible</option>
+            <option value="local-agent">Local Agent (CLI)</option>
+          </select>
+        </div>
+
+        <!-- API-provider fields -->
+        <div class="sg" id="s-url-wrap" style="display:none">
+          <label>API Base URL</label>
+          <input type="text" id="s-url" placeholder="http://localhost:3000">
+        </div>
+        <div class="sg" id="s-key-wrap">
+          <label>API Key</label>
+          <input type="password" id="s-key" placeholder="sk-...">
+        </div>
+        <div class="sg" id="s-model-wrap">
+          <label>Model <span style="color:var(--t3)">(pick from the list, or type an id)</span></label>
+          <div class="agent-row">
+            <input type="text" id="s-model" list="s-model-list" placeholder="claude-opus-4-8" autocomplete="off">
+            <button class="btn-s icon-btn" id="btn-fetch-models" title="Fetch available models from the API">↻</button>
+          </div>
+          <datalist id="s-model-list"></datalist>
+          <span id="s-model-hint" style="font-size:10px;color:var(--t3)"></span>
+        </div>
+
+        <!-- Local-agent fields -->
+        <div id="s-agent-wrap" style="display:none; flex-direction:column; gap:12px">
+          <div class="sg">
+            <label>Agent</label>
+            <div class="agent-row">
+              <select id="s-agent"></select>
+              <button class="btn-s icon-btn" id="btn-agent-detect" title="Detect installed agents">+</button>
+            </div>
+          </div>
+          <div class="sg">
+            <label>Workspace path (absolute)</label>
+            <div class="agent-row">
+              <input type="text" id="s-workspace" placeholder="D:\path\to\your\folder">
+              <button class="btn-s icon-btn" id="btn-use-bridge-cwd" title="Use app folder">+</button>
+            </div>
+            <span id="s-agent-hint" style="font-size:10px; color:var(--t3)"></span>
+          </div>
+          <div class="sg">
+            <label>Command override (advanced)</label>
+            <input type="text" id="s-agentcmd" placeholder="(blank = bridge default)">
+          </div>
+          <div class="sg">
+            <label>Permission</label>
+            <select id="s-agent-permission">
+              <option value="cautious">Cautious — edit existing only, no create/delete</option>
+              <option value="standard">Standard — edit + create, no delete</option>
+              <option value="trusted">Trusted — full, skips re-confirm</option>
+            </select>
+          </div>
+          <div class="sg">
+            <label>Run timeout <span style="color:var(--t3)">(seconds)</span></label>
+            <input type="number" id="s-agent-timeout" min="10" max="1800" step="10">
+          </div>
+          <div class="sg">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="s-agent-quiet"> Show raw agent output
+            </label>
+          </div>
+          <div class="cfp-block cfp-warning" style="margin:0">
+            <div class="cfp-label">⚠ File-editing agent</div>
+            <div style="font-size:11px; color:var(--t1); line-height:1.5">
+              The agent runs with auto-approve and can read, edit and create files
+              in the workspace folder. Only active while the local dev server
+              (start-eveglyph.bat) is running.
+            </div>
+          </div>
+
+          <div class="sg">
+            <label>Workspace agent rules</label>
+            <button class="btn-s" id="btn-eveglyph-init">+ Create .eveglyph/rules.md</button>
+            <span style="font-size:10px; color:var(--t3)">An operating manual prepended to every agent run; edit it after creating.</span>
+          </div>
+        </div>
+
+        <div class="sg">
+          <label>Default encoding <span style="color:var(--t3)">(fallback &amp; new files)</span></label>
+          <select id="s-default-encoding"></select>
+        </div>
+
+        <div class="sg">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="s-memory-enabled"> Inject .eveglyph/ memory into agent runs
+          </label>
+          <div style="margin-top:4px;padding-left:20px;display:flex;flex-direction:column;gap:3px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-rules"> rules.md</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-glossary"> glossary.md</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-pitfalls"> memory/pitfalls.md</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-recent"> memory/recent.md</label>
+          </div>
+        </div>
+
+        <div class="sg">
+          <label>EveGlyph-MD frontmatter <span style="color:var(--t3)">(type · status · tags)</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-eveglyph-enabled"> Schema-aware (chip, preview badges, agent context)</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:3px"><input type="checkbox" id="s-eveglyph-stamp"> Stamp new .md files with frontmatter</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:3px"><input type="checkbox" id="s-eveglyph-inject"> Send the active doc's class to the agent</label>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <select id="s-eveglyph-type" title="Default type for new files" style="flex:1"></select>
+            <select id="s-eveglyph-status" title="Default status for new files" style="flex:1"></select>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px">
+          <button class="btn-p" id="btn-save-settings">Save</button>
+          <button class="btn-s" id="btn-test">Test</button>
+        </div>
+        <div id="agent-connect-row" style="display:none;gap:6px">
+          <button class="btn-p" id="btn-agent-connect">+ Connect Agent</button>
+          <button class="btn-s" id="btn-agent-disconnect">- Disconnect</button>
+        </div>
+        <div id="settings-msg"></div>
+        <div class="sg" style="margin-top:8px">
+          <label style="color:var(--t3);font-size:9px">
+            Note: Anthropic direct browser access requires<br>
+            anthropic-dangerous-direct-browser-access header.<br>
+            For local agents (Open WebUI etc), use OpenAI-compat.
+          </label>
+        </div>
+
+        <div class="sg about-sg">
+          <label>About</label>
+          <div id="about-body" class="about-body"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- STATUSBAR -->
+  <footer id="statusbar">
+    <span id="s-cursor">Ln 1, Col 1</span>
+    <span id="s-mod"></span>
+    <span id="s-file" style="color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px"></span>
+    <span id="s-eveglyph" class="s-eveglyph" title="EveGlyph-MD document class — click to set"></span>
+    <span id="status-provider">Provider: —</span>
+    <span id="s-encoding" class="s-enc" title="File encoding — click to change"></span>
+  </footer>
+
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
