@@ -12,8 +12,8 @@ import { editorGetSel, editorGet } from './editor.js'
 import { getClass, EVEGLYPH_TYPES, EVEGLYPH_STATUSES } from './frontmatter.js'
 import { monitor }       from './monitor.js'
 
-// Starter operating manual — structure from the novel_agent reference memo
-// (rules.md = execution law + authorization boundary + runtime-truth pointers).
+// Starter operating manual: execution rules + authorization boundary + runtime-truth
+// pointers (rules.md = the standing law the agent reads before it edits a file).
 const RULES_TEMPLATE = `# EveGlyph Editor — Agent 操作規則 (.eveglyph/rules.md)
 
 > 這是本 workspace 的 agent 操作手冊。每次 agent 執行任務前，EveGlyph Editor 會把本檔內容附加到 prompt 最前面。請依專案需要自行修改。
@@ -129,7 +129,7 @@ async function writeEveGlyphFile(name, content) {
 // Compile the agent's plan-layer. Returns a text `preamble` (the .eveglyph/ operating
 // manual) to prepend to the task prompt, plus the structured `pack` (logged for
 // debugging). The pack is the PLAN layer — never document content; the agent stays
-// the only writer (novel_agent ADR-0010).
+// the only writer.
 export async function compileContext(task, mode = 'patch') {
   // Memory injection respects the config flags (config.js / S.cfg.memory). Master
   // off → all layers empty → empty preamble → no injection. Defaults all-on preserve

@@ -10,7 +10,7 @@ export const S = {
   tabs: [],
   lastResp: null,
   // Defaults sourced from the config contract (config.js); cfgLoad merges the user's
-  // localStorage overrides on top. New persisted keys → add to CONFIG.persistKeys.
+  // localStorage overrides on top (the whole cfg object is persisted as one blob).
   cfg: {
     theme: CONFIG.theme,
     editorFontSize: CONFIG.editor.fontSize,

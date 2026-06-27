@@ -4,8 +4,10 @@ build/
 *.local
 .DS_Store
 
-# per-workspace agent config/memory (user-specific; generated on demand in-app)
-.eveglyph/
+# per-workspace agent config/memory (user-specific; generated on demand in-app).
+# Root-anchored so the bundled examples/.eveglyph/ starter ships, but a real
+# workspace's own .eveglyph/ at the repo root stays private.
+/.eveglyph/
 
 # secrets — never commit
 .env
@@ -14,6 +16,9 @@ build/
 *.pem
 *.p12
 *.pfx
+
+# editor / tooling local config (machine-specific paths)
+.claude/
 
 # dev scratch / diagnostics
 dev-server*.log

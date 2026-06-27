@@ -8,12 +8,13 @@ import { CONFIG }            from './config.js'
 import { editorGet, editorGoToMatch, editorSet, editorReplaceRange } from './editor.js'
 import { openFile, refreshFromDisk, saveFile } from './files.js'
 import { monitor }           from './monitor.js'
+import { renderDiffHTML }    from './diffview.js'
 
 const $ = (id) => document.getElementById(id)
 
 function buildRegex(q, { regex, caseSensitive, wholeWord }) {
   let pattern = regex ? q : q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  if (wholeWord) pattern = `\\b${pattern}\\b`
+  if (wholeWord) pattern = `\\b(?:${pattern})\\b`   // group so \b binds the WHOLE pattern, not just the first/last alternative
   return new RegExp(pattern, 'g' + (caseSensitive ? '' : 'i'))
 }
 
@@ -217,17 +218,6 @@ export async function replaceAll() {
   renderReplaceResult(total, targets.length, diff, reviewable, cwd, failed)
 }
 
-function colorizeDiff(diff) {
-  return (diff || '').split('\n').map(l => {
-    let cls = 'd-ctx'
-    if (l.startsWith('+++') || l.startsWith('---') || l.startsWith('diff ') || l.startsWith('index ')) cls = 'd-hdr'
-    else if (l.startsWith('@@')) cls = 'd-hunk'
-    else if (l.startsWith('+')) cls = 'd-add'
-    else if (l.startsWith('-')) cls = 'd-del'
-    return `<span class="${cls}">${esc(l) || ' '}</span>`
-  }).join('\n')
-}
-
 function renderReplaceResult(total, fileCount, diff, reviewable, cwd, failed = []) {
   const out = $('search-results')
   out.innerHTML = ''
@@ -241,9 +231,9 @@ function renderReplaceResult(total, fileCount, diff, reviewable, cwd, failed = [
     out.appendChild(warn)
   }
   if (diff?.available && diff.hasChanges) {
-    const pre = document.createElement('pre'); pre.className = 'diff'
-    pre.innerHTML = colorizeDiff(diff.diff)
-    out.appendChild(pre)
+    const box = document.createElement('div'); box.className = 'diff-files'
+    box.innerHTML = renderDiffHTML(diff.diff)
+    out.appendChild(box)
   }
   if (reviewable) {
     const btn = document.createElement('button'); btn.className = 'btn-g danger'; btn.textContent = '↩ Revert replace'; btn.style.marginTop = '8px'

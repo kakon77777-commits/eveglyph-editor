@@ -193,10 +193,10 @@ export async function aiCall(prompt) {
         throw new Error(e.error?.message || `HTTP ${r.status}`)
       }
       const d = await r.json()
-      // A safety decline returns HTTP 200 with an empty content array ??surface it
+      // A safety decline returns HTTP 200 with an empty content array — surface it
       // instead of silently showing a blank response.
       if (d.stop_reason === 'refusal') {
-        text = `[Request declined by the model's safety system${d.stop_details?.category ? ` ??${d.stop_details.category}` : ''}.]`
+        text = `[Request declined by the model's safety system${d.stop_details?.category ? ` — ${d.stop_details.category}` : ''}.]`
       } else {
         text = d.content?.[0]?.text ?? ''
       }

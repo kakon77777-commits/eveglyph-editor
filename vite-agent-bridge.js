@@ -10,13 +10,42 @@ import jschardet from 'jschardet'
 // so we can tell at a glance whether a running server has the latest bridge.
 const BRIDGE_BUILD = 'claude-resolver-v2'
 
-// Default invocation per agent. The prompt is fed on stdin; these strings
-// hold only fixed flags. The UI may provide an explicit command override.
+// Per-agent invocation. The prompt is fed on stdin; `exe` is the base binary and
+// `flags(tier)` returns the fixed flags for a permission tier. The tier maps to REAL
+// CLI enforcement (not just prompt text) wherever the CLI supports it:
+//   cautious — edit existing files only (no create, no shell/delete)
+//   standard — edit + create (no shell/delete)              ← default
+//   trusted  — full capability (skips all gating)
+// A UI command override replaces all of this verbatim. Fidelity is highest for Claude
+// (per-tool allow-list); Codex/Gemini are coarser below the trusted tier (the prompt
+// clause carries the create/delete nuance there).
 const AGENTS = {
-  claude: { label: 'Claude Code', cmd: 'claude -p --permission-mode acceptEdits' },
-  codex:  { label: 'Codex CLI',   cmd: 'codex exec --full-auto --skip-git-repo-check' },
-  gemini: { label: 'Gemini CLI',  cmd: 'gemini --yolo' }
+  claude: {
+    label: 'Claude Code',
+    exe: 'claude',
+    flags: (tier) =>
+      tier === 'cautious' ? '-p --permission-mode default --allowedTools Edit Read Grep Glob'
+      : tier === 'trusted' ? '-p --permission-mode bypassPermissions'
+      :                      '-p --permission-mode acceptEdits'
+  },
+  codex: {
+    label: 'Codex CLI',
+    exe: 'codex',
+    flags: (tier) =>
+      tier === 'trusted' ? 'exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox'
+      :                    'exec --full-auto --skip-git-repo-check'
+  },
+  gemini: {
+    label: 'Gemini CLI',
+    exe: 'gemini',
+    flags: (tier) =>
+      tier === 'trusted' ? '--yolo'
+      :                    '--approval-mode auto_edit'
+  }
 }
+
+// The permission tier used for detection/display (the probe only runs `<exe> --version`).
+const DISPLAY_TIER = 'standard'
 
 const AGENT_EXE_ENV = {
   claude: 'EVEGLYPH_CLAUDE_EXE',
@@ -347,14 +376,14 @@ async function findLocalClaudeExe() {
   return null
 }
 
-async function resolveAgentCommand(agentId, command) {
-  if (command && command.trim()) return command.trim()
+async function resolveAgentCommand(agentId, command, permission = 'standard') {
+  if (command && command.trim()) return command.trim()   // UI override owns the whole command
   const spec = AGENTS[agentId]
   if (!spec) return null
-  const [exe, ...args] = spec.cmd.split(' ')
-  const resolved = process.env[AGENT_EXE_ENV[agentId]] || await which(exe)
-  if (!resolved) return spec.cmd
-  return `${quoteCmd(resolved)} ${args.join(' ')}`.trim()
+  const flags = spec.flags(permission)
+  const resolved = process.env[AGENT_EXE_ENV[agentId]] || await which(spec.exe)
+  if (!resolved) return `${spec.exe} ${flags}`.trim()
+  return `${quoteCmd(resolved)} ${flags}`.trim()
 }
 
 function probeCommand(command) {
@@ -469,13 +498,13 @@ async function getAgentsInfo(force = false) {
   }
   const agents = {}
   for (const [id, agent] of Object.entries(AGENTS)) {
-    const exe = agent.cmd.split(' ')[0]
-    const resolved = process.env[AGENT_EXE_ENV[id]] || await which(exe)
-    const resolvedCmd = resolved ? `${quoteCmd(resolved)} ${agent.cmd.split(' ').slice(1).join(' ')}`.trim() : null
-    const probe = resolvedCmd ? await probeCommand(quoteCmd(resolved)) : { runnable: false, error: 'not found on PATH' }
+    const stdFlags = agent.flags(DISPLAY_TIER)
+    const resolved = process.env[AGENT_EXE_ENV[id]] || await which(agent.exe)
+    const resolvedCmd = resolved ? `${quoteCmd(resolved)} ${stdFlags}`.trim() : null
+    const probe = resolved ? await probeCommand(quoteCmd(resolved)) : { runnable: false, error: 'not found on PATH' }
     agents[id] = {
       label: agent.label,
-      cmd: agent.cmd,
+      cmd: `${agent.exe} ${stdFlags}`.trim(),
       path: resolved,
       runnable: probe.runnable,
       error: probe.error,
@@ -744,12 +773,12 @@ export function agentBridge() {
         try { body = await readJsonBody(req) }
         catch { res.statusCode = 400; return res.end('bad request body') }
 
-        const { agent, prompt = '', cwd, command, timeoutMs } = body
+        const { agent, prompt = '', cwd, command, permission, timeoutMs } = body
         const workdir = cwd || process.cwd()
         try { assertWorkspace(workdir) }   // confine the auto-approve agent to the opened folder
         catch (e) { res.statusCode = 400; return res.end(String(e?.message || e)) }
         const runTimeoutMs = Math.min(Math.max(Number(timeoutMs) || BRIDGE_CONFIG.agentTimeoutMs, 10000), 1800000)   // 10s–30min
-        const tmpl = await resolveAgentCommand(agent, command)
+        const tmpl = await resolveAgentCommand(agent, command, permission)   // tier → real CLI flags
         if (!tmpl) { res.statusCode = 400; return res.end('unknown agent') }
 
         res.setHeader('Content-Type', 'application/x-ndjson')
@@ -759,7 +788,7 @@ export function agentBridge() {
         }
 
         const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-        emitMonitor('agent:start', { agent, cwd: workdir, cmd: tmpl, promptBytes: Buffer.byteLength(prompt, 'utf8') })
+        emitMonitor('agent:start', { agent, cwd: workdir, cmd: tmpl, permission: permission || 'standard', promptBytes: Buffer.byteLength(prompt, 'utf8') })
         send({ type: 'meta', agent, cmd: tmpl, cwd: workdir, runId })
 
         let child
@@ -782,13 +811,21 @@ export function agentBridge() {
 
         try { child.stdin.write(prompt); child.stdin.end() } catch { /* ignore */ }
 
+        // Agent CLIs stream UTF-8. Use ONE stateful decoder per stream so a multibyte
+        // char split across a chunk boundary is buffered, not emitted as U+FFFD — which
+        // the old per-chunk decodeOutput() then mis-"rescued" as Big5, mojibaking CJK
+        // (e.g. 繁中) agent output. The buffered probe path still uses decodeOutput().
+        const outDec = new TextDecoder('utf-8')
+        const errDec = new TextDecoder('utf-8')
         child.stdout.on('data', d => {
-          const data = decodeOutput(d)
+          const data = outDec.decode(d, { stream: true })
+          if (!data) return
           emitMonitor('agent:stdout', { agent, cwd: workdir, bytes: Buffer.byteLength(data, 'utf8'), sample: data.slice(0, 500) })
           send({ type: 'stdout', data })
         })
         child.stderr.on('data', d => {
-          const data = decodeOutput(d)
+          const data = errDec.decode(d, { stream: true })
+          if (!data) return
           emitMonitor('agent:stderr', { agent, cwd: workdir, bytes: Buffer.byteLength(data, 'utf8'), sample: data.slice(0, 500) })
           send({ type: 'stderr', data })
         })
@@ -799,6 +836,9 @@ export function agentBridge() {
         child.on('close', code => {
           clearTimeout(maxRuntime)
           activeAgents.delete(runId)
+          const tailOut = outDec.decode(); const tailErr = errDec.decode()   // flush any buffered trailing bytes
+          if (tailOut) send({ type: 'stdout', data: tailOut })
+          if (tailErr) send({ type: 'stderr', data: tailErr })
           emitMonitor('agent:done', { agent, cwd: workdir, code })
           send({ type: 'done', code })
           res.end()

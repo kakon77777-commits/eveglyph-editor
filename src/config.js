@@ -21,7 +21,7 @@ export const CONFIG = {
     name: 'EveGlyph Editor',                                 // [const] product name
     tagline: 'A local-first, agent-native Markdown workspace', // [const]
     format: 'EveGlyph-MD',                                    // [const] the format/protocol it edits
-    version: '0.3.0',                                      // [const] keep in sync with package.json
+    version: '0.4.0',                                      // [const] keep in sync with package.json
     egCode: 'EG-MD-2026',                                // [const] EveMissLab protocol/product code
     year: 2026,                                            // [const] copyright year
     license: 'MIT',                                        // [const] see LICENSE
@@ -88,8 +88,8 @@ export const CONFIG = {
 
   // ── Editor ──
   editor: {
-    fontFamily: "'JetBrains Mono', monospace",            // [reserved] (no UI yet)
-    fontSize: 13.5,                                       // [reserved] px
+    fontFamily: "'JetBrains Mono', monospace",            // [user] default seed; live override persists as cfg.editorFontFamily
+    fontSize: 13.5,                                       // [user] px — default seed; live override persists as cfg.editorFontSize
     lineHeight: 1.65,                                     // [reserved]
     previewDebounceMs: 600,                               // [tunable] preview re-render delay after a keystroke
   },
@@ -118,8 +118,4 @@ export const CONFIG = {
   // ── Storage ──
   storageKey: 'eveglyph_cfg',                               // [const] localStorage key
   legacyStorageKey: 'noesis_cfg',                         // [const] one-time migration source (Noesis era)
-
-  // Which cfg keys persist to localStorage (the user-override surface). Anything not
-  // listed stays at its default from this file.
-  persistKeys: ['theme', 'editorFontSize', 'editorFontFamily', 'provider', 'url', 'key', 'model', 'agent', 'workspace', 'agentCmd', 'agentMode', 'agentPermission', 'agentTimeoutMs', 'agentQuiet', 'defaultEncoding', 'memory', 'contextPackWrite', 'eveglyphMd'],
 }

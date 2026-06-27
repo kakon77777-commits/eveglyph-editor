@@ -5,6 +5,7 @@ import { compileContext } from './context.js'
 import { refreshFromDisk } from './files.js'
 import { statusUpdate } from './status.js'
 import { monitor } from './monitor.js'
+import { renderDiffHTML } from './diffview.js'
 
 // Best-effort readable name for the user's browser language, so the agent
 // replies in the user's language instead of defaulting to an arbitrary one.
@@ -158,7 +159,6 @@ ${langRule}`)
   // refresh; raw output still goes to the monitor for debugging. (User ask:
   // out of sight, out of mind.) Proper diff-first review comes later (PatchMD).
   resp.className = ''
-  resp.innerHTML = '<span class="spinner"></span> Wish granted — working…'
   S.lastResp = null
   S.agentRunning = true
   S.agentAbort = new AbortController()
@@ -170,6 +170,24 @@ ${langRule}`)
   let sawError = false
   let reviewable = false
   const startedAt = Date.now()
+  // Live activity view: a transient "agent working…" panel that ticks elapsed time
+  // and streams the agent's output tail while it runs, then is replaced by the diff on
+  // completion. Respects agentQuiet: quiet → meter only; loud → output tail.
+  let actLines = []
+  let actCount = 0
+  const ACT_TAIL = 14
+  const actEsc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+  const renderActivity = () => {
+    if (!S.agentRunning) return
+    const secs = Math.round((Date.now() - startedAt) / 1000)
+    const head = `<div class="agent-act-h"><span class="agent-act-dot"></span><span>✦ Wish granted — working… <b>${secs}s</b> · ${actCount} line${actCount === 1 ? '' : 's'}</span></div>`
+    const body = (!S.cfg.agentQuiet && actLines.length)
+      ? `<pre class="agent-act-log">${actLines.map(actEsc).join('\n')}</pre>` : ''
+    resp.className = ''
+    resp.innerHTML = head + body
+  }
+  renderActivity()
+  const actTimer = setInterval(renderActivity, 600)
   const maxRuntimeMs = S.cfg.agentTimeoutMs ?? CONFIG.agentTimeoutMs
   let runtimeTimer = null
   try {
@@ -196,7 +214,8 @@ ${langRule}`)
         agent,
         prompt,
         cwd,
-        command: resolvedCommand || undefined,
+        command: command || undefined,   // user override only; else the bridge resolves exe + permission-tier flags
+        permission: perm,                 // cautious | standard | trusted → REAL CLI enforcement (bridge AGENTS.flags)
         timeoutMs: maxRuntimeMs
       })
     })
@@ -218,6 +237,7 @@ ${langRule}`)
         handleMsg(msg)
       }
     }
+    clearInterval(actTimer)   // stop the live activity view before rendering the result
 
     S.lastResp = collected
     if (sawError || exitCode) {
@@ -227,16 +247,19 @@ ${langRule}`)
     } else if (mode === 'suggest') {
       // Suggest: the agent should only advise. But the CLI *can* edit files; if it
       // did so despite the instruction, don't lie — refresh, show the changes, revert.
-      let review = null
-      if (reviewable) {
-        try { review = await fetch(`/api/git/diff?${new URLSearchParams({ cwd })}`).then(r => r.json()) } catch {}
-      }
-      if (review?.available && review.hasChanges) {
+      // A FAILED diff read must surface as a warning, never as a false "no changes".
+      const review = reviewable ? await fetchAgentDiff(cwd) : { state: 'unavailable' }
+      if (review.state === 'changes') {
         await refreshFromDisk()
         resp.className = ''
         resp.innerHTML = `<div class="diff-head">⚠ Suggest mode — but the agent edited files anyway. Revert if unwanted.</div>` + renderDiff(review.diff, 'direct')
         S._pendingReview = { cwd, message: userTask }
         showDiffActions(true, 'direct')
+      } else if (review.state === 'error') {
+        resp.className = 'warn'
+        resp.textContent = (collected.trim() ? collected.trim() + '\n\n' : '') +
+          '⚠ Suggest mode — but couldn’t read the diff to confirm the agent left files untouched. Check the workspace manually.'
+        showDiffActions(false)
       } else {
         resp.className = ''
         resp.textContent = collected.trim() || '✓ Done — the agent returned no text.'
@@ -245,23 +268,28 @@ ${langRule}`)
     } else {
       resp.innerHTML = '<span class="spinner"></span> Refreshing files…'
       await refreshFromDisk()
-      if (reviewable) {
-        let review = null
-        try { review = await fetch(`/api/git/diff?${new URLSearchParams({ cwd })}`).then(r => r.json()) } catch {}
-        if (review?.available && review.hasChanges) {
+      if (!reviewable) {
+        resp.className = ''
+        resp.textContent = '✓ Done. Files refreshed. (git unavailable → no diff review)'
+        showDiffActions(false)
+      } else {
+        const review = await fetchAgentDiff(cwd)
+        if (review.state === 'changes') {
           resp.className = ''
           resp.innerHTML = renderDiff(review.diff, mode)
           S._pendingReview = { cwd, message: userTask }
           showDiffActions(true, mode)
+        } else if (review.state === 'error') {
+          // Diff READ failed — the agent may well have changed files. Warn instead of
+          // the old silent "no file changes" false negative (PatchMD honesty).
+          resp.className = 'warn'
+          resp.textContent = '⚠ Couldn’t load the diff to review — the agent may have changed files. Verify manually (file tree / git status) before assuming nothing changed.'
+          showDiffActions(false)
         } else {
           resp.className = ''
           resp.textContent = '✓ Done — the agent made no file changes.'
           showDiffActions(false)
         }
-      } else {
-        resp.className = ''
-        resp.textContent = '✓ Done. Files refreshed. (git unavailable → no diff review)'
-        showDiffActions(false)
       }
     }
     if (!S.cfg.agentQuiet && mode !== 'suggest' && collected.trim()) {
@@ -283,6 +311,7 @@ ${langRule}`)
     await monitor(stopped ? 'agent:run:stopped' : 'agent:run:error', { agent, cwd, error: String(e?.message || e), runtimeMs: Date.now() - startedAt })
   } finally {
     if (runtimeTimer) clearTimeout(runtimeTimer)
+    clearInterval(actTimer)
     S.agentRunning = false
     S.agentAbort = null
     if (stopBtn) stopBtn.disabled = true
@@ -294,6 +323,12 @@ ${langRule}`)
       case 'stdout':
       case 'stderr':
         collected += msg.data
+        for (const ln of String(msg.data).split('\n')) {
+          if (!ln.trim()) continue
+          actLines.push(ln.length > 200 ? ln.slice(0, 200) + '…' : ln)
+          actCount++
+        }
+        if (actLines.length > ACT_TAIL) actLines = actLines.slice(-ACT_TAIL)
         break
       case 'error':
         sawError = true
@@ -328,19 +363,28 @@ function showDiffActions(show, mode = 'patch') {
 }
 
 function renderDiff(diff, mode = 'patch') {
-  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
-  const body = (diff || '').split('\n').map(l => {
-    let cls = 'd-ctx'
-    if (l.startsWith('+++') || l.startsWith('---') || l.startsWith('diff ') || l.startsWith('index ')) cls = 'd-hdr'
-    else if (l.startsWith('@@')) cls = 'd-hunk'
-    else if (l.startsWith('+')) cls = 'd-add'
-    else if (l.startsWith('-')) cls = 'd-del'
-    return `<span class="${cls}">${esc(l) || ' '}</span>`
-  }).join('\n')
   const head = mode === 'direct'
     ? "The agent's changes are applied — Revert to undo, or just keep them."
     : "Review the agent's changes — Accept to keep (commit), Reject to discard."
-  return `<div class="diff-head">${head}</div><pre class="diff">${body}</pre>`
+  return `<div class="diff-head">${head}</div>${renderDiffHTML(diff)}`
+}
+
+// Fetch the post-run diff and classify the outcome so a FAILED read is never reported
+// as "no changes" (the old silent catch → false negative). States:
+//   changes     — staged edits vs the pre-agent baseline (review them)
+//   clean       — git readable, genuinely nothing changed
+//   unavailable — not a git repo / git off → no diff review possible
+//   error       — the diff request itself failed → warn, do NOT claim "no changes"
+async function fetchAgentDiff(cwd) {
+  let r
+  try { r = await fetch(`/api/git/diff?${new URLSearchParams({ cwd })}`) }
+  catch (e) { return { state: 'error', error: String(e?.message || e) } }
+  if (!r.ok) return { state: 'error', error: `diff HTTP ${r.status}` }
+  let review
+  try { review = await r.json() } catch { return { state: 'error', error: 'diff parse failed' } }
+  if (!review || review.available === false) return { state: 'unavailable' }
+  if (review.hasChanges) return { state: 'changes', diff: review.diff }
+  return { state: 'clean' }
 }
 
 export async function acceptReview() {

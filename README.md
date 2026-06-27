@@ -15,7 +15,10 @@ It is the editor half of **EveGlyph-MD**, a semantic-first Markdown format/proto
 - **Workspace** — file tree, tabs, and a folder browser; open via the browser File System Access API (picker) or the local bridge (absolute path).
 - **Encoding-aware** — detects a file's encoding (`jschardet`) and preserves it on save (`iconv-lite`: Big5 / GBK / Shift-JIS / …). A per-file status-bar menu (for bridge-opened files) lets you re-read or convert; a **Settings → Default encoding** acts as the fallback when detection is uncertain and the encoding for new files.
 - **AI providers** — Anthropic (Claude), any OpenAI-compatible endpoint, or a **local CLI agent** (Claude Code / Codex / Gemini).
-- **Diff-first agent review (PatchMD)** — before an agent runs, the workspace is git-snapshotted; afterwards you review a real diff and **Accept** (commit) or **Reject** (revert).
+- **Diff-first agent review (PatchMD)** — before an agent runs, the workspace is git-snapshotted; afterwards you review a real diff — grouped into **per-file cards with +/− counts** — and **Accept** (commit) or **Reject** (revert). A live activity panel shows the agent working.
+- **Permission tiers** — *Cautious* / *Standard* / *Trusted* map to **real CLI enforcement** (Claude Code tool allow-lists, Codex sandbox levels, Gemini approval modes), not just prompt text.
+- **EveGlyph-MD frontmatter** — a lightweight `type` / `status` / `tags` classification with a status-bar chip and preview badges; the active document's class is handed to the agent as sanitized, non-instruction metadata.
+- **Workspace memory (`.eveglyph/`)** — per-workspace `rules.md` / `glossary.md` / `memory/*` injected into every agent run; a back-stage **Monitor** tab reads the diagnostic stream.
 
 ## Quick start
 
@@ -31,6 +34,8 @@ npm run dev
 ```
 
 Then open <http://localhost:5173>.
+
+> First time? **Open Folder → `examples/`** for a ready-made workspace — sample EveGlyph-MD docs plus a starter `.eveglyph/` operating manual.
 
 > Requires [Node.js](https://nodejs.org/) (18+). The dev server binds to `localhost` only — **don't run it with `--host`** (which exposes the bridge to your LAN) on an untrusted network.
 
@@ -60,7 +65,7 @@ Read **[SECURITY.md](SECURITY.md)** for the full trust model — localhost gatin
 
 ## Status
 
-**v0.3.0** — local prototype, pre-1.0. `EG-MD-2026`. Built by Neo.K under **EveMissLab**.
+**v0.4.0** — local prototype, pre-1.0. `EG-MD-2026`. Built by Neo.K under **EveMissLab**.
 
 ## 關於本專案 (About & License)
 

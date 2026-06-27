@@ -1,6 +1,6 @@
 {
   "name": "eveglyph-editor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Local-first, AI-native Markdown editor and agentic document workspace — humans write clean Markdown, local CLI agents edit on disk, every change lands as a reviewable git diff. EveGlyph-MD · EG-MD-2026.",
   "author": "Neo.K (許筌崴) · EveMissLab (一言諾科技有限公司) <kakon77777@evemisslab.com>",
   "license": "MIT",

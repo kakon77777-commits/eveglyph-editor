@@ -1,7 +1,7 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-06-18.
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-06-27.
 
 ## What this is
 
@@ -11,7 +11,7 @@ loop** — humans write clean Markdown, local CLI agents edit files on disk, eve
 change surfaces as a reviewable git diff. Front-stage minimal, back-stage strong.
 
 Stack: vanilla ES-module frontend + CodeMirror 6, talking to a dev-only Vite plugin
-bridge (`vite-agent-bridge.js`) over localhost-gated HTTP/NDJSON. ~17 `src/` modules.
+bridge (`vite-agent-bridge.js`) over localhost-gated HTTP/NDJSON. ~22 `src/` modules.
 
 ## Milestones
 
@@ -21,7 +21,31 @@ bridge (`vite-agent-bridge.js`) over localhost-gated HTTP/NDJSON. ~17 `src/` mod
   origin/CSRF guard, monitor rotation, encoding (detect + per-file menu + Settings
   default soft-fallback), internal `cogniflow`→`eveglyph` rename, PatchMD git
   diff-review, in-file find/replace, README + SECURITY (fact-checked).
-- **v0.3 — agent-native workspace** [in progress] (the main line + front-stage UX).
+- **v0.3 — agent-native workspace** [shipped] (`0.3.0`). The main line + front-stage UX.
+- **v0.4 — review UX + real enforcement** [shipped] (`0.4.0`, 2026-06-27). See below.
+
+## v0.4 — shipped (2026-06-27)
+
+The "0.4-lite" line — decoupled from the Tauri desktop rewrite, which stays the real v0.4
+headline on the roadmap. Shipped today:
+
+- **Bug-fix + cleanup batch** — `.eveglyph/memory/pitfalls.md` path corrected; a failed
+  diff-read now surfaces a warning instead of a false "no changes" (`fetchAgentDiff`);
+  whole-word regex search groups the pattern (`\b(?:…)\b`); the agent output stream uses a
+  stateful UTF-8 decoder (fixes CJK mojibake from chunk-split sequences); dead `persistKeys`
+  removed; stale config tags + mojibake comments fixed; Ctrl+F coheres (CodeMirror in-file
+  search inside the editor, the workspace Find panel elsewhere).
+- **Diff-review UX** (`src/diffview.js`) — one shared renderer for the agent panel and
+  replace-all: a unified diff grouped into per-file cards with +/− counts, collapsible,
+  fully escaped (untrusted agent/git output).
+- **Real permission tiers** — Cautious / Standard / Trusted now flow to the bridge and map
+  to actual CLI flags (Claude `--permission-mode` + tool allow-list, Codex `--sandbox` /
+  bypass, Gemini `--approval-mode`), not just a prompt clause.
+- **Live agent activity panel** — a transient "working…" view streams the agent's output
+  tail (respecting the quiet setting), replaced by the diff on completion.
+- **Onboarding + `examples/` workspace** — a three-step empty state, plus a bundled sample
+  workspace (EveGlyph-MD docs + a starter `.eveglyph/`) so a fresh clone has something to
+  open immediately.
 
 ## v0.3 — completed
 
@@ -92,9 +116,8 @@ bridge rewrite, decide after v0.3 is stable).
 already gitignored, so no NOTICE file gates publication). The one true gate is scrubbing
 internal strategy memos before the first public commit.
 
-**BLOCKER — DONE.** The three internal strategy memos (`當前開發狀態_v0.3`, `補充建議備忘錄`,
-`novel-agent_參考提取備忘`) were deleted by Neo.K. (The whitepaper was also removed; the
-broken README reference to it was fixed.)
+**BLOCKER — DONE.** The internal strategy memos were removed before the first public
+commit. (The draft whitepaper was also removed; the broken README reference to it was fixed.)
 
 **SHOULD-FIX — DONE 2026-06-18:**
 - **Bridge `cwd` hardening** — `vite-agent-bridge.js` now pins one `confirmedWorkspace`

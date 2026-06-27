@@ -52,6 +52,20 @@ export function applyTheme(theme) {
   document.documentElement.classList.toggle('theme-light', theme === 'light')
 }
 
+// Open the right-panel "Find in files" navigator and focus it, prefilling a
+// single-line editor selection. (CodeMirror's own Ctrl+F handles in-FILE search when
+// the editor is focused; this is the workspace-scope navigator for every other state.)
+function openSearchPanel() {
+  document.querySelector('.ptab[data-t="search"]')?.click()
+  const si = document.getElementById('search-input')
+  if (!si) return
+  const sel = S.editor ? S.editor.state.sliceDoc(S.editor.state.selection.main.from, S.editor.state.selection.main.to) : ''
+  if (sel && !sel.includes('\n')) si.value = sel
+  si.focus(); si.select()
+  monitor('hotkey', { target: 'search-panel' })
+  if (si.value.trim()) runSearch()
+}
+
 // ─── BIND ─────────────────────────────────────────────────────────
 function bindAll() {
   // Status bar
@@ -230,6 +244,14 @@ function bindAll() {
   // Global keys
   document.addEventListener('keydown', e => {
     if (e.ctrlKey && e.key==='s') { e.preventDefault(); monitor('hotkey', { target: 'save-file', active: S.active || null }); saveFile() }
+    // Ctrl+F: inside the editor → CodeMirror's own in-file search/replace (basicSetup
+    // searchKeymap). Anywhere else (empty state, preview, panels) → the app's
+    // workspace "Find in files" panel, so the key always does something.
+    if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) {
+      if (document.activeElement?.closest?.('#editor-container')) return   // let CodeMirror handle it
+      e.preventDefault()
+      openSearchPanel()
+    }
   })
 }
 
