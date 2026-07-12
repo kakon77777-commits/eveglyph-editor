@@ -26,6 +26,46 @@ bridge (`vite-agent-bridge.js`) over localhost-gated HTTP/NDJSON. ~22 `src/` mod
 - **v0.5 — AIMD / Cogni-Flow computable math** [in progress]. Phases 1–3 (syntax,
   two-tier compute, real mount/unmount) landed 2026-07-12, unreleased. See below.
 
+## AI semantic search (whitepaper §12.2, 2026-07-12)
+
+Long-noted gap closed: `search.js`'s header comment had said "AI semantic search is
+a separate future track, §12.2" since v0.3 — now built, as a genuinely separate mode
+(not blended into the exact/regex navigator, which stays deliberately non-AI per
+§5.2/§12.1's "human-owned" framing).
+
+- **Design**: no dedicated embeddings index — one-shot, reuses the cloud AI provider
+  already configured in Settings (Anthropic or OpenAI-compatible). The corpus (current
+  file, or as many workspace files as fit) is sent as plain prompt context; the model
+  is asked to return a strict JSON array of `{file, snippet, reason}`, where `snippet`
+  must be an exact verbatim quote (used afterward to locate the passage for
+  click-to-jump via a plain `indexOf`). Capped at `CONFIG.aiSearch.maxContextChars`
+  (60k chars, ~15k tokens) — if the workspace is bigger, an honest "only searched N
+  files" note shows instead of silently missing the rest.
+- **Refactor**: `ai.js`'s `aiCall()` (the AI panel's send button) was tightly coupled
+  to the `#ai-resp` DOM. Extracted the actual Anthropic/OpenAI fetch logic into a new
+  `callAiProvider(prompt)` that just returns text — `aiCall()` now wraps it for the
+  panel, and `aisearch.js` calls it directly. No behavior change for the existing AI
+  panel (verified — same responses, same error handling).
+- **New**: `src/aisearch.js`, a `✨ AI` mode next to `🔍 Exact` in the Search tab
+  (`.smtab` mode-toggle, reusing the `.ptab` tab-switching visual language). Clear
+  errors when the provider is Local Agent (different call shape — spawn+stdin, not
+  chat-completion) or no API key is set, rather than a confusing failure.
+- **Verified end-to-end**, including the parts that don't need a real API key:
+  mode toggle switches panels correctly; local-agent/no-key error paths show the
+  right message; workspace-scope corpus assembly correctly gathers multiple files
+  under the char cap. The actual provider round-trip was verified by mocking
+  `fetch` to intercept the exact Anthropic/OpenAI request URLs and return a
+  realistic canned response shaped like each provider's real API — this exercises
+  the REAL `callAiProvider` code path (request building, response parsing) without
+  needing real credentials. Confirmed: a normal JSON response renders and its
+  result correctly jumps to the exact snippet in the editor (verified via the
+  actual CodeMirror selection, not just the DOM); a response wrapped in
+  ` ```json ` fences (common model behavior despite being told not to) still
+  parses correctly; an empty-array response shows "No relevant passages found."
+  honestly; both Anthropic and OpenAI-compatible branches tested. Regression-
+  checked: exact search still works after the HTML restructuring (mode tabs
+  wrapping both panels). Zero console/server errors throughout.
+
 ## In-app docs (2026-07-12)
 
 Long-standing gap, finally closed: there was no human-visible way to tell what

@@ -53,10 +53,22 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
 ## Search
 
 `Ctrl+F` opens CodeMirror's in-editor search for the current file. The **🔍** tab
-is a separate, broader tool: exact string or regex, current file or the whole
-workspace, with a results list you can click through. Replace works the same way —
-in-file replacements are a normal `Ctrl+Z`-undoable edit; workspace-wide replace
-snapshots to git first, so **Revert** always gets you back to where you started.
+is a separate, broader tool with two modes:
+
+- **🔍 Exact** — string or regex, current file or the whole workspace, with a
+  results list you can click through. Replace works the same way — in-file
+  replacements are a normal `Ctrl+Z`-undoable edit; workspace-wide replace
+  snapshots to git first, so **Revert** always gets you back to where you
+  started. This mode is plain and predictable on purpose — no AI involved.
+- **✨ AI** — ask a plain-language question ("where do we handle authentication?")
+  instead of matching exact text. Sends the current file (or, for workspace
+  scope, as many files as fit under a size cap) to whichever cloud AI provider is
+  set in Settings, and asks it to rank and quote the most relevant passages with
+  a short reason each. Click a result to jump to it. Needs Anthropic or an
+  OpenAI-compatible provider (not Local Agent — that's a different call shape);
+  results are AI-ranked, not exact, and a workspace larger than the one-shot size
+  cap gets an honest "only searched N files" note rather than silently missing
+  the rest.
 
 ## AI
 

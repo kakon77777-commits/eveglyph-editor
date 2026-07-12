@@ -2,7 +2,8 @@
 // A visible, human-owned navigator — NOT AI. Whitepaper §5.2 / §12.1: the
 // editor's eyes. Exact string/regex/case/whole-word search over the current file
 // or the whole workspace, with a results list and click-to-jump. (AI semantic
-// search is a separate future track, §12.2.)
+// search, §12.2, is a deliberately separate mode — see aisearch.js — not blended
+// into this one.)
 import { S }                 from './state.js'
 import { CONFIG }            from './config.js'
 import { editorGet, editorGoToMatch, editorSet, editorReplaceRange } from './editor.js'

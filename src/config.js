@@ -101,6 +101,17 @@ export const CONFIG = {
     snippetMaxChars: 240,                                 // [tunable] result snippet truncation
   },
 
+  // ── AI semantic search (whitepaper §12.2) ──
+  // A second, clearly-separate search mode from the exact/regex one above (§5.2/
+  // §12.1's "human-owned navigator, NOT AI") — natural-language queries answered by
+  // the already-configured cloud provider (Anthropic/OpenAI), not a dedicated
+  // embeddings index. One-shot: the corpus is sent as plain context in the prompt,
+  // so it's bounded by maxContextChars, not indexed/cached.
+  aiSearch: {
+    maxContextChars: 60000,                               // [tunable] corpus cap sent in one request (~15k tokens, comfortable for both providers)
+    snippetMaxChars: 200,                                 // [tunable] result snippet truncation
+  },
+
   // ── Monitor viewer (reads back the PHOSPHOR diagnostic stream) ──
   monitorView: {
     enabled: true,                                        // [flag] show the Log panel tab

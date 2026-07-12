@@ -358,7 +358,22 @@ html, body {
 .preset-sep { font-size:9px; color:var(--t3); text-transform:uppercase; letter-spacing:.4px; margin:5px 0 1px; }
 .preset-sep:first-child { margin-top:0; }
 
-#search-input, #search-replace { width:100%; padding:7px 8px; margin-bottom:4px; background:var(--bg-2); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t0); font-size:12px; font-family:var(--fu); box-sizing:border-box; }
+#search-input, #search-replace, #aisearch-input { width:100%; padding:7px 8px; margin-bottom:4px; background:var(--bg-2); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t0); font-size:12px; font-family:var(--fu); box-sizing:border-box; }
+
+/* Search mode toggle (Exact / AI) + panel switching, inside the 🔍 tab */
+.search-mode-tabs { display:flex; gap:4px; margin:-12px -12px 4px; padding:6px 8px 0; border-bottom:1px solid var(--bdr); flex-shrink:0; }
+.smtab { padding:5px 10px; background:none; border:none; color:var(--t2); cursor:pointer; font-size:11px; font-family:var(--fu); border-bottom:2px solid transparent; }
+.smtab:hover { color:var(--t1); }
+.smtab.active { color:var(--ac); border-bottom-color:var(--ac); }
+.search-mode-panel { display:none; flex-direction:column; gap:12px; }
+.search-mode-panel.active { display:flex; }
+
+/* AI semantic search results — reuses .search-count/.search-empty/.search-file */
+.aisearch-hit { display:flex; flex-direction:column; gap:2px; padding:6px 8px; border-radius:var(--r); cursor:pointer; margin-bottom:4px; }
+.aisearch-hit:hover { background:var(--surf-h); }
+.aisearch-hit .search-file { margin:0; }
+.aisearch-hit .search-snip { white-space:normal; font-family:var(--fm); font-size:10.5px; color:var(--t1); background:var(--bg-0); padding:4px 6px; border-radius:var(--r); border:1px solid var(--bdr); }
+.aisearch-reason { font-size:10.5px; color:var(--t2); font-style:italic; }
 .search-hit { position:relative; }
 .search-rep { flex:none; visibility:hidden; padding:0 5px; background:var(--surf-a); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t1); cursor:pointer; font-size:10px; }
 .search-hit:hover .search-rep { visibility:visible; }

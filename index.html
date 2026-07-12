@@ -112,24 +112,46 @@
         </div>
       </div>
 
-      <!-- Search (exact, human-owned navigator — §12.1) -->
+      <!-- Search: exact (human-owned navigator — §12.1) + AI semantic (§12.2), kept
+           as two clearly-separate modes, not blended. -->
       <div id="t-search" class="tcontent">
-        <div class="ai-sec">
-          <label>Find in files <span style="color:var(--t3)">(Enter)</span></label>
-          <input type="text" id="search-input" placeholder="Search text or regex…">
-          <input type="text" id="search-replace" placeholder="Replace with… (empty = delete)">
-          <div class="search-opts">
-            <label title="Case sensitive"><input type="checkbox" id="search-case"> Aa</label>
-            <label title="Whole word"><input type="checkbox" id="search-word"> W</label>
-            <label title="Regular expression"><input type="checkbox" id="search-regex"> .*</label>
-          </div>
-          <div class="search-scope">
-            <label><input type="radio" name="search-scope" value="file" checked> Current file</label>
-            <label><input type="radio" name="search-scope" value="workspace"> Workspace</label>
-          </div>
-          <button class="btn-s" id="btn-replace-all" style="margin-top:7px;width:100%">Replace all…</button>
+        <div class="search-mode-tabs">
+          <button class="smtab active" data-sm="exact">🔍 Exact</button>
+          <button class="smtab" data-sm="ai">✨ AI</button>
         </div>
-        <div id="search-results"></div>
+
+        <div id="search-exact" class="search-mode-panel active">
+          <div class="ai-sec">
+            <label>Find in files <span style="color:var(--t3)">(Enter)</span></label>
+            <input type="text" id="search-input" placeholder="Search text or regex…">
+            <input type="text" id="search-replace" placeholder="Replace with… (empty = delete)">
+            <div class="search-opts">
+              <label title="Case sensitive"><input type="checkbox" id="search-case"> Aa</label>
+              <label title="Whole word"><input type="checkbox" id="search-word"> W</label>
+              <label title="Regular expression"><input type="checkbox" id="search-regex"> .*</label>
+            </div>
+            <div class="search-scope">
+              <label><input type="radio" name="search-scope" value="file" checked> Current file</label>
+              <label><input type="radio" name="search-scope" value="workspace"> Workspace</label>
+            </div>
+            <button class="btn-s" id="btn-replace-all" style="margin-top:7px;width:100%">Replace all…</button>
+          </div>
+          <div id="search-results"></div>
+        </div>
+
+        <div id="search-ai" class="search-mode-panel">
+          <div class="ai-sec">
+            <label>Ask in plain language <span style="color:var(--t3)">(Enter)</span></label>
+            <input type="text" id="aisearch-input" placeholder="e.g. where do we handle authentication?">
+            <div class="search-scope">
+              <label><input type="radio" name="aisearch-scope" value="file" checked> Current file</label>
+              <label><input type="radio" name="aisearch-scope" value="workspace"> Workspace</label>
+            </div>
+            <button class="btn-p" id="btn-aisearch" style="margin-top:7px;width:100%">✨ Search</button>
+            <span style="font-size:10px;color:var(--t3)">Needs a cloud AI provider (Anthropic / OpenAI-compatible) in Settings — reads content to answer, never edits anything. Not exact: ranked by relevance, one-shot over a size-capped corpus.</span>
+          </div>
+          <div id="aisearch-results"></div>
+        </div>
       </div>
 
       <!-- Monitor (diagnostic stream — back-stage; reads eveglyph-monitor.jsonl) -->

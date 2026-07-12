@@ -16,6 +16,13 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 - **Changelog & User Guide tabs** — this changelog and a full walkthrough of the
   app are now readable inside EveGlyph Editor itself (the 📖 tab, or the link
   next to the version number).
+- **AI semantic search** — a second mode in the 🔍 tab (**✨ AI**, next to the
+  existing **🔍 Exact**), for asking a plain-language question instead of matching
+  exact text — "where do we handle authentication?" instead of guessing the exact
+  wording. Uses whichever cloud AI provider is set in Settings; ranks and quotes
+  the most relevant passages with a one-line reason, click a result to jump right
+  to it. Kept as a clearly separate mode from exact search, not blended in — exact
+  search stays a plain, predictable, non-AI tool.
 
 ### Fixed
 - A `::: note` / `::: warning` callout whose body was a single paragraph used to

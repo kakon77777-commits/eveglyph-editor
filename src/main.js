@@ -46,6 +46,7 @@ import { initDocs, openDocsSection } from './docs.js'
 import { CONFIG }                  from './config.js'
 import { createEveGlyphScaffold }    from './context.js'
 import { runSearch, replaceAll }   from './search.js'
+import { runAiSearch }             from './aisearch.js'
 import { importFiles }             from './import.js'
 
 // Toggle the app-wide light theme (CSS variables in styles.css).
@@ -140,6 +141,20 @@ function bindAll() {
   document.querySelectorAll('input[name="search-scope"]').forEach(el => { el.onchange = runSearch })
   document.getElementById('btn-replace-all').onclick = () => { monitor('click', { target: 'replace-all' }); replaceAll() }
   document.getElementById('search-replace').onkeydown = e => { if (e.key === 'Enter') { monitor('hotkey', { target: 'replace-all' }); replaceAll() } }
+
+  // Search mode toggle: Exact (default) vs AI semantic — two clearly separate
+  // panels, not blended into one UI.
+  document.querySelectorAll('.smtab').forEach(b => b.onclick = () => {
+    monitor('click', { target: 'search-mode', mode: b.dataset.sm })
+    document.querySelectorAll('.smtab').forEach(x => x.classList.remove('active'))
+    document.querySelectorAll('.search-mode-panel').forEach(x => x.classList.remove('active'))
+    b.classList.add('active')
+    document.getElementById(`search-${b.dataset.sm}`).classList.add('active')
+  })
+
+  // AI semantic search (§12.2)
+  document.getElementById('btn-aisearch').onclick = () => { monitor('click', { target: 'ai-search' }); runAiSearch() }
+  document.getElementById('aisearch-input').onkeydown = e => { if (e.key === 'Enter') { monitor('hotkey', { target: 'ai-search' }); runAiSearch() } }
 
   // Settings
   document.getElementById('s-provider').onchange = e => {

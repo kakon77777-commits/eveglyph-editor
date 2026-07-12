@@ -160,6 +160,65 @@ export async function aiPreset(key) {
   await aiCall(p.build(txt))
 }
 
+// The actual provider call, decoupled from the AI-panel DOM — aiCall() below wraps
+// this for the panel; anything else that just needs "ask the configured cloud
+// provider a question, get text back" (e.g. AI semantic search) calls this directly
+// instead of duplicating the Anthropic/OpenAI branches.
+export async function callAiProvider(prompt) {
+  const { provider, url, key, model } = S.cfg
+  await monitor('ai:call:start', { provider, model, promptBytes: prompt.length })
+
+  if (provider === 'anthropic') {
+    const r = await fetch(CONFIG.anthropicUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': CONFIG.anthropicVersion,
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: model || CONFIG.model,
+        max_tokens: CONFIG.maxTokens,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    })
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}))
+      throw new Error(e.error?.message || `HTTP ${r.status}`)
+    }
+    const d = await r.json()
+    // A safety decline returns HTTP 200 with an empty content array — surface it
+    // instead of silently showing a blank response.
+    const text = d.stop_reason === 'refusal'
+      ? `[Request declined by the model's safety system${d.stop_details?.category ? ` — ${d.stop_details.category}` : ''}.]`
+      : (d.content?.[0]?.text ?? '')
+    await monitor('ai:call:success', { provider, bytes: text.length })
+    return text
+  }
+
+  const base = url.replace(/\/$/, '') || CONFIG.openaiUrlFallback
+  const r = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key || 'no-key'}`
+    },
+    body: JSON.stringify({
+      model: model || 'gpt-4',
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}))
+    throw new Error(e.error?.message || `HTTP ${r.status}`)   // surface the provider's message, not just the code
+  }
+  const d = await r.json()
+  const text = d.choices?.[0]?.message?.content ?? ''
+  await monitor('ai:call:success', { provider, bytes: text.length })
+  return text
+}
+
 export async function aiCall(prompt) {
   const wrap = document.getElementById('ai-resp-wrap')
   const resp = document.getElementById('ai-resp')
@@ -168,66 +227,14 @@ export async function aiCall(prompt) {
   resp.innerHTML = '<span class="spinner"></span> Calling AI...'
   S.lastResp = null
 
-  const { provider, url, key, model } = S.cfg
-  await monitor('ai:call:start', { provider, model, promptBytes: prompt.length })
-
   try {
-    let text = ''
-    if (provider === 'anthropic') {
-      const r = await fetch(CONFIG.anthropicUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': CONFIG.anthropicVersion,
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: model || CONFIG.model,
-          max_tokens: CONFIG.maxTokens,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      })
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}))
-        throw new Error(e.error?.message || `HTTP ${r.status}`)
-      }
-      const d = await r.json()
-      // A safety decline returns HTTP 200 with an empty content array — surface it
-      // instead of silently showing a blank response.
-      if (d.stop_reason === 'refusal') {
-        text = `[Request declined by the model's safety system${d.stop_details?.category ? ` — ${d.stop_details.category}` : ''}.]`
-      } else {
-        text = d.content?.[0]?.text ?? ''
-      }
-    } else {
-      const base = url.replace(/\/$/, '') || CONFIG.openaiUrlFallback
-      const r = await fetch(`${base}/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key || 'no-key'}`
-        },
-        body: JSON.stringify({
-          model: model || 'gpt-4',
-          messages: [{ role: 'user', content: prompt }]
-        })
-      })
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}))
-        throw new Error(e.error?.message || `HTTP ${r.status}`)   // surface the provider's message, not just the code
-      }
-      const d = await r.json()
-      text = d.choices?.[0]?.message?.content ?? ''
-    }
-
+    const text = await callAiProvider(prompt)
     S.lastResp = text
     resp.textContent = text
     resp.className = ''
-    await monitor('ai:call:success', { provider, bytes: text.length })
   } catch (e) {
     resp.textContent = `Error: ${e.message}\n\nCheck Settings, API key, and provider.`
     resp.className = 'err'
-    await monitor('ai:call:error', { provider, error: String(e?.message || e) })
+    await monitor('ai:call:error', { provider: S.cfg.provider, error: String(e?.message || e) })
   }
 }
