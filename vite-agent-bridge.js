@@ -93,6 +93,187 @@ function assertWorkspace(cwd) {
   return abs
 }
 
+// ── AIMD Phase 2 — two-tier compute (whitepaper v0.5 §4.6) ──
+// Tier 1, "formula": a spreadsheet-style expression grammar (Excel-familiar function
+// names) evaluated by a small hand-rolled tokenizer + recursive-descent parser/
+// evaluator. A document (including one an auto-approve agent wrote) can carry an
+// `expr="..."` on any Logic_Node, so this text is UNTRUSTED input — never eval()/
+// Function()/shell out on it; the closed grammar below means the worst a malformed
+// expression can do is throw a parse error. Available to every permission tier.
+//
+// Tier 2, "formal" (lean4/coq/python): real formal verification / symbolic CAS —
+// intentionally NOT wired here. Requires the Trusted permission tier just to attempt
+// (checked in the /api/compute handler below), and even at Trusted it currently
+// reports "not wired yet" — the actual subprocess sandboxing policy (isolation,
+// timeouts, resource limits) is a product decision, not something to slip in
+// silently just because the permission check passed.
+const AIMD_CONSTANTS = { pi: Math.PI, e: Math.E }
+
+// Zero/one/two-arg functions — evaluated eagerly, args pre-reduced to numbers.
+const AIMD_FUNCTIONS = {
+  sin: Math.sin, cos: Math.cos, tan: Math.tan,
+  asin: Math.asin, acos: Math.acos, atan: Math.atan,
+  sqrt: Math.sqrt, ln: Math.log, log: Math.log10, abs: Math.abs, exp: Math.exp,
+  power: (x, y) => Math.pow(x, y),
+  mod: (x, y) => x % y,
+  round: (x, digits = 0) => { const f = Math.pow(10, digits); return Math.round(x * f) / f },
+  pi: () => Math.PI,   // Excel-style PI() alongside the bare `pi` constant
+}
+
+function aimdTokenize(src) {
+  const toks = []
+  // Longest-match-first so `<=`/`>=`/`<>` aren't sliced into `<`/`=`.
+  const re = /\s*(<>|>=|<=|=|<|>|[+\-*/^(),]|[A-Za-z_][A-Za-z0-9_]*|\d+\.?\d*|\.\d+)/y
+  let i = 0
+  while (i < src.length) {
+    re.lastIndex = i
+    const m = re.exec(src)
+    if (!m || m[0].length === 0) throw new Error(`unrecognized character at position ${i}: "${src[i]}"`)
+    toks.push(m[1])
+    i += m[0].length
+  }
+  return toks
+}
+
+const COMPARE_OPS = new Set(['=', '<>', '>', '<', '>=', '<='])
+
+function aimdParse(tokens) {
+  let pos = 0
+  const peek = () => tokens[pos]
+  const next = () => tokens[pos++]
+
+  function parseCompare() {
+    const lhs = parseAdd()
+    if (COMPARE_OPS.has(peek())) { const op = next(); return { op, lhs, rhs: parseAdd() } }
+    return lhs
+  }
+  function parseAdd() {
+    let node = parseMul()
+    while (peek() === '+' || peek() === '-') { const op = next(); node = { op, lhs: node, rhs: parseMul() } }
+    return node
+  }
+  function parseMul() {
+    let node = parsePow()
+    while (peek() === '*' || peek() === '/') { const op = next(); node = { op, lhs: node, rhs: parsePow() } }
+    return node
+  }
+  function parsePow() {
+    const node = parseUnary()
+    if (peek() === '^') { next(); return { op: '^', lhs: node, rhs: parsePow() } }   // right-assoc
+    return node
+  }
+  function parseUnary() {
+    if (peek() === '-') { next(); return { op: 'neg', arg: parseUnary() } }
+    return parsePrimary()
+  }
+  function parsePrimary() {
+    const t = next()
+    if (t === undefined) throw new Error('unexpected end of expression')
+    if (t === '(') {
+      const node = parseCompare()   // a parenthesized group may itself be a comparison, e.g. IF((3>2), 1, 0)
+      if (next() !== ')') throw new Error('expected ")"')
+      return node
+    }
+    if (/^\d/.test(t) || t.startsWith('.')) return { op: 'num', value: Number(t) }
+    if (/^[A-Za-z_]/.test(t)) {
+      if (peek() === '(') {
+        next()
+        const args = []
+        if (peek() !== ')') {
+          args.push(parseCompare())   // args may be comparisons too, e.g. SUM(3>2, 4)
+          while (peek() === ',') { next(); args.push(parseCompare()) }
+        }
+        if (next() !== ')') throw new Error('expected ")"')
+        return { op: 'call', name: t.toLowerCase(), args }
+      }
+      return { op: 'ident', name: t.toLowerCase() }
+    }
+    throw new Error(`unexpected token "${t}"`)
+  }
+
+  const tree = parseCompare()
+  if (pos !== tokens.length) throw new Error(`unexpected trailing token "${tokens[pos]}"`)
+  return tree
+}
+
+const toNum  = (v) => typeof v === 'boolean' ? (v ? 1 : 0) : v
+const toBool = (v) => typeof v === 'boolean' ? v : (Number.isFinite(v) && v !== 0)
+
+// Returns a number or a boolean (comparisons/AND/OR/NOT/IF-condition are boolean;
+// everything else is numeric) — never a string; text Excel functions (CONCATENATE,
+// TEXT, LEFT/RIGHT, …) are a deliberate scope cut, not built in this pass.
+function aimdEval(node) {
+  switch (node.op) {
+    case 'num': return node.value
+    case 'ident': {
+      if (node.name in AIMD_CONSTANTS) return AIMD_CONSTANTS[node.name]
+      throw new Error(`unknown identifier "${node.name}" — only pi/e are supported (this expression may need Tier 2 formal verification, not the Tier 1 formula evaluator)`)
+    }
+    case 'neg': return -toNum(aimdEval(node.arg))
+    case '+': return toNum(aimdEval(node.lhs)) + toNum(aimdEval(node.rhs))
+    case '-': return toNum(aimdEval(node.lhs)) - toNum(aimdEval(node.rhs))
+    case '*': return toNum(aimdEval(node.lhs)) * toNum(aimdEval(node.rhs))
+    case '/': return toNum(aimdEval(node.lhs)) / toNum(aimdEval(node.rhs))
+    case '^': return Math.pow(toNum(aimdEval(node.lhs)), toNum(aimdEval(node.rhs)))
+    case '=': case '<>': {
+      const lhs = toNum(aimdEval(node.lhs)), rhs = toNum(aimdEval(node.rhs))
+      const scale = Math.max(1, Math.abs(lhs), Math.abs(rhs))
+      const eq = Math.abs(lhs - rhs) / scale < 1e-9
+      return node.op === '=' ? eq : !eq
+    }
+    case '>':  return toNum(aimdEval(node.lhs)) >  toNum(aimdEval(node.rhs))
+    case '<':  return toNum(aimdEval(node.lhs)) <  toNum(aimdEval(node.rhs))
+    case '>=': return toNum(aimdEval(node.lhs)) >= toNum(aimdEval(node.rhs))
+    case '<=': return toNum(aimdEval(node.lhs)) <= toNum(aimdEval(node.rhs))
+    case 'call': return aimdCall(node.name, node.args)
+    default: throw new Error(`internal: unhandled node "${node.op}"`)
+  }
+}
+
+function aimdCall(name, argNodes) {
+  // IF/AND/OR/NOT get the raw AST nodes so they can short-circuit (skip evaluating
+  // the branch/operand that doesn't matter) instead of eagerly running every arg —
+  // real Excel semantics, and avoids e.g. evaluating a division-by-zero branch that
+  // IF() was specifically written to guard against.
+  if (name === 'if') {
+    if (argNodes.length !== 3) throw new Error('IF expects exactly 3 arguments: IF(condition, then, else)')
+    return toBool(aimdEval(argNodes[0])) ? aimdEval(argNodes[1]) : aimdEval(argNodes[2])
+  }
+  if (name === 'and') return argNodes.every(n => toBool(aimdEval(n)))
+  if (name === 'or')  return argNodes.some(n => toBool(aimdEval(n)))
+  if (name === 'not') {
+    if (argNodes.length !== 1) throw new Error('NOT expects exactly 1 argument')
+    return !toBool(aimdEval(argNodes[0]))
+  }
+
+  const args = argNodes.map(n => toNum(aimdEval(n)))
+  if (name === 'sum')     return args.reduce((a, b) => a + b, 0)
+  if (name === 'average') { if (!args.length) throw new Error('AVERAGE needs at least 1 argument'); return args.reduce((a, b) => a + b, 0) / args.length }
+  if (name === 'min')     { if (!args.length) throw new Error('MIN needs at least 1 argument'); return Math.min(...args) }
+  if (name === 'max')     { if (!args.length) throw new Error('MAX needs at least 1 argument'); return Math.max(...args) }
+  if (name === 'count')   return args.length
+
+  const fn = AIMD_FUNCTIONS[name]
+  if (!fn) throw new Error(`unknown function "${name.toUpperCase()}" — not in the Tier 1 formula function set`)
+  return fn(...args)
+}
+
+// Returns { state, coherence, detail } — never throws; parse/eval failures come back
+// as an honest "Unsupported" state instead of a 500 (the expression may be valid
+// symbolic math that just isn't a spreadsheet formula, e.g. the whitepaper's own
+// Maxwell's-law example — that needs Tier 2 formal verification, not this).
+function aimdCompute(expr) {
+  try {
+    const result = aimdEval(aimdParse(aimdTokenize(String(expr || ''))))
+    if (typeof result === 'boolean') {
+      return { state: result ? 'Verified' : 'Failed', coherence: result ? 1 : 0, detail: null }
+    }
+    return { state: 'Computed', coherence: result, detail: null }
+  } catch (e) {
+    return { state: 'Unsupported', coherence: null, detail: String(e?.message || e) }
+  }
+}
+
 // Keep the diagnostic stream bounded: when it exceeds the cap, roll the current
 // file to a single ".1" backup (replacing any previous one) and start fresh.
 async function rotateMonitorIfNeeded() {
@@ -696,6 +877,41 @@ export function agentBridge() {
           return
         }
         next()
+      })
+
+      // AIMD Phase 2 (whitepaper v0.5 §4.6) — compute/verify one Logic_Node's
+      // expression. Explicit-click-only from the frontend (never auto-run on
+      // render/open), workspace-gated like every other endpoint. `verifier:
+      // "internal"` runs the safe arithmetic evaluator above; any other verifier
+      // (lean4/coq/python) honestly reports "not wired yet" rather than faking a
+      // result or shelling out to an unsandboxed external interpreter.
+      server.middlewares.use('/api/compute', async (req, res, next) => {
+        if (req.method !== 'POST') return next()
+        try {
+          const body = await readJsonBody(req)
+          assertWorkspace(body.cwd || process.cwd())
+          const verifier = String(body.verifier || 'formula').toLowerCase()
+          const permission = String(body.permission || 'standard').toLowerCase()   // mirrors /api/agent's field
+          const nodeId = String(body.node_id || '')
+          const expr = String(body.expr || '')
+
+          let result
+          if (verifier === 'formula') {
+            result = aimdCompute(expr)   // Tier 1 — available at every permission tier
+          } else if (permission !== 'trusted') {
+            // Tier 2 (formal verification) needs the same elevated tier the local
+            // agent's Trusted mode uses — checked server-side, not just hidden in the UI.
+            result = { state: 'Unsupported', coherence: null, detail: `verifier "${verifier}" is Tier 2 (formal verification) — requires the Trusted permission tier (Settings ⚙ → Agent permission). Currently: ${permission}.` }
+          } else {
+            result = { state: 'Unsupported', coherence: null, detail: `verifier "${verifier}" is not wired yet — Trusted tier is satisfied, but the actual sandboxing policy (subprocess isolation, timeouts, resource limits) for shelling out to an external interpreter is still an open product decision (see whitepaper v0.5 §4.6).` }
+          }
+
+          emitMonitor('aimd:compute', { node_id: nodeId, verifier, permission, state: result.state })
+          json(res, 200, { node_id: nodeId, verifier, ...result })
+        } catch (e) {
+          emitMonitor('aimd:compute:error', { error: String(e?.message || e) })
+          json(res, 400, { error: String(e?.message || e) })
+        }
       })
 
       // Snapshot the workspace before an agent run (init repo if needed) so the

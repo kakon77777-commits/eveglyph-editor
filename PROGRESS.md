@@ -1,7 +1,7 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-06-27.
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-12.
 
 ## What this is
 
@@ -23,6 +23,161 @@ bridge (`vite-agent-bridge.js`) over localhost-gated HTTP/NDJSON. ~22 `src/` mod
   diff-review, in-file find/replace, README + SECURITY (fact-checked).
 - **v0.3 — agent-native workspace** [shipped] (`0.3.0`). The main line + front-stage UX.
 - **v0.4 — review UX + real enforcement** [shipped] (`0.4.0`, 2026-06-27). See below.
+- **v0.5 — AIMD / Cogni-Flow computable math** [in progress]. Phases 1–3 (syntax,
+  two-tier compute, real mount/unmount) landed 2026-07-12, unreleased. See below.
+
+## v0.5 — in progress (started 2026-07-12)
+
+New technical whitepaper written: `EveGlyph-Editor-Technical-Whitepaper-v0.5.md`
+(project root, **deliberately kept local/uncommitted** — same precedent as the
+original implementation whitepaper, which was pulled before the public repo's first
+commit). It reconstructs the real v0.4.0 architecture from `whitepaper §N` comments
+left in the source (the original doc itself didn't survive the Noema→EveGlyph rename),
+flags that NoemaPad v0.1's AMEP Method Pack selector was never actually built (`ai.js`
+only has 8 lightweight presets — this is an open, non-blocking decision, §3 of the new
+doc), and adds a new layer: **AIMD / Cogni-Flow Protocol**, real-time computable math
+(backend formal verification via Python/LEAN4/Coq, front-end as a lightweight
+state-tag/hash-pointer projector, on-demand DOM mount/unmount) — Neo confirmed this was
+always intended, not a new idea.
+
+**AIMD Phase 1 — landed** (syntax recognition + static collapse/expand skeleton, no
+backend yet — that's Phase 2's `/api/compute`):
+- New `::: aimd ... :::` block type in `src/preview.js` (`renderAimdBlock`), reusing
+  the existing `::: type ... :::` callout mechanism rather than inventing a new
+  top-level syntax — can't collide with ordinary prose elsewhere in a document.
+- Recognizes three node kinds: `@Key: value` meta header lines, main-trunk nodes
+  (`> [D_G=N, λ=...] text`, always rendered), status-projection nodes (`[Logic_Node:
+  ID] 狀態: X | 相干度: Y | 驗證器: Z`, rendered as a colored status-light chip —
+  green/amber/red/gray by 狀態 keyword), and `<Coupling Node: LABEL>...</Coupling>`
+  fold blocks (native `<details>`/`<summary>`, collapsed by default — this IS the
+  "on-demand realization" the whitepaper describes, purely client-side for now).
+- New styles in `src/styles.css` (`.aimd-*`, inserted after `.cfp-warning`).
+- Demo file `examples/aimd-demo.md` added to the onboarding workspace.
+- **Verified working** in the running dev app (frontmatter, trunk node, all three
+  status-light colors, and the coupling fold/expand all render correctly; zero
+  console errors) — verification was DOM-level via `javascript_tool` (dynamic
+  `import('/src/files.js')` → `loadWorkspacePath` + `openFile`, then inspecting
+  `#preview-body`), not a visual screenshot — the Browser pane's screenshot action was
+  timing out for unrelated infra reasons this session; re-attempt a real screenshot
+  next time the browser pane is available before calling this visually confirmed.
+
+**Found in passing, NOT fixed here (out of scope, flagged as a separate task
+`task_bec7b1db`):** the pre-existing generic `::: type ... :::` callout path (same
+function, the non-`aimd` branch) has a template whitespace bug — a single-paragraph
+callout body (e.g. `welcome.md`'s `::: note` / `::: warning`) renders a stray visible
+`<pre><code>&lt;/div&gt;</code></pre>` after it, because the template's own `\n` plus
+`marked.parse()`'s trailing `\n` creates a blank line that prematurely terminates
+CommonMark's raw-HTML-block recognition. Unrelated to AIMD, pre-dates this work.
+
+**AIMD Phase 2 — landed, redesigned mid-flight into two explicit tiers** (Neo's
+call, 2026-07-12: general use = spreadsheet-style formulas; formal proof
+verification = a separately-gated, higher-trust tier, not built yet):
+
+- `Logic_Node` syntax gained an optional `| expr="..."` slot: `[Logic_Node: ID |
+  expr="SUM(1,2,3,4) = 10"] 狀態: ? | 相干度: ? | 驗證器: formula`. When present, a
+  **▶ button** renders next to the status chip.
+- New `/api/compute` endpoint in `vite-agent-bridge.js`, workspace-gated like every
+  other endpoint (`assertWorkspace`), POST-only, triggered **only by an explicit
+  click** — nothing computes automatically on render or file-open (same "human
+  confirms" gate as the rest of the app).
+- **Tier 1 — `驗證器: formula`** (available at every permission tier): a hand-rolled,
+  sandboxed spreadsheet-formula evaluator (tokenizer + recursive-descent parser).
+  **No `eval`/`Function`, no shell-out** — a document's `expr` is agent-writable/
+  untrusted content, so the worst a malformed expression can do is throw a parse
+  error. Grammar: arithmetic (`+-*/^`, unary minus), comparisons (`=`/`<>`/`>`/`<`/
+  `>=`/`<=`, usable anywhere, not just top-level), `sin/cos/tan/asin/acos/atan/sqrt/
+  ln/log/abs/exp/power/mod/round`, `pi`/`e` (+ Excel-style `PI()`), and the Excel-
+  familiar aggregate/logical set `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT` (`IF`/
+  `AND`/`OR`/`NOT` short-circuit — they get the raw AST, not eagerly-evaluated args,
+  so e.g. an unchosen `IF` branch never runs). A boolean result (any comparison, or
+  anything built from one) maps to Verified/Failed; a numeric result maps to
+  "Computed" with the value as `coherence`. Text Excel functions (`CONCATENATE`,
+  `TEXT`, `LEFT`/`RIGHT`, …) are a deliberate scope cut — everything here is numeric/
+  boolean only.
+- **Tier 2 — `驗證器: lean4|coq|python`** (formal verification): gated server-side
+  behind the **Trusted** permission tier (mirrors `/api/agent`'s existing `permission`
+  field/enforcement — same field name, same client→server flow). Below Trusted:
+  honest "requires Trusted permission tier." At Trusted: still honest "not wired yet
+  — sandboxing policy (subprocess isolation/timeouts/resource limits) is still an
+  open product decision," not a fake result and not an actual unsandboxed shell-out.
+- Frontend (`src/preview.js`): `runAimdCompute()` posts `{cwd, node_id, expr,
+  verifier, permission}` (permission sourced from `S.cfg.agentPermission`, same as
+  the agent bridge) and patches the specific `.aimd-status` row in place (dot color,
+  state text, coherence text) — no full re-render needed.
+- Demo rewritten: `examples/aimd-demo.md` now demonstrates both tiers — four Tier-1
+  `expr=` nodes (plain arithmetic, `SUM`, nested `IF`+`AVERAGE`, `AND`+comparisons)
+  and one Tier-2 `lean4` node showing the permission gate.
+- **Verified end-to-end** in the running app: all four Tier-1 buttons → correct
+  Verified results (including the nested `IF(AVERAGE(...)>5,1,0)=1` and
+  `AND(3>2, 10=SUM(3,3,4))` compound expressions); the Tier-2 node at default
+  Standard permission → correctly blocked with the "requires Trusted" message;
+  switching `S.cfg.agentPermission` to `trusted` and re-clicking → correctly
+  switches to the "not wired yet" message instead. Zero console/server errors
+  throughout. (Earlier in the same session, before this two-tier redesign, the
+  Failed/Unsupported/workspace-gate-rejection paths were also individually
+  confirmed against the single-tier version — the evaluator internals changed but
+  those honesty guarantees still hold, same `aimdCompute` return contract.)
+
+**AIMD Phase 3 — landed** (real DOM mount/unmount, not just CSS show/hide):
+- A Coupling Node's `<details>` now renders **without** its body in the initial
+  markup. `wireAimdInteractions` (renamed from `wireAimdCompute`, now handles both
+  the Phase 2 click delegation and this) listens for the native `toggle` event and
+  mounts a fresh `.aimd-coupling-body` div on open, removes it on close — genuine
+  "on-demand realization" + attention-loss release, per whitepaper §4.3/§4.6. Honest
+  framing: this is DOM materialize/free, not a network fetch — the content is local
+  document text already in memory, there's no remote base-space to fetch from yet.
+- `toggle` does **not bubble**, so event delegation needed the capture phase
+  (`el.addEventListener('toggle', handler, true)`) — a plain bubble-phase delegated
+  listener would silently never fire for descendant `<details>` elements.
+- **Bug found + fixed during this work, worth recording (Bugology, whitepaper
+  §9.4-style)**: the first implementation stored each Coupling Node's body text in a
+  `data-content="..."` HTML attribute (fully `esc()`-escaped). It silently
+  disappeared for real document content — e.g. `Target: X <---> Y` — even though
+  the escaped value (`&lt;---&gt;`) was syntactically valid and harmless. Root
+  cause: **DOMPurify's mXSS defenses strip an attribute if its value merely
+  contains certain dash/bracket patterns**, regardless of correct escaping — this
+  is DOMPurify erring toward caution against known browser HTML-parsing quirks, not
+  a bug in DOMPurify itself. Lesson: don't trust arbitrary/untrusted document text
+  inside an HTML attribute value, even properly escaped — the sanitizer's own
+  heuristics can silently eat it, and the failure is invisible (no error, no
+  console warning, the attribute just isn't there). **Fix**: moved the content into
+  a JS-side array (`aimdCouplings`, reset once per `previewUpdate()` call) and
+  reference it from the DOM by a small integer `data-coupling-idx` — plain digits
+  can't trigger this class of stripping, and reading the content back via
+  `.textContent` (not `innerHTML`) needs no escaping at all, which is also simpler
+  than the attribute version was. Applies generally: any future AIMD (or other)
+  feature that needs to stash untrusted text for later DOM use should use this
+  index-into-a-JS-store pattern, not a data-attribute.
+- Demo (`examples/aimd-demo.md`) already had the `<--->` arrow in its Coupling body
+  text — that's what surfaced the bug during verification, not a separately
+  crafted test case.
+- **Verified end-to-end**: open → body mounts with the exact original content
+  (arrows and CJK both intact); close → body element is actually removed from the
+  DOM (`querySelector` returns null, not just hidden). Phase 1 (trunk/status
+  rendering) and Phase 2 (all 4 formula-tier computes + the Tier-2 gate) re-verified
+  working after this change. Zero console/server errors throughout.
+- **Second bug found + fixed in the same review pass**: the `AIMD_COUPLING_N`
+  line-placeholder token (used internally to swap out multi-line `<Coupling
+  Node>...</Coupling>` blocks before line-by-line processing) was originally
+  wrapped in literal NUL bytes rather than spaces, specifically so it would survive
+  `line.trim()` (NUL isn't stripped by `.trim()`; a space is). This "worked" but was
+  invisible in every tool used to read the file back — including making git treat
+  `preview.js` as a binary diff. Replacing the NUL bytes with real spaces (an
+  initially-reasonable-looking cleanup) broke the placeholder match, since `.trim()`
+  then strips the very whitespace the regex needed. **Real fix**: dropped the
+  delimiter-character trick entirely — the placeholder is now a self-sufficient
+  string (`AIMD_COUPLING_PLACEHOLDER_N`) matched by a plain `^...$` regex with no
+  surrounding-whitespace dependency at all. `preview.js` is confirmed plain UTF-8
+  text now (`file` reports "JavaScript source, Unicode text, UTF-8 text", not
+  binary), and the diff is properly reviewable. Lesson: don't rely on control
+  characters for parser plumbing even when they "work" — they're invisible to every
+  tool (including Read/Grep) that would otherwise let a reviewer (human or agent)
+  actually see what the code does.
+
+**Next (whitepaper v0.5 §4.6 roadmap):** Real LEAN4/Coq/Python integration, gated on
+Neo deciding the sandboxing policy first (subprocess isolation/timeouts/resource
+limits) — the only AIMD roadmap item left that isn't already shipped. §3's AMEP
+Method Pack decision is still open, doesn't block any of this.
 
 ## v0.4 — shipped (2026-06-27)
 
