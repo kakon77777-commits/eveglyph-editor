@@ -18,6 +18,7 @@
       <span class="brand-name">EveGlyph Editor</span>
       <span class="brand-sub">EveMissLab</span>
       <span class="brand-ver" id="brand-version" title="EveGlyph-MD · EG-MD-2026"></span>
+      <button class="brand-changelog" id="btn-whats-new" title="What's new">What's new</button>
     </div>
     <div class="sep"></div>
     <div class="topbar-actions">
@@ -66,6 +67,7 @@
         <button class="ptab" data-t="ai">AI</button>
         <button class="ptab" data-t="search">🔍</button>
         <button class="ptab" data-t="log" title="Monitor — diagnostic stream">◷</button>
+        <button class="ptab" data-t="docs" title="User Guide &amp; Changelog">📖</button>
         <button class="ptab" data-t="settings">⚙</button>
       </div>
 
@@ -142,6 +144,15 @@
           </div>
         </div>
         <div id="monitor-body" class="mon-body"></div>
+      </div>
+
+      <!-- Docs: User Guide + Changelog, rendered from the repo's own .md files -->
+      <div id="t-docs" class="tcontent">
+        <div class="docs-nav">
+          <button class="btn-s" id="btn-docs-guide">📘 User Guide</button>
+          <button class="btn-s" id="btn-docs-changelog">🕘 What's New</button>
+        </div>
+        <div id="docs-body" class="docs-body"></div>
       </div>
 
       <!-- Settings -->

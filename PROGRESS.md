@@ -26,6 +26,44 @@ bridge (`vite-agent-bridge.js`) over localhost-gated HTTP/NDJSON. ~22 `src/` mod
 - **v0.5 — AIMD / Cogni-Flow computable math** [in progress]. Phases 1–3 (syntax,
   two-tier compute, real mount/unmount) landed 2026-07-12, unreleased. See below.
 
+## In-app docs (2026-07-12)
+
+Long-standing gap, finally closed: there was no human-visible way to tell what
+changed release to release, or how to actually use the app, without reading
+`PROGRESS.md` (AI-oriented) or digging through the repo. Two new files, both
+rendered **inside the app itself**, not just on GitHub:
+
+- **`CHANGELOG.md`** — human-readable, "Keep a Changelog" style, newest first.
+  Distinct from `PROGRESS.md`: this is what changed and why it matters to a user,
+  not the AI-context-dump of *how* + every implementation/bugology detail.
+- **`USER-GUIDE.md`** — a full walkthrough: getting started, the workspace,
+  writing (EveGlyph-MD, AIMD blocks), search, AI panel + local agent + diff
+  review, `.eveglyph/` memory, settings reference, troubleshooting.
+- **`src/docs.js`** — imports both via Vite's `?raw` string import, renders them
+  through the same marked+DOMPurify pipeline `preview.js` already uses (static
+  content, rendered once at boot, not on every keystroke). New **📖 Docs** tab in
+  the right panel (`#t-docs`), with two nav buttons (📘 Guide / 🕘 What's New)
+  that scroll to the relevant section.
+- New **"What's new"** link in the topbar, right of the version badge — jumps
+  straight to the changelog section.
+- **Verified working** (after fixing two real bugs found along the way):
+  1. `openDocsSection()` originally deferred the `scrollIntoView` call via
+     `requestAnimationFrame` — rAF is throttled (can silently never fire) in a
+     backgrounded/unfocused tab, which is exactly the state browser-automation
+     testing runs in. Removed the deferral entirely: `scrollIntoView` triggers
+     its own synchronous layout pass, so it doesn't need to wait a frame even
+     right after un-hiding the tab (`display:none` → `flex`).
+  2. Both `.md` files open with their own top-level `# Title` heading, and the
+     renderer was ALSO wrapping each section in its own injected `<h1>` — a
+     harmless but sloppy duplicate heading. Dropped the injected wrapper.
+  Confirmed via the real UI (topbar link + both in-panel nav buttons all
+  correctly switch to the Docs tab and scroll to the right section; content
+  renders with the expected text) — the `computer` tool's screenshot/coordinate-
+  click pipeline was flaky again this session (same as earlier in this session),
+  so this was verified through direct DOM/handler inspection rather than a
+  visual screenshot; worth a quick visual confirmation next time the Browser
+  pane's screenshot action is behaving.
+
 ## v0.5 — in progress (started 2026-07-12)
 
 New technical whitepaper written: `EveGlyph-Editor-Technical-Whitepaper-v0.5.md`

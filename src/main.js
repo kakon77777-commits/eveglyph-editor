@@ -42,6 +42,7 @@ import { openEncodingMenu }        from './encodingmenu.js'
 import { openFrontmatterMenu }     from './frontmattermenu.js'
 import { loadMonitor, setMonitorFilter, startMonitorAuto, stopMonitorAuto } from './monitorview.js'
 import { renderAbout }             from './about.js'
+import { initDocs, openDocsSection } from './docs.js'
 import { CONFIG }                  from './config.js'
 import { createEveGlyphScaffold }    from './context.js'
 import { runSearch, replaceAll }   from './search.js'
@@ -79,6 +80,9 @@ function bindAll() {
   document.getElementById('btn-import').onclick  = () => { monitor('click', { target: 'import-docx' }); document.getElementById('docx-input').click() }
   document.getElementById('docx-input').onchange = (e) => { importFiles(e.target.files); e.target.value = '' }
   document.getElementById('btn-print').onclick   = () => { monitor('click', { target: 'print' }); window.print() }
+  document.getElementById('btn-whats-new').onclick = () => { monitor('click', { target: 'whats-new' }); openDocsSection('docs-changelog') }
+  document.getElementById('btn-docs-guide').onclick     = () => openDocsSection('docs-guide')
+  document.getElementById('btn-docs-changelog').onclick = () => openDocsSection('docs-changelog')
 
   // Drag a .docx onto the editor pane to import it.
   const pane = document.getElementById('editor-pane')
@@ -260,5 +264,6 @@ cfgLoad()
 applyTheme(S.cfg.theme)
 bindAll()
 renderAbout()
+initDocs()
 statusUpdate()
 monitor('boot', { href: location.href })
