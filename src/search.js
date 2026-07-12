@@ -183,6 +183,15 @@ export async function replaceAll() {
     return
   }
 
+  // An unresolved agent diff is still sitting on top of the current HEAD, waiting
+  // for Accept/Reject/Revert. Snapshotting now would silently fold it into the
+  // replace's own baseline (git add -A stages it too), so Reverting the replace
+  // afterward would no longer land back where the pending review was taken from.
+  if (S._pendingReview) {
+    out.innerHTML = '<div class="search-empty">⚠ An agent diff is still pending review (Accept/Reject/Revert it in the AI tab first) — workspace replace is blocked until then, so it doesn\'t get folded into the same snapshot.</div>'
+    return
+  }
+
   // Workspace: the dangerous bulk op gets the heavy safety.
   const cwd = S.workspaceRoot
   out.innerHTML = '<div class="search-empty">Replacing…</div>'

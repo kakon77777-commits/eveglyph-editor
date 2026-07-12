@@ -155,6 +155,8 @@ export function cfgLoad() {
   $('s-provider').value = S.cfg.provider
   $('s-url').value = S.cfg.url
   $('s-key').value = S.cfg.key
+  const keyPersistEl = $('s-key-persist')
+  if (keyPersistEl) keyPersistEl.checked = S.cfg.keyPersist !== false
   $('s-model').value = S.cfg.model
   $('s-workspace').value = S.cfg.workspace || ''
   $('s-agentcmd').value = S.cfg.agentCmd || ''
@@ -230,6 +232,7 @@ export function cfgSave(showMessage = true) {
     provider: $('s-provider').value,
     url: $('s-url').value.trim(),
     key: $('s-key').value.trim(),
+    keyPersist: $('s-key-persist') ? $('s-key-persist').checked : (S.cfg.keyPersist !== false),
     model: $('s-model').value.trim(),
     agent: $('s-agent').value || S.cfg.agent || 'claude',
     workspace: $('s-workspace').value.trim(),
@@ -259,7 +262,11 @@ export function cfgSave(showMessage = true) {
     }
   }
 
-  localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg))
+  // S.cfg.key keeps the real value in memory for this session either way (so the
+  // provider works immediately); only the persisted copy drops it when the user
+  // opted out of "Remember on this device."
+  const toPersist = S.cfg.keyPersist === false ? { ...S.cfg, key: '' } : S.cfg
+  localStorage.setItem(CFG_KEY, JSON.stringify(toPersist))
   if (showMessage) {
     setMsg('Saved', 'ok')
     setTimeout(() => setMsg(''), 1800)

@@ -189,6 +189,9 @@
         <div class="sg" id="s-key-wrap">
           <label>API Key</label>
           <input type="password" id="s-key" placeholder="sk-...">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:4px">
+            <input type="checkbox" id="s-key-persist"> Remember on this device <span style="color:var(--t3)">(plaintext in localStorage — see SECURITY.md)</span>
+          </label>
         </div>
         <div class="sg" id="s-model-wrap">
           <label>Model <span style="color:var(--t3)">(pick from the list, or type an id)</span></label>
@@ -220,6 +223,7 @@
           <div class="sg">
             <label>Command override (advanced)</label>
             <input type="text" id="s-agentcmd" placeholder="(blank = bridge default)">
+            <span style="font-size:10px; color:var(--t3)">Runs as your literal shell command — bypasses permission-tier flags entirely, so it requires Trusted.</span>
           </div>
           <div class="sg">
             <label>Permission</label>

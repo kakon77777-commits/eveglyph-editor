@@ -327,11 +327,72 @@ commit. (The draft whitepaper was also removed; the broken README reference to i
 **NICE-TO-HAVE:** ~~surface diff-fetch failures (`agent.js` swallow → false "no
 changes")~~ **DONE 2026-06-18** — `fetchAgentDiff()` now distinguishes a real diff-read
 failure from a legit no-changes; a failure shows a "⚠ couldn't load the diff — verify
-manually" warning (not "✓ no changes"). Remaining: stop empty `pre-agent` commits (drop
-`--allow-empty`) + Direct-mode authorship folding; guard workspace replace while a diff
-is pending; API-key persist checkbox + wire/remove the dead `persistKeys`; harden the
-command-override shell path; add `engines.node>=18` + CONTRIBUTING/CHANGELOG + optional
-`THIRD-PARTY-LICENSES.md`.
+manually" warning (not "✓ no changes"). **Remaining items — ALL DONE 2026-07-12:**
+
+- ~~stop empty `pre-agent` commits (drop `--allow-empty`)~~ **DONE.** New
+  `commitIfChanged(cwd, message)` helper in `vite-agent-bridge.js`: commits only when
+  `git diff --cached --quiet` reports a real staged diff, or when there's no `HEAD`
+  yet at all (a truly fresh repo needs one commit to have a valid baseline — that's
+  the only case still allowed to be empty). Used by both `/api/git/snapshot` and
+  `/api/git/accept`, replacing the old unconditional `--allow-empty` on every single
+  call. Verified directly against the bridge: a snapshot immediately followed by a
+  no-op snapshot correctly produces the SAME head (no new commit); a snapshot after
+  a real file change correctly produces a new commit; a no-op accept after that
+  correctly produces no further commit. Confirmed via `git log` on the test
+  workspace (exactly 2 commits for 2 real changes, not 3+ for the no-ops).
+- ~~Direct-mode authorship folding~~ **DONE.** Direct mode (and the "suggest but the
+  agent edited anyway" fallback) had no manual Accept gate (`showDiffActions` hides
+  the button), so the changes just sat uncommitted — and the *next* run's pre-agent
+  snapshot would silently sweep them into an anonymous `pre-agent: ...` commit,
+  misattributing the agent's actual edit as pre-existing baseline state. New
+  `commitDirectChanges(cwd, message)` in `src/agent.js` auto-commits immediately
+  under the task's own `agent: <message>` — called right where Direct mode's diff
+  gets shown. `S._pendingReview` gained a `committed` flag so Revert
+  (`rejectReview()` → `/api/git/reject`) knows to reset to `HEAD~1` (past the
+  auto-commit, back to the real pre-agent snapshot) instead of plain `HEAD` (which
+  would now just be the auto-commit itself — a no-op). Verified end-to-end against
+  the bridge: simulated a Direct-mode edit → accept (auto-commit) → reject with
+  `committed: true` → file content and `git log` both confirmed a full round-trip
+  back to the pre-agent baseline, auto-commit cleanly discarded.
+- ~~guard workspace replace while a diff is pending~~ **DONE.** `replaceAll()`'s
+  workspace-scope branch now checks `S._pendingReview` before doing anything —
+  blocks with a clear on-screen message ("an agent diff is still pending review...")
+  instead of silently snapshotting on top of (and thereby folding in) an unreviewed
+  agent diff. Verified: setting `S._pendingReview` and calling `replaceAll()`
+  correctly blocks with the message; clearing it and re-running confirms no
+  regression (replace still works normally).
+- ~~API-key persist checkbox + wire/remove the dead `persistKeys`~~ **DONE** (the
+  `persistKeys` half was already moot — confirmed zero references anywhere in
+  `src/` or the bridge; the v0.4 cleanup had already deleted it, the TODO line was
+  just stale). New "Remember on this device" checkbox next to the API Key field
+  (`#s-key-persist`, defaults checked = today's existing always-persist behavior,
+  so nothing changes for existing users unless they explicitly opt out).
+  Unchecking it keeps the key working for the current session (`S.cfg.key` in
+  memory) but writes an empty string for `key` in the copy that goes to
+  `localStorage`. Verified: unchecked → key usable immediately but NOT in
+  localStorage; checked → key round-trips correctly through a simulated
+  save/reload cycle.
+- ~~harden the command-override shell path~~ **DONE.** The override "owns the whole
+  command" (runs completely unmodified, no escaping) — which means it silently
+  bypassed every permission-tier restriction regardless of the selected tier.
+  `resolveAgentCommand()` now throws if an override is set and permission isn't
+  `trusted`, with a message explaining why; `/api/agent` catches this and returns a
+  clean 400 (was previously unhandled — would have surfaced as a raw uncaught
+  exception). `src/agent.js`'s error path was also fixed to read and show the
+  bridge's actual response text instead of a bare "bridge HTTP 400" — the detailed
+  reason was being thrown away before. Added an inline warning at the Settings
+  field itself, not just in SECURITY.md. Verified: Standard permission + an
+  override → correctly blocked with the exact message; Trusted permission + the
+  same override → correctly allowed through (tested with a harmless `echo`).
+- ~~add `engines.node>=18`~~ **DONE** — `package.json`.
+- ~~CONTRIBUTING~~ **DONE** — new `CONTRIBUTING.md` (setup, pre-PR checklist
+  emphasizing "run it, don't just read the diff" for this UI-heavy app, code style,
+  security-reporting pointer). CHANGELOG was already done earlier the same day (see
+  the "In-app docs" section above).
+- `THIRD-PARTY-LICENSES.md` — left undone, deliberately: the 2026-06-18 audit
+  already concluded licensing is clean (own MIT + all deps permissive, no NOTICE
+  file gates publication) without one; it was marked optional in the original TODO
+  and nothing has changed that would require it now.
 
 **Confirmed strengths:** dev-only + localhost-gated bridge (CSRF/DNS-rebind closed),
 honest SECURITY.md, clean MIT licensing, stdin-fed prompts, DOMPurify XSS guard,

@@ -219,7 +219,13 @@ ${langRule}`)
         timeoutMs: maxRuntimeMs
       })
     })
-    if (!r.ok || !r.body) throw new Error(`bridge HTTP ${r.status}`)
+    if (!r.ok || !r.body) {
+      // Surface the bridge's actual message (e.g. "command override requires
+      // Trusted permission") instead of a bare status code — this is an early,
+      // synchronous rejection (bad request), not a stream that's already started.
+      const detail = await r.text().catch(() => '')
+      throw new Error(detail || `bridge HTTP ${r.status}`)
+    }
 
     const reader = r.body.getReader()
     const dec = new TextDecoder()
@@ -253,7 +259,10 @@ ${langRule}`)
         await refreshFromDisk()
         resp.className = ''
         resp.innerHTML = `<div class="diff-head">⚠ Suggest mode — but the agent edited files anyway. Revert if unwanted.</div>` + renderDiff(review.diff, 'direct')
-        S._pendingReview = { cwd, message: userTask }
+        // Treated the same as Direct mode (no manual Accept gate — see below), so
+        // it needs the same auto-commit to avoid the same misattribution bug.
+        await commitDirectChanges(cwd, userTask)
+        S._pendingReview = { cwd, message: userTask, committed: true }
         showDiffActions(true, 'direct')
       } else if (review.state === 'error') {
         resp.className = 'warn'
@@ -277,7 +286,8 @@ ${langRule}`)
         if (review.state === 'changes') {
           resp.className = ''
           resp.innerHTML = renderDiff(review.diff, mode)
-          S._pendingReview = { cwd, message: userTask }
+          if (mode === 'direct') await commitDirectChanges(cwd, userTask)
+          S._pendingReview = { cwd, message: userTask, committed: mode === 'direct' }
           showDiffActions(true, mode)
         } else if (review.state === 'error') {
           // Diff READ failed — the agent may well have changed files. Warn instead of
@@ -387,6 +397,26 @@ async function fetchAgentDiff(cwd) {
   return { state: 'clean' }
 }
 
+// Direct mode (and the "suggest but the agent edited anyway" fallback) has no
+// manual Accept gate — showDiffActions() hides that button for them, so without
+// this, the changes would just sit uncommitted until the *next* run's pre-agent
+// snapshot silently swept them in under an anonymous "pre-agent: ..." message,
+// misattributing this run's actual edit as if it were pre-existing baseline state.
+// Committing immediately here, under the task's own message, fixes that — Revert
+// (rejectReview, `committed: true`) then resets past this commit (HEAD~1), not just
+// HEAD, to still land back at the real pre-agent snapshot.
+async function commitDirectChanges(cwd, message) {
+  try {
+    await fetch('/api/git/accept', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cwd, message })
+    })
+    await monitor('git:direct:auto-commit', { cwd })
+  } catch (e) {
+    await monitor('git:direct:auto-commit:error', { cwd, error: String(e?.message || e) })
+  }
+}
+
 export async function acceptReview() {
   const r = S._pendingReview
   const resp = document.getElementById('ai-resp')
@@ -411,7 +441,7 @@ export async function rejectReview() {
   try {
     await fetch('/api/git/reject', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cwd: r.cwd })
+      body: JSON.stringify({ cwd: r.cwd, committed: Boolean(r.committed) })
     })
     await refreshFromDisk()
     resp.className = ''

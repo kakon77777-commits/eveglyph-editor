@@ -393,6 +393,22 @@ async function ensureGitIdentity(cwd) {
   }
 }
 
+// Commit whatever's staged under `message`, but only when there's actually
+// something to commit (or this is a brand-new repo with no HEAD yet, which needs
+// one commit to have a valid baseline at all) — skips the old unconditional
+// `--allow-empty`, which minted a useless commit on every single agent run/replace
+// even when nothing had changed since the last one.
+async function commitIfChanged(cwd, message) {
+  const staged = await runGit(cwd, ['diff', '--cached', '--quiet'])   // exit 0 = no staged diff
+  const hasHead = (await runGit(cwd, ['rev-parse', 'HEAD'])).code === 0
+  if (staged.code !== 0) {
+    await runGit(cwd, ['commit', '-m', message])
+  } else if (!hasHead) {
+    await runGit(cwd, ['commit', '-m', message, '--allow-empty'])
+  }
+  return (await runGit(cwd, ['rev-parse', 'HEAD'])).out.trim()
+}
+
 function withVersionArg(command) {
   const trimmed = command.trim()
   return `${trimmed} --version`
@@ -558,7 +574,16 @@ async function findLocalClaudeExe() {
 }
 
 async function resolveAgentCommand(agentId, command, permission = 'standard') {
-  if (command && command.trim()) return command.trim()   // UI override owns the whole command
+  if (command && command.trim()) {
+    // The override "owns the whole command" — it runs completely unmodified, so it
+    // bypasses every tier-based restriction the cautious/standard flag sets exist
+    // for. Requiring Trusted here makes that bypass an explicit, deliberate choice
+    // rather than something a Cautious/Standard-tier config can do silently.
+    if (permission !== 'trusted') {
+      throw new Error('Command override requires the Trusted permission tier (it replaces the whole command, bypassing all tier-based CLI restrictions) — switch to Trusted in Settings, or clear the override.')
+    }
+    return command.trim()
+  }
   const spec = AGENTS[agentId]
   if (!spec) return null
   const flags = spec.flags(permission)
@@ -929,8 +954,7 @@ export function agentBridge() {
           }
           await ensureGitIdentity(cwd)
           await runGit(cwd, ['add', '-A'])
-          await runGit(cwd, ['commit', '-m', `pre-agent: ${label}`, '--allow-empty'])
-          const head = (await runGit(cwd, ['rev-parse', 'HEAD'])).out.trim()
+          const head = await commitIfChanged(cwd, `pre-agent: ${label}`)
           emitMonitor('git:snapshot', { cwd, head })
           json(res, 200, { ok: true, available: true, head })
         } catch (e) { json(res, 400, { error: String(e?.message || e) }) }
@@ -961,7 +985,7 @@ export function agentBridge() {
         try {
           assertWorkspace(cwd)
           await runGit(cwd, ['add', '-A'])
-          await runGit(cwd, ['commit', '-m', `agent: ${msg}`, '--allow-empty'])
+          await commitIfChanged(cwd, `agent: ${msg}`)
           emitMonitor('git:accept', { cwd })
           json(res, 200, { ok: true })
         } catch (e) { json(res, 400, { error: String(e?.message || e) }) }
@@ -972,11 +996,16 @@ export function agentBridge() {
         if (req.method !== 'POST') return next()
         const body = await readJsonBody(req).catch(() => ({}))
         const cwd = body.cwd || process.cwd()
+        // Direct mode auto-commits its own changes (see /api/git/accept and
+        // src/agent.js) since it has no manual Accept gate — so there, "reject"
+        // means undo that commit too (HEAD~1, back to the pre-agent snapshot),
+        // not just reset an already-clean working tree against its own HEAD.
+        const target = body.committed ? 'HEAD~1' : 'HEAD'
         try {
           assertWorkspace(cwd)
-          await runGit(cwd, ['reset', '--hard', 'HEAD'])
+          await runGit(cwd, ['reset', '--hard', target])
           await runGit(cwd, ['clean', '-fd'])   // remove agent-created untracked files
-          emitMonitor('git:reject', { cwd })
+          emitMonitor('git:reject', { cwd, target })
           json(res, 200, { ok: true })
         } catch (e) { json(res, 400, { error: String(e?.message || e) }) }
       })
@@ -994,7 +1023,9 @@ export function agentBridge() {
         try { assertWorkspace(workdir) }   // confine the auto-approve agent to the opened folder
         catch (e) { res.statusCode = 400; return res.end(String(e?.message || e)) }
         const runTimeoutMs = Math.min(Math.max(Number(timeoutMs) || BRIDGE_CONFIG.agentTimeoutMs, 10000), 1800000)   // 10s–30min
-        const tmpl = await resolveAgentCommand(agent, command, permission)   // tier → real CLI flags
+        let tmpl
+        try { tmpl = await resolveAgentCommand(agent, command, permission) }   // tier → real CLI flags
+        catch (e) { res.statusCode = 400; return res.end(String(e?.message || e)) }
         if (!tmpl) { res.statusCode = 400; return res.end('unknown agent') }
 
         res.setHeader('Content-Type', 'application/x-ndjson')

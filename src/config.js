@@ -40,6 +40,7 @@ export const CONFIG = {
   provider: 'anthropic',                                  // [user] anthropic | openai | local-agent
   url: '',                                                // [user] OpenAI-compatible base URL
   key: '',                                                // [secret] API key — localStorage plaintext (see SECURITY.md)
+  keyPersist: true,                                       // [user] if false, the key is kept in-memory for this session only, never written to localStorage
   model: 'claude-opus-4-8',                               // [user]
   maxTokens: 4096,                                        // [tunable] Anthropic max_tokens per call
   anthropicVersion: '2023-06-01',                         // [const] anthropic-version header

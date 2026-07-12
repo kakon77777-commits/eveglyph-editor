@@ -18,6 +18,7 @@ export const S = {
     provider: CONFIG.provider,
     url: CONFIG.url,
     key: CONFIG.key,
+    keyPersist: CONFIG.keyPersist,
     model: CONFIG.model,
     agent: CONFIG.agent,
     workspace: CONFIG.workspace,
