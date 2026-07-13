@@ -64,6 +64,7 @@
     <aside id="right-panel">
       <div id="panel-tabs">
         <button class="ptab active" data-t="preview">Preview</button>
+        <button class="ptab" data-t="world" title="Workspace Overview — scan every World IR document">🌐 World</button>
         <button class="ptab" data-t="ai">AI</button>
         <button class="ptab" data-t="search">🔍</button>
         <button class="ptab" data-t="log" title="Monitor — diagnostic stream">◷</button>
@@ -74,6 +75,19 @@
       <!-- Preview -->
       <div id="t-preview" class="tcontent active">
         <div id="preview-body"></div>
+      </div>
+
+      <!-- World Overview: scans every .yaml/.yml in the open workspace and
+           classifies+validates each recognized World IR document (overview.js).
+           Manual scan (not auto-run on every keystroke like the Preview pane)
+           since it reads every file in the workspace, not just the active one. -->
+      <div id="t-world" class="tcontent">
+        <div class="ai-sec">
+          <button class="btn-p" id="btn-scan-workspace" style="width:100%">↻ Scan workspace</button>
+        </div>
+        <div id="overview-body" class="ov-body">
+          <div class="ov-empty">Click "Scan workspace" to inventory every state machine / entity / entity list in the open folder.</div>
+        </div>
       </div>
 
       <!-- AI -->

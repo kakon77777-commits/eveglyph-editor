@@ -637,7 +637,7 @@ function readJsonBody(req) {
 }
 
 function isTextFile(name) {
-  return /\.(md|txt|html|json)$/i.test(name)
+  return /\.(md|txt|html|json|ya?ml)$/i.test(name)
 }
 
 // Directories never shown in the file tree (deps, build output, VCS).

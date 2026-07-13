@@ -1,0 +1,9 @@
+kind: entity
+id: npc.innkeeper
+type: character
+name: 柳七
+location: room.inn.main
+traits:
+  - brave
+  - curious
+  - loyal

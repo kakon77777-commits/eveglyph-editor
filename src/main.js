@@ -48,6 +48,7 @@ import { createEveGlyphScaffold }    from './context.js'
 import { runSearch, replaceAll }   from './search.js'
 import { runAiSearch }             from './aisearch.js'
 import { importFiles }             from './import.js'
+import { initOverview }            from './overview.js'
 
 // Toggle the app-wide light theme (CSS variables in styles.css).
 export function applyTheme(theme) {
@@ -280,5 +281,6 @@ applyTheme(S.cfg.theme)
 bindAll()
 renderAbout()
 initDocs()
+initOverview()
 statusUpdate()
 monitor('boot', { href: location.href })

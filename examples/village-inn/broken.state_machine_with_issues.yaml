@@ -1,0 +1,20 @@
+# Intentionally broken -- exercises src/validate.js's checks:
+# - conflicting_transition (running + finish appears twice)
+# - unreachable_state (orphan_state has no path in from idle)
+kind: state_machine
+id: demo.broken_example
+initial: idle
+
+transitions:
+  - from: idle
+    to: running
+    on: start
+  - from: running
+    to: done
+    on: finish
+  - from: running
+    to: done
+    on: finish
+  - from: orphan_state
+    to: idle
+    on: reset

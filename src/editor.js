@@ -2,6 +2,7 @@
 import { basicSetup, EditorView } from 'codemirror'
 import { EditorState }            from '@codemirror/state'
 import { markdown }               from '@codemirror/lang-markdown'
+import { yaml }                   from '@codemirror/lang-yaml'
 import { oneDark }                from '@codemirror/theme-one-dark'
 
 import { S }             from './state.js'
@@ -32,12 +33,17 @@ export function editorInit(doc = '') {
   // oneDark only in dark theme; light theme uses CodeMirror's default light styling.
   const darkTheme = (S.cfg.theme || CONFIG.theme) !== 'light'
 
+  // World IR files are YAML (see viewregistry.js's state_machine/entity/
+  // entity_list documents) -- everything else stays Markdown, this app's
+  // original content type.
+  const isYaml = /\.ya?ml$/i.test(S.active || '')
+
   S.editor = new EditorView({
     state: EditorState.create({
       doc,
       extensions: [
         basicSetup,
-        markdown(),
+        isYaml ? yaml() : markdown(),
         ...(darkTheme ? [oneDark] : []),
         customTheme,
         EditorView.updateListener.of(u => {

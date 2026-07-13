@@ -6,6 +6,19 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **World IR mode (CompilableWorld)** — open a `.yaml`/`.yml` file starting with
+  `kind: state_machine` / `kind: entity` / `kind: entity_list` and the preview
+  pane renders it visually instead of Markdown: state machines as a clickable
+  SVG diagram (add/delete states and transitions right from the diagram),
+  entities as an editable field form, entity lists as a table. Every view runs
+  a validator (missing/undefined states, conflicting transitions, unreachable
+  states, missing/duplicate ids) and shows the result inline. A new **🌐 World**
+  tab scans the whole open workspace and inventories every recognized document
+  at once, click-to-jump to any of them. The file itself always stays plain
+  YAML text — this is a different way of viewing/editing it, not a separate
+  save format. See `examples/village-inn/` for real examples. (Originally
+  built as a separate fork, `compilableworld-studio` — folded back in here
+  once it became clear nothing about it actually needed a separate codebase.)
 - **AIMD computable-math blocks** — a new `::: aimd … :::` block type for
   Markdown documents. Write a spreadsheet-style formula (`SUM`, `AVERAGE`, `IF`,
   `AND`/`OR`/`NOT`, comparisons, trig/log/sqrt, …) and click **▶** to actually

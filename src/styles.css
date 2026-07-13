@@ -675,3 +675,144 @@ pre.diff span { display:block; padding:0 2px; }
 .df-add { color:#86efac; }
 .df-del { color:#fca5a5; }
 .dfile pre.diff { border:0; border-radius:0; max-height:260px; }
+
+/* ─── STATE MACHINE VIEW (smview.js) ────────────────────────────── */
+:root { --sm-edge: var(--t2); }
+.sm-view { padding: 4px 0 14px; }
+.sm-error { color: #f87171; font-size: 12.5px; padding: 10px; }
+.sm-header {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--bdr);
+}
+.sm-id { font-family: var(--fm); font-size: 13px; color: var(--t1); font-weight: 600; }
+.sm-initial-tag {
+  font-size: 10.5px; color: var(--ac); background: var(--ac-g);
+  border: 1px solid var(--ac-g2); border-radius: 4px; padding: 1px 6px;
+}
+.sm-count { font-size: 10.5px; color: var(--t3); margin-left: auto; }
+.sm-node rect {
+  fill: var(--bg-2); stroke: var(--bdr-s); stroke-width: 1.4;
+}
+.sm-node-initial rect { stroke: var(--ac); stroke-width: 2; }
+.sm-node text {
+  fill: var(--t1); font-size: 12px; font-family: var(--fu, inherit);
+}
+.sm-edge-label { fill: var(--t2); font-size: 10px; font-family: var(--fm); }
+.sm-raw { margin-top: 14px; }
+.sm-raw summary { cursor: pointer; font-size: 11.5px; color: var(--t2); user-select: none; }
+.sm-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11.5px; }
+.sm-table th, .sm-table td {
+  border: 1px solid var(--bdr); padding: 4px 7px; text-align: left; vertical-align: top;
+}
+.sm-table th { color: var(--t2); font-weight: 600; background: var(--bg-2); }
+.sm-table td { color: var(--t1); }
+.sm-table code {
+  font-family: var(--fm); font-size: 10.5px; background: var(--bg-2);
+  border: 1px solid var(--bdr); border-radius: 3px; padding: 0 4px;
+}
+
+/* ─── ENTITY VIEW (entityview.js) ───────────────────────────────── */
+.ev-form, .ev-table-view { padding: 4px 0 14px; }
+.ev-form-header {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--bdr);
+}
+.ev-type-tag {
+  font-size: 10.5px; color: var(--ac); background: var(--ac-g);
+  border: 1px solid var(--ac-g2); border-radius: 4px; padding: 1px 6px; text-transform: uppercase; letter-spacing: .03em;
+}
+.ev-id { font-family: var(--fm); font-size: 13px; color: var(--t1); font-weight: 600; }
+.ev-count { font-size: 10.5px; color: var(--t3); margin-left: auto; }
+.ev-field-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ev-field-table th, .ev-field-table td {
+  border: 1px solid var(--bdr); padding: 5px 9px; text-align: left; vertical-align: top;
+}
+.ev-field-table th { color: var(--t2); font-weight: 600; background: var(--bg-2); white-space: nowrap; }
+.ev-field-table td { color: var(--t1); }
+.ev-list-table th { text-transform: uppercase; letter-spacing: .02em; font-size: 10.5px; }
+.ev-chip {
+  display: inline-block; font-size: 10.5px; color: var(--t1); background: var(--bg-2);
+  border: 1px solid var(--bdr); border-radius: 10px; padding: 1px 8px; margin: 1px 3px 1px 0;
+}
+.ev-nested {
+  font-family: var(--fm); font-size: 10.5px; color: var(--t2); background: var(--bg-2);
+  border: 1px solid var(--bdr); border-radius: 4px; padding: 5px 7px; margin: 0; white-space: pre-wrap;
+}
+
+/* ─── DIAGNOSTICS (diagnostics.js / validate.js) ────────────────── */
+.diag-block { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--bdr); }
+.diag-ok { font-size: 11.5px; color: var(--ac); border: none; padding-top: 0; }
+.diag-summary { display: flex; gap: 8px; margin-bottom: 6px; }
+.diag-count { font-size: 10.5px; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
+.diag-count.diag-error { color: #f87171; background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); }
+.diag-count.diag-warning { color: #facc15; background: rgba(250,204,21,.1); border: 1px solid rgba(250,204,21,.25); }
+.diag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.diag-list li { font-size: 11.5px; display: flex; gap: 6px; align-items: baseline; }
+.diag-list .diag-error   { color: #f87171; }
+.diag-list .diag-warning { color: #e8c547; }
+.diag-icon { flex: 0 0 auto; }
+
+/* unreachable-state flag on a state-machine node (smview.js) */
+.sm-node-unreachable rect { stroke: #e8c547; stroke-dasharray: 4 3; }
+.sm-node-unreachable text { fill: #e8c547; }
+
+/* editable entity-form fields (entityview.js) */
+.ev-input {
+  width: 100%; box-sizing: border-box; background: var(--bg-1); color: var(--t1);
+  border: 1px solid var(--bdr); border-radius: 4px; padding: 4px 7px; font-size: 12px;
+  font-family: inherit;
+}
+.ev-input:focus { outline: none; border-color: var(--ac); }
+
+/* ─── WORKSPACE OVERVIEW (overview.js) ──────────────────────────── */
+.ov-empty { font-size: 11.5px; color: var(--t3); padding: 10px 0; }
+.ov-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+.ov-summary-item {
+  font-size: 10.5px; color: var(--t1); background: var(--bg-2); border: 1px solid var(--bdr);
+  border-radius: 4px; padding: 2px 8px;
+}
+.ov-summary-item.ov-dim { color: var(--t3); }
+.ov-summary-item.ov-error { color: #f87171; border-color: rgba(248,113,113,.3); }
+.ov-group { margin-bottom: 16px; }
+.ov-group h4 {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--t2);
+  margin: 0 0 6px;
+}
+.ov-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11.5px;
+}
+.ov-row:hover { background: var(--bg-2); }
+.ov-row-label { display: flex; gap: 6px; align-items: baseline; overflow: hidden; }
+.ov-id { color: var(--t1); font-family: var(--fm); }
+.ov-meta { color: var(--t3); font-size: 10.5px; }
+.ov-row-path { color: var(--t3); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+.ov-badge { font-size: 9.5px; border-radius: 3px; padding: 0 4px; font-weight: 600; }
+.ov-badge.ov-ok { color: var(--ac); }
+.ov-badge.ov-error { color: #f87171; background: rgba(248,113,113,.1); }
+.ov-badge.ov-warning { color: #e8c547; background: rgba(232,197,71,.1); }
+
+/* ─── STATE MACHINE VIEW interactivity (smview.js) ──────────────── */
+.sm-node-delete {
+  fill: var(--t3); font-size: 12px; cursor: pointer; user-select: none;
+}
+.sm-node-delete:hover { fill: #f87171; }
+.sm-editor-controls {
+  margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--bdr);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.sm-add-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sm-add-row input[type="text"], .sm-add-row select {
+  background: var(--bg-1); color: var(--t1); border: 1px solid var(--bdr);
+  border-radius: 4px; padding: 4px 7px; font-size: 11.5px; font-family: inherit;
+}
+.sm-new-state-input { flex: 1; min-width: 120px; }
+.sm-tx-from, .sm-tx-to { min-width: 90px; }
+.sm-tx-on { flex: 1; min-width: 100px; }
+.sm-tx-guards { flex: 2; min-width: 140px; }
+.sm-arrow-glyph { color: var(--t3); font-size: 12px; }
+.sm-tx-delete {
+  background: none; border: 1px solid var(--bdr); color: var(--t3); border-radius: 4px;
+  width: 20px; height: 20px; line-height: 1; cursor: pointer; font-size: 10px;
+}
+.sm-tx-delete:hover { color: #f87171; border-color: rgba(248,113,113,.4); }

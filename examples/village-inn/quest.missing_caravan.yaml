@@ -1,0 +1,28 @@
+# The quest example from CompilableWorld Studio's own whitepaper (ch.6.7,
+# TransitionIR), reproduced here as a real, openable file.
+kind: state_machine
+id: quest.missing_caravan
+initial: locked
+
+transitions:
+  - from: locked
+    to: offered
+    on: npc.offer_quest
+    guards:
+      - "player.reputation.village >= 2"
+
+  - from: offered
+    to: active
+    on: player.accept_quest
+
+  - from: active
+    to: completed
+    on: caravan.found
+
+  - from: active
+    to: failed
+    on: survivor.died
+
+  - from: active
+    to: expired
+    on: "timeout 7d"

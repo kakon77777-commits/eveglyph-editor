@@ -1,0 +1,25 @@
+# EntityIR multi-entity document -- renders as a Table View.
+# Taken from this project's own whitepaper (docs/compilableworld-studio-v0.1.md §3.2),
+# extended with two more rows.
+kind: entity_list
+entities:
+  - id: npc.innkeeper
+    type: Character
+    name: 馬洛
+    module: core.village
+    status: 正常
+  - id: item.old_map
+    type: Item
+    name: 破舊地圖
+    module: quest.caravan
+    status: 正常
+  - id: effect.poison
+    type: Effect
+    name: 中毒
+    module: combat.status
+    status: 警告
+  - id: npc.survivor
+    type: Character
+    name: 倖存者
+    module: quest.caravan
+    status: 正常

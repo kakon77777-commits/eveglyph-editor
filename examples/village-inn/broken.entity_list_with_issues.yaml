@@ -1,0 +1,12 @@
+# Intentionally broken -- exercises validateEntityList's duplicate_id and
+# missing_id checks.
+kind: entity_list
+entities:
+  - id: npc.duplicate
+    type: Character
+    name: 甲
+  - id: npc.duplicate
+    type: Character
+    name: 乙
+  - type: Item
+    name: 沒有 id 的物品

@@ -50,6 +50,38 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
     materializes its content when you open it, and releases it again when you
     close it — useful for keeping long documents light.
 
+## World IR mode (CompilableWorld)
+
+Open a `.yaml`/`.yml` file whose content starts with one of these, and the
+Preview pane shows a specialized visual projection instead of Markdown. The
+file itself is always plain YAML text in the editor — these are different
+ways of viewing/editing it, not a separate save format.
+
+- **`kind: state_machine`** — states and transitions render as an SVG diagram
+  (guard conditions shown on each arrow). It's click-to-use: **+ Add State**
+  and **+ Add Transition** controls below the diagram, a **✕** on every state
+  box, a **✕** on every row of the raw transitions table.
+- **`kind: entity`** — renders as an editable field form. Change a value and
+  blur (or press Enter) to write it back into the YAML. `id`/`kind` stay
+  read-only on purpose — stable IDs shouldn't change casually.
+- **`kind: entity_list`** — renders as a read-only table, one row per entity,
+  columns unioned across all of them.
+
+Every one of these also runs a validator — missing/undefined initial state,
+transitions pointing at undefined states, conflicting transitions, unreachable
+states, missing or duplicate ids — and shows the result as a Diagnostics block
+right under the view.
+
+The **🌐 World** tab scans every `.yaml`/`.yml` file in the open workspace,
+classifies and validates each one, and lists them grouped by kind with
+pass/fail badges — click any row to jump straight to that file. It's a manual
+"Scan workspace" button rather than automatic, since it has to read every file
+in the workspace, not just the one you're looking at.
+
+See `examples/village-inn/` for real, working examples of each kind,
+including two intentionally-broken ones so you can see the Diagnostics block
+catch something.
+
 ## Search
 
 `Ctrl+F` opens CodeMirror's in-editor search for the current file. The **🔍** tab

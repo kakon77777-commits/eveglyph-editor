@@ -1,0 +1,30 @@
+# World IR state-machine document. Open this in CompilableWorld Studio and
+# the preview pane renders it as a diagram instead of Markdown -- the guard
+# conditions are exactly the ones from project-plan.md ch.4.3 (this repo's
+# whitepaper), never letting a single event jump straight to a high-commitment
+# relationship state.
+kind: state_machine
+id: relation.acquaintance_to_friend
+initial: acquaintance
+
+transitions:
+  - from: acquaintance
+    to: friend
+    on: repeated_positive_interaction
+    guards:
+      - "trust >= 0.45"
+      - "hostility <= 0.10"
+      - "positive_interactions >= 5"
+      - "interaction_span_days >= 30"
+
+  - from: friend
+    to: acquaintance
+    on: prolonged_absence
+    guards:
+      - "interaction_gap_days >= 180"
+
+  - from: friend
+    to: estranged
+    on: betrayal_event
+    guards:
+      - "trust_delta <= -0.5"
