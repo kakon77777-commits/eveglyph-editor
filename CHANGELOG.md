@@ -6,6 +6,15 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **RigorLoop audit preset** — a new "🧪 RigorLoop audit (AMEP)" quick action in
+  the AI panel. Unlike the other presets, this doesn't call your configured AI
+  provider — it calls [AMEP](https://evemisstechnology.com/amep/), a separate
+  open method-pack project, directly in your browser (no server round-trip, no
+  API key needed). RigorLoop scans your selection/document for compressed proof
+  language, unclear equivalence claims, and missing citations, and returns
+  concrete findings with recommendations. It's a heuristic keyword/marker
+  scanner, not a theorem prover or an LLM — the result panel says so plainly.
+  First use in a session downloads ~14 MB (cached after).
 - **World IR mode (CompilableWorld)** — open a `.yaml`/`.yml` file starting with
   `kind: state_machine` / `kind: entity` / `kind: entity_list` and the preview
   pane renders it visually instead of Markdown: state machines as a clickable

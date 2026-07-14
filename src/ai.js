@@ -3,10 +3,14 @@ import { CONFIG } from './config.js'
 import { editorGetSel, editorGet } from './editor.js'
 import { runAgent } from './agent.js'
 import { monitor } from './monitor.js'
+import { runAmepPreset } from './amep.js'
 
-// Presets aligned with whitepaper Appendix B. Two kinds:
+// Presets aligned with whitepaper Appendix B. Three kinds:
 //   text      — transforms the current selection / document (works for any provider)
 //   workspace — a workspace-level agent task (filesystem/git); local-agent only
+//   amep      — calls a method pack from the separate AMEP project (whitepaper §3),
+//               runs client-side via Pyodide, ignores S.cfg.provider entirely (it's
+//               not routed through the configured cloud/local-agent provider at all)
 export const PRESETS = {
   clean: {
     label: '🧹 Clean AI residue', kind: 'text',
@@ -57,6 +61,11 @@ ${text}`
 
 ${text}`
   },
+  rigorloop: {
+    label: '🧪 RigorLoop audit (AMEP)', kind: 'amep', amepPack: 'rigorloop'
+    // No build() — the amep kind sends the raw selection/document text as-is,
+    // no prompt engineering (it's not a chat-completion call).
+  },
   changelog: {
     label: '📝 Generate changelog', kind: 'workspace',
     build: () => `Look at the recent changes in this workspace (use git history / diff if available). Write a concise CHANGELOG entry summarizing what changed, grouped logically (Added / Changed / Fixed). Prepend the new entry to CHANGELOG.md in the workspace root (create the file if it does not exist). Edit only CHANGELOG.md.`
@@ -78,12 +87,14 @@ export function renderPresets() {
     if (p.kind !== lastKind) {
       const sep = document.createElement('div')
       sep.className = 'preset-sep'
-      sep.textContent = p.kind === 'workspace' ? 'Workspace · local agent' : 'On selection / document'
+      sep.textContent = p.kind === 'workspace' ? 'Workspace · local agent'
+        : p.kind === 'amep' ? 'AMEP method pack · runs in-browser via evemisstechnology.com'
+        : 'On selection / document'
       list.appendChild(sep)
       lastKind = p.kind
     }
     const b = document.createElement('button')
-    b.className = 'pbtn' + (p.kind === 'workspace' ? ' pbtn-ws' : '')
+    b.className = 'pbtn' + (p.kind === 'workspace' ? ' pbtn-ws' : p.kind === 'amep' ? ' pbtn-amep' : '')
     b.dataset.p = key
     b.textContent = p.label
     b.onclick = () => { monitor('click', { target: 'preset', preset: key }); aiPreset(key) }
@@ -148,13 +159,18 @@ export async function aiPreset(key) {
 
   const sel = editorGetSel()
   const txt = sel || editorGet()
-  await monitor('ai:preset', { provider: S.cfg.provider, preset: key, kind: 'text', active: S.active || null, hasText: Boolean(txt.trim()) })
+  await monitor('ai:preset', { provider: S.cfg.provider, preset: key, kind: p.kind, active: S.active || null, hasText: Boolean(txt.trim()) })
 
   if (!txt.trim()) {
     await monitor('ai:block', { reason: 'empty preset text', preset: key })
     alert('No text selected or document is empty.')
     return
   }
+
+  // AMEP presets are a separate execution path entirely — not routed through
+  // S.cfg.provider (no cloud API call, no local-agent spawn), so they work
+  // regardless of which provider is selected in Settings.
+  if (p.kind === 'amep') return runAmepPreset(p.amepPack, txt)
 
   if (S.cfg.provider === 'local-agent') return runAgent(p.build(txt))
   await aiCall(p.build(txt))

@@ -1,7 +1,7 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-12.
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-14.
 
 ## What this is
 
@@ -25,6 +25,49 @@ bridge (`vite-agent-bridge.js`) over localhost-gated HTTP/NDJSON. ~22 `src/` mod
 - **v0.4 — review UX + real enforcement** [shipped] (`0.4.0`, 2026-06-27). See below.
 - **v0.5 — AIMD / Cogni-Flow computable math** [in progress]. Phases 1–3 (syntax,
   two-tier compute, real mount/unmount) landed 2026-07-12, unreleased. See below.
+
+## AMEP RigorLoop preset (whitepaper §3, resolved 2026-07-14)
+
+§3 was a long-open three-way decision (keep the 8 presets as-is / fold 1-2 AMEP
+method packs into the preset system / build a full local run-pack layer). Resolved
+as a variant of option 2: **don't reimplement Method Pack logic here at all — call
+Neo's already-shipped AMEP project (`evemisstechnology.com/amep`) directly.**
+
+- New preset kind `'amep'` (`src/ai.js`'s `rigorloop` entry) — parallel to
+  `'text'`/`'workspace'`, but doesn't route through `S.cfg.provider` at all (not a
+  cloud API call, not a local-agent spawn).
+- New `src/amep.js`: dynamically `import()`s AMEP's `runtime/browser.js` (its own
+  docs state this is designed for external-site use; CORS confirmed open on every
+  asset it needs before writing any code) and calls `runAMEP()` with the
+  selection/document text against the `rigorloop` pack.
+- **Honest framing throughout, not just in docs**: the preset's own group label in
+  the AI panel reads "AMEP method pack · runs in-browser via
+  evemisstechnology.com"; every result ends with a footnote clarifying RigorLoop
+  is "a heuristic marker/keyword scanner... not a theorem prover or LLM call."
+  Real execution runs via **Pyodide in the user's own browser tab** — AMEP has no
+  hosted API by design (its own v0.1 docs defer that explicitly) — so the first
+  real click in a session downloads ~14 MB (Pyodide + stdlib + all 5 packs'
+  source, cached after).
+- Only RigorLoop is wired (not all 5 AMEP packs) — the other four don't have a
+  clear "click it in a Markdown editor" use case yet; add if/when one shows up,
+  not speculatively.
+- **Verified with the real, live remote code**, not mocked (unlike AI search's
+  verification, which mocked `fetch` since a real API key wasn't available — this
+  needs no key, so it was tested for real): a deliberately flawed test passage
+  ("It is obvious that... clearly equivalent... according to Smith (2020)")
+  correctly came back `partial` status, 4 claims checked, 3 findings (2 witness, 1
+  equivalence) + 2 fractures, each with a concrete recommendation; a plain prose
+  passage with no mathematical claims correctly came back `completed`, 0
+  findings. Existing text/workspace presets re-confirmed working (mocked-fetch
+  regression check) — the `ai.js` dispatch refactor didn't break them. Zero
+  console/server errors.
+- **This is genuinely different risk-wise from every other feature in this
+  session** — loading and executing code from a different origin at runtime, not
+  a local file operation — and the harness's own safety classifier treated it
+  that way: it blocked even a plain `node --check` syntax validation twice,
+  requiring Neo to name the exact URL explicitly rather than accept a general
+  "go ahead" — a meaningfully higher bar than local-agent-adjacent actions get,
+  appropriately.
 
 ## AI semantic search (whitepaper §12.2, 2026-07-12)
 

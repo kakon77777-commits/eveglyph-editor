@@ -120,11 +120,20 @@ With a local agent selected:
 - **Permission** — *Cautious* (edit existing files only), *Standard* (edit +
   create), or *Trusted* (full capability, skips the extra confirmation). These map
   to real CLI flags for the agent you picked, not just wording in the prompt.
-- **Quick actions** — 8 built-in presets (clean up AI chat residue, academic
+- **Quick actions** — built-in presets: clean up AI chat residue, academic
   expand, preserve-voice light-edit, fix KaTeX syntax, normalize headings, extract
   a whitepaper draft from notes, generate a CHANGELOG entry, audit the workspace
-  for cleanup candidates). The last two need a local agent (they touch multiple
+  for cleanup candidates. The last two need a local agent (they touch multiple
   files / the whole workspace).
+- **🧪 RigorLoop audit (AMEP)** — a different kind of preset: it doesn't use your
+  configured AI provider at all. It calls [AMEP](https://evemisstechnology.com/amep/)
+  (a separate open method-pack project) directly, running entirely in your
+  browser — no server round-trip, no API key. It scans your selection/document
+  for compressed proof language, unclear equivalence claims, and missing
+  citations, and returns findings with recommendations. It's a heuristic keyword/
+  marker scanner, not a theorem prover or an LLM — treat findings as prompts to
+  double-check, not verdicts. First use in a session downloads ~14 MB (Pyodide,
+  cached after) since AMEP runs client-side with no hosted API.
 
 ### Reviewing an agent's changes
 
