@@ -25,6 +25,16 @@ see [SECURITY.md](SECURITY.md).
 - **Import DOCX** converts a Word document to Markdown, then runs a light cleanup
   pass automatically.
 - **Print** renders just the preview for a clean Save-as-PDF.
+- **PDF** compiles the active document into a real typeset PDF via
+  [Typst](https://typst.app) — different from Print's browser Save-as-PDF, this is
+  an actual typesetting engine (proper math layout, real page breaks), running
+  entirely in your browser as WebAssembly. Nothing is uploaded anywhere. Callouts
+  render as colored boxes (matching the preview's colors) and AIMD blocks render
+  as a static print snapshot — the last-known state as written, no compute buttons
+  or folded Coupling Nodes (there's nothing to click or fold on paper, so a
+  Coupling Node's content just prints inline). First use in a session downloads
+  ~51MB (compiler + fonts, including Traditional Chinese coverage via Noto Serif
+  TC) — same-origin, cached after. Works on Markdown (`.md`) files.
 
 ## Writing: EveGlyph-MD
 
@@ -81,6 +91,27 @@ in the workspace, not just the one you're looking at.
 See `examples/village-inn/` for real, working examples of each kind,
 including two intentionally-broken ones so you can see the Diagnostics block
 catch something.
+
+### Studio: AI-assisted state-machine drafts
+
+The **Studio** tab is the first AI authoring surface for complex World IR. Enter
+a design request such as “建立村莊信任與商隊失蹤的多階段狀態機”，and it asks the
+configured **Anthropic** or **OpenAI-compatible** provider for one YAML draft.
+The draft may contain:
+
+- `states`, `transitions`, and bounded `guards`;
+- `variables` and `events` for semantic state and event data;
+- `instructions` with language examples, plus `responses` for authored replies.
+
+The response is parsed locally and checked against the existing state-machine
+validator plus conservative limits (64 states, 256 transitions, 128 variables,
+256 events, 256 instructions, 512 responses, and bounded text lengths). A draft
+with errors cannot be applied. **Apply to editor** only changes the current
+CodeMirror document; **Save** remains a separate human action. Unknown room,
+EventIR, guard, and external-runtime semantics stay as reviewable draft data —
+they are not silently compiled or written to Runtime State. Local Agent is not
+used for this structured panel yet because its CLI response is an edit stream,
+not a bounded JSON/YAML draft contract.
 
 ## Search
 
@@ -155,6 +186,17 @@ agent run automatically:
 
 Each is individually toggleable in Settings. This folder is created per-workspace
 and stays local — it's not part of the app itself.
+
+## CompilableWorld Runtime FunctionIR preview
+
+The **Runtime** tab connects to a local CompilableWorld Runtime package. Set the
+runtime URL (default `http://127.0.0.1:8765`), load the FunctionIR catalog, choose
+a function, and submit numeric inputs for a read-only preview. The returned
+version, purity, expression metadata, inputs, and result come from the Runtime;
+EveGlyph never writes Runtime State through this panel.
+
+Edit `functions.json` in the normal editor or through a reviewed agent diff,
+compile the package, then reload the catalog to preview the validated package.
 
 ## Settings reference
 

@@ -27,6 +27,7 @@
       <button class="btn-s" id="btn-new" disabled>+ New</button>
       <button class="btn-s" id="btn-import" title="Import a .docx as Markdown">Import DOCX</button>
       <button class="btn-s" id="btn-print" title="Print / Save-as-PDF the preview">Print</button>
+      <button class="btn-s" id="btn-export-pdf" title="Export as a real typeset PDF (Typst, runs in your browser — first use downloads ~51MB incl. Traditional Chinese fonts, cached after)">PDF</button>
       <input type="file" id="docx-input" accept=".docx" style="display:none">
     </div>
   </header>
@@ -64,7 +65,9 @@
     <aside id="right-panel">
       <div id="panel-tabs">
         <button class="ptab active" data-t="preview">Preview</button>
+        <button class="ptab" data-t="runtime" title="CompilableWorld Runtime FunctionIR preview">Runtime</button>
         <button class="ptab" data-t="world" title="Workspace Overview — scan every World IR document">🌐 World</button>
+        <button class="ptab" data-t="studio" title="Generate and review bounded World IR drafts">Studio</button>
         <button class="ptab" data-t="ai">AI</button>
         <button class="ptab" data-t="search">🔍</button>
         <button class="ptab" data-t="log" title="Monitor — diagnostic stream">◷</button>
@@ -87,6 +90,50 @@
         </div>
         <div id="overview-body" class="ov-body">
           <div class="ov-empty">Click "Scan workspace" to inventory every state machine / entity / entity list in the open folder.</div>
+        </div>
+      </div>
+
+      <!-- CompilableWorld Runtime: catalog + read-only FunctionIR preview. -->
+      <div id="t-runtime" class="tcontent">
+        <div class="ai-sec">
+          <label>CompilableWorld Runtime URL</label>
+          <input id="cw-runtime-url" type="url" placeholder="http://127.0.0.1:8765">
+          <button class="btn-p" id="cw-load-functions">Load FunctionIR catalog</button>
+          <span id="cw-runtime-status" class="cw-runtime-status">Runtime preview is read-only.</span>
+        </div>
+        <div class="ai-sec">
+          <label>Function</label>
+          <select id="cw-function-select" disabled></select>
+          <div id="cw-function-inputs" class="cw-input-grid"></div>
+          <button class="btn-p" id="cw-preview-function" disabled>Preview (read-only)</button>
+        </div>
+        <pre id="cw-function-result" class="cw-result">No preview yet.</pre>
+      </div>
+
+      <!-- Studio: bounded AI authoring drafts. Applying changes the editor only;
+           saving to disk remains an explicit human action. -->
+      <div id="t-studio" class="tcontent">
+        <div class="ai-sec">
+          <label>World Studio draft</label>
+          <p class="studio-help">Generate a state machine with bounded variables, events, language instructions, responses, and transitions. Unknown semantics stay reviewable instead of becoming Runtime rules.</p>
+        </div>
+        <div class="ai-sec">
+          <label>Generation request</label>
+          <textarea id="studio-instruction" placeholder="例如：建立一個村莊信任與商隊失蹤的多階段狀態機，讓玩家可以用不同說法詢問、懷疑、協助或背叛。"></textarea>
+          <button class="btn-p" id="studio-generate">Generate bounded draft</button>
+          <span id="studio-status" class="studio-status">Draft is review-only until applied.</span>
+        </div>
+        <div class="ai-sec">
+          <label>Draft diagnostics</label>
+          <div id="studio-issues" class="studio-issues"><span class="studio-dim">No draft generated.</span></div>
+        </div>
+        <div class="ai-sec">
+          <label>Generated YAML</label>
+          <pre id="studio-draft-output" class="studio-draft-output"></pre>
+          <div class="resp-actions">
+            <button class="btn-g" id="studio-apply" disabled>Apply to editor</button>
+            <button class="btn-g" id="studio-copy" disabled>Copy YAML</button>
+          </div>
         </div>
       </div>
 

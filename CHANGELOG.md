@@ -6,6 +6,20 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **PDF export (Typst)** — a new **PDF** button in the topbar compiles the active
+  Markdown document into a real typeset PDF (proper math layout, real page
+  breaks — not just the browser's Save-as-PDF, which **Print** still does).
+  Runs entirely client-side via a WebAssembly build of the
+  [Typst](https://typst.app) compiler, bundled as an ordinary dependency and
+  served from this app — nothing is uploaded anywhere. Handles headings,
+  bold/italic/strikethrough, code, links, nested/ordered lists, blockquotes,
+  tables, math (via `tex2typst`), callouts (colored boxes matching the preview's
+  colors), and AIMD blocks (a static print rendering — no compute buttons or
+  folded Coupling Nodes, just the last-known state as written). Traditional
+  Chinese text renders correctly (Noto Serif TC). A document-level style pass
+  sets a real page/font/heading/code/link/table look rather than raw Typst
+  defaults. First export in a session downloads ~51MB (compiler + fonts),
+  cached after.
 - **RigorLoop audit preset** — a new "🧪 RigorLoop audit (AMEP)" quick action in
   the AI panel. Unlike the other presets, this doesn't call your configured AI
   provider — it calls [AMEP](https://evemisstechnology.com/amep/), a separate
@@ -28,6 +42,12 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
   save format. See `examples/village-inn/` for real examples. (Originally
   built as a separate fork, `compilableworld-studio` — folded back in here
   once it became clear nothing about it actually needed a separate codebase.)
+- **Studio AI draft panel** — a new **Studio** tab generates bounded
+  `kind: state_machine` YAML drafts with variables, events, language instructions,
+  responses, and transitions. The response is parsed and validated locally with
+  hard size limits; invalid drafts cannot be applied, and applying a valid draft
+  only changes the editor until the user explicitly saves it. No Runtime State is
+  mutated and unknown semantics remain reviewable.
 - **AIMD computable-math blocks** — a new `::: aimd … :::` block type for
   Markdown documents. Write a spreadsheet-style formula (`SUM`, `AVERAGE`, `IF`,
   `AND`/`OR`/`NOT`, comparisons, trig/log/sqrt, …) and click **▶** to actually

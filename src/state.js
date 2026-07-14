@@ -22,6 +22,7 @@ export const S = {
     model: CONFIG.model,
     agent: CONFIG.agent,
     workspace: CONFIG.workspace,
+    compilableWorldRuntimeUrl: CONFIG.compilableWorldRuntimeUrl,
     agentCmd: CONFIG.agentCmd,
     defaultEncoding: CONFIG.defaultEncoding,
     agentMode: CONFIG.agentMode,

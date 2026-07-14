@@ -236,6 +236,7 @@ export function cfgSave(showMessage = true) {
     model: $('s-model').value.trim(),
     agent: $('s-agent').value || S.cfg.agent || 'claude',
     workspace: $('s-workspace').value.trim(),
+    compilableWorldRuntimeUrl: S.cfg.compilableWorldRuntimeUrl || CONFIG.compilableWorldRuntimeUrl,
     agentCmd: $('s-agentcmd').value.trim(),
     defaultEncoding: $('s-default-encoding')?.value || S.cfg.defaultEncoding || 'UTF-8',
     agentMode: S.cfg.agentMode || 'patch',  // set via the AI-panel selector, not a Settings field — preserve it

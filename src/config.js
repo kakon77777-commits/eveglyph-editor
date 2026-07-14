@@ -51,6 +51,7 @@ export const CONFIG = {
   // ── Local agent (persisted, user-facing) ──
   agent: 'claude',                                        // [user] CLI agent id
   workspace: '',                                          // [user] absolute workspace path
+  compilableWorldRuntimeUrl: 'http://127.0.0.1:8765',      // [user] local CompilableWorld Runtime preview endpoint
   agentCmd: '',                                           // [user] command override
   agentMode: 'patch',                                     // [user] suggest | patch | direct (whitepaper §11.2)
   agentPermission: 'standard',                            // [user] cautious | standard | trusted — capability + trust tier

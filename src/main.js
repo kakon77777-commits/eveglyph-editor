@@ -8,7 +8,7 @@
 //
 // Roadmap (handed off from the original single-file build):
 //   [x] 1. Convert to Vite + npm project
-//   [ ] 2. Add Typst WASM for in-browser PDF export
+//   [x] 2. Add Typst WASM for in-browser PDF export
 //   [ ] 3. Add transclusion {{ embed: "path.md" }} support
 //   [ ] 4. Add custom phosphor syntax theme for CodeMirror
 //   [ ] 5. Add directory watcher for auto-refresh
@@ -49,6 +49,9 @@ import { runSearch, replaceAll }   from './search.js'
 import { runAiSearch }             from './aisearch.js'
 import { importFiles }             from './import.js'
 import { initOverview }            from './overview.js'
+import { initRuntimeView }         from './runtimeview.js'
+import { initStudioView }          from './studio.js'
+import { exportActiveAsPdf }       from './typstui.js'
 
 // Toggle the app-wide light theme (CSS variables in styles.css).
 export function applyTheme(theme) {
@@ -82,6 +85,7 @@ function bindAll() {
   document.getElementById('btn-import').onclick  = () => { monitor('click', { target: 'import-docx' }); document.getElementById('docx-input').click() }
   document.getElementById('docx-input').onchange = (e) => { importFiles(e.target.files); e.target.value = '' }
   document.getElementById('btn-print').onclick   = () => { monitor('click', { target: 'print' }); window.print() }
+  document.getElementById('btn-export-pdf').onclick = () => { monitor('click', { target: 'export-pdf', active: S.active || null }); exportActiveAsPdf() }
   document.getElementById('btn-whats-new').onclick = () => { monitor('click', { target: 'whats-new' }); openDocsSection('docs-changelog') }
   document.getElementById('btn-docs-guide').onclick     = () => openDocsSection('docs-guide')
   document.getElementById('btn-docs-changelog').onclick = () => openDocsSection('docs-changelog')
@@ -282,5 +286,7 @@ bindAll()
 renderAbout()
 initDocs()
 initOverview()
+initRuntimeView()
+initStudioView()
 statusUpdate()
 monitor('boot', { href: location.href })

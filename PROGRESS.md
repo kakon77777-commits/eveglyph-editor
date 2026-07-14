@@ -1,7 +1,8 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-14.
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-14
+> (Typst export: all 3 phases + callout/AIMD conversion + typesetting polish).
 
 ## What this is
 
@@ -68,6 +69,159 @@ Neo's already-shipped AMEP project (`evemisstechnology.com/amep`) directly.**
   requiring Neo to name the exact URL explicitly rather than accept a general
   "go ahead" — a meaningfully higher bar than local-agent-adjacent actions get,
   appropriately.
+
+## Typst WASM PDF export (2026-07-14, all 3 phases done)
+
+Neo's long-wanted feature: real typeset PDF export, not just browser print-to-PDF.
+Researched first (per Neo: "先查一下Typst WASM 套件") — confirmed a viable,
+license-compatible (Apache-2.0), actively-maintained stack exists
+(`@myriaddreamin/typst.ts` + `typst-ts-web-compiler` + `typst-ts-renderer`) and that
+the WASM binaries can be bundled as **ordinary npm dependencies**, served same-origin
+by Vite (`?url` imports), with zero runtime fetch to any external CDN — this is what
+makes it a normal build-time dependency rather than a "load and execute remote code"
+action (the latter is the pattern used by [[AMEP RigorLoop]] and needs Neo's explicit
+per-URL sign-off; this doesn't, since nothing crosses an origin boundary at runtime).
+3-phase plan, approved in full ("開始吧。麻煩了。"):
+
+- **Phase 1 — compiler plumbing** [done]. New `src/typstexport.js`:
+  `compileTypstToPdf(source)` / `compileTypstToSvg(source)` configure `$typst`
+  (typst.ts's utility API) via `setCompilerInitOptions({ getModule: () =>
+  compilerWasmUrl, beforeBuild: [...] })`, pointing `getModule` at the
+  Vite-bundled `typst_ts_web_compiler_bg.wasm` instead of the package's own
+  default (which can fetch from jsdelivr). Renderer WASM
+  (`typst_ts_renderer_bg.wasm`) wired the same way, used by `compileTypstToSvg`.
+  **Verified live in-browser** (dev server, dynamic import of the real module, no
+  mocks): `compileTypstToPdf('= Hello World\n\nThis is a test.')` returned 2710
+  real PDF bytes starting `%PDF-1.7` in ~290ms. `read_network_requests` confirmed
+  every request (module, both `.wasm` files) stayed on `localhost:5174` — zero
+  external calls. Zero console errors.
+- **Phase 2 — Markdown→Typst converter** [done]. New `src/typstconvert.js`:
+  `markdownToTypst(source)` strips frontmatter (`parseFrontmatter`), pulls out
+  `$...$`/`$$...$$` math spans before tokenizing (protects them from marked
+  misreading `_`/`*`/`\` inside math as Markdown syntax), walks `marked.lexer()`'s
+  token tree emitting Typst markup (headings/bold/italic/strikethrough/code
+  spans+blocks/links/images/blockquotes/ordered+nested lists/tables/hr), then
+  splices the math back in converted via `tex2typst`. **Font gap found and
+  resolved during verification**: math compilation hard-errors ("no font could be
+  found") with zero fonts loaded — typst.ts's default is a jsdelivr CDN fetch of
+  its "text" font set (DejaVuSansMono/LibertinusSerif/NewCM10/NewCMMath) on first
+  compile. Per Neo's explicit choice (self-host, not CDN — 2026-07-14), those 17
+  files (~8.4MB, `github.com/typst/typst-assets@v0.13.1`) were downloaded into
+  `public/fonts/typst/` and are now loaded via
+  `initOptions.preloadFontAssets({ assets: ['text'], assetUrlPrefix:
+  '/fonts/typst/' })` — same-origin, no CDN. CJK coverage (Neo writes Traditional
+  Chinese) is a separate Phase 3 decision; this set has no CJK glyphs.
+  **Verified live in-browser**: a full test document (heading, bold/italic/code/
+  link, inline + block math, nested + ordered lists, blockquote, code block,
+  table, hr) round-tripped through `markdownToTypst` → `compileTypstToPdf` →
+  34058 real PDF bytes (`%PDF-1.7`), and separately through `compileTypstToSvg` →
+  a 62KB SVG with a correct A4 viewBox (`596×842`). All 17 font requests +
+  both WASM files confirmed same-origin via `read_network_requests`. Zero console
+  errors. (Visual screenshot of the rendered SVG was attempted but the preview
+  browser's screenshot capture was unresponsive at the time — not a code issue,
+  the non-visual checks above are real, unmocked verification.)
+  Known gap, stated honestly in the code: EveGlyph-MD extras (`::: type ... :::`
+  callouts, AIMD compute blocks) aren't converted yet — raw fence syntax passes
+  through as literal escaped text rather than a styled block. Fine for now since
+  this phase's scope was plain Markdown + math; revisit before this is the
+  primary export path for documents that actually use those blocks.
+- **Phase 3 — UI integration** [done]. New topbar **PDF** button (next to Print),
+  new `src/typstui.js`: `exportActiveAsPdf()` reads the active `.md` file
+  (`editorGet()`), converts + compiles, then triggers a real browser download
+  (`Blob` + `<a download>`). Button shows "Compiling…"/disabled while running;
+  errors surface via `alert()` (this codebase's existing convention — see
+  `ai.js`/`files.js`/`import.js`) instead of throwing silently.
+  **CJK gap found via real testing** (see below) **and resolved**: Typst's own
+  `'cjk'` asset bundle only has a Simplified-Chinese-tuned Noto font — wrong
+  glyph shapes for Neo's Traditional Chinese documents. Per his explicit choice,
+  downloaded Noto Serif TC (variable font, all weights in one file, OFL,
+  `github.com/google/fonts`, ~16.85MB) into `public/fonts/typst/`, loaded via
+  `initOptions.loadFonts(['/fonts/typst/NotoSerifTC-Variable.ttf'], {assets:
+  ['text'], assetUrlPrefix: '/fonts/typst/'})`. First-export download is now
+  ~51MB total (compiler ~27MB + fonts ~24MB), same-origin.
+  New demo file `examples/typst-export-demo.md` (bilingual, headings/bold/
+  italic/code/links/math/lists/blockquote/table/hr, written specifically to
+  stress-test the converter on real mixed-language content, not synthetic
+  snippets).
+  **Verified twice, both times through the real UI code path** (`loadWorkspacePath`
+  → `openFile` → `exportActiveAsPdf`, the exact same functions the button's
+  click handler calls — not a hand-rolled shortcut): first without a CJK font
+  (93KB PDF, but Chinese text would have been tofu), then again after adding
+  Noto Serif TC. Both runs: real `%PDF-1.7` bytes captured via a
+  `URL.createObjectURL` intercept, zero `alert()` calls, button correctly
+  re-enabled with its original text afterward, zero console errors.
+  **CJK glyph correctness specifically verified** (screenshot tool was
+  unresponsive again this session, so this needed a non-visual proof): compiled
+  isolated test strings to SVG and compared glyph path-data complexity — a
+  1-stroke character ("一") produced a 168-character path, four complex
+  Traditional characters ("繁體驗證", 12-19 strokes each) produced 2784-3908
+  character paths scaling with stroke count, while a genuinely unassigned
+  codepoint (the true tofu/notdef baseline) produced a flat, unrelated 812
+  every time — proving real glyph shapes are being drawn, not a placeholder box.
+  New `compileTypstToPdfWithDiagnostics()` in `typstexport.js` (requests
+  Typst's own compiler diagnostics) added along the way — didn't end up
+  answering the CJK question (missing-glyph fallback isn't flagged as a
+  diagnostic), but kept since real Typst syntax-error messages would be a much
+  better error surface than a generic JS exception, for later.
+  Still-open known gap, same as Phase 2: callouts/AIMD blocks pass through as
+  literal text, not yet converted.
+
+### Callout/AIMD conversion + typesetting polish (2026-07-14, done)
+
+Closed the gap immediately above, plus general document-quality polish. Neo's
+own local Chrome downloads generated PDFs to `D:\Ai\work together\eveglyph-
+editor\demo\` — that's now the standing convention for this project's local
+Typst testing output (gitignored — regenerable, not source).
+
+- **`::: type {title="..."} ... :::` callouts** now become colored Typst boxes
+  (`#block` with a left border + tinted fill), color-matched to `styles.css`'s
+  existing `.cfp-*` palette so a printed doc looks like the in-app preview:
+  definition (blue), theorem (purple), lemma (light purple), note (amber),
+  warning (red), proof (neutral + italic label), unknown types fall back to
+  gray. Inner content is recursively converted through the normal Markdown→
+  Typst pipeline, so bold/math/links/etc. all still work inside a callout.
+- **`::: aimd ... :::` blocks** get a static print rendering — no compute
+  buttons (nothing to click on paper) and no collapsed Coupling Nodes
+  (nothing to "fold" once printed, so their content is materialized inline
+  instead): `@Key: value` meta lines become a small gray header line, trunk
+  nodes (`> [D_G=N, λ=...] text`) become a tagged box, `Logic_Node` status
+  lines become a colored bullet + the state/coherence/verifier as written
+  (last-known value, not re-computed), `<Coupling Node>` blocks become a
+  bordered box with their content shown directly.
+- **Document-level typesetting preamble** (prepended to every compile):
+  explicit font stack (Libertinus Serif → Noto Serif TC fallback, rather than
+  leaving font choice to the compiler's implicit search), A4 page with sane
+  margins, justified paragraphs, a real heading size/spacing hierarchy
+  (levels 1-4+, no auto-numbering), light-gray backgrounds for code blocks
+  (block and inline), blue link color, and striped table headers. Tested
+  standalone before wiring in.
+- **Math formula conversion itself needed no changes** — `tex2typst` was
+  already producing correct, idiomatic Typst for a broad real-world test set
+  (fractions, sums, integrals with limits, matrices, `\mathbf`/`\mathbb`,
+  Greek letters, `\nabla`/`\cdot`, `\forall`/`\exists`/`\in`, comparison
+  operators) before touching anything — verified by inspecting the converter
+  output directly, not just "it compiled."
+- **Found and fixed a real, latent Phase-2 bug along the way**: marked's
+  inline tokenizer pre-escapes bare `&`/`<`/`>`/`"`/`'` into HTML entities
+  inside plain 'text' tokens (a defense for its own HTML renderer, irrelevant
+  here) — so `t.text` for "A <---> B" arrived as `"A &lt;---&gt; B"`, and the
+  converter's `esc()` was Typst-escaping the ALREADY-escaped entity text
+  verbatim, leaking literal `&lt;`/`&gt;` into any exported doc that had a
+  bare `<`, `>`, or `&` in ordinary prose. Never triggered by earlier test
+  content (no test happened to include those characters) until the AIMD demo's
+  Coupling Node text ("...<---> ...") exposed it. Fixed with a small
+  `unescapeHtmlEntities()` decode step inside `esc()`, before Typst's own
+  escaping runs.
+- **Verified**: a combined test (all 6 callout types + AIMD with a pending
+  `狀態: ?` node + a Coupling Node containing `<--->`) compiled clean, zero
+  Typst diagnostics, no stray HTML entities in the generated Typst source.
+  The demo file (`examples/typst-export-demo.md`) was updated to actually
+  exercise callouts + AIMD (it predated this feature) and re-run through the
+  real UI path end-to-end: 121519 real PDF bytes, `%PDF-1.7` header, 2 pages,
+  valid trailer/EOF — written to `demo/typst-export-demo.pdf` for Neo to open
+  and eyeball (screenshot tooling was still unresponsive this session, so a
+  human visual check is the remaining verification step, not something this
+  session could close the loop on itself).
 
 ## AI semantic search (whitepaper §12.2, 2026-07-12)
 

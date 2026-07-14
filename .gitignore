@@ -25,3 +25,6 @@ dev-server*.log
 _monitor_baseline.txt
 *.tmp
 zz-*
+
+# generated PDF exports from local Typst testing — regenerable output, not source
+/demo/
