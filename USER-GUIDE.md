@@ -100,18 +100,32 @@ configured **Anthropic** or **OpenAI-compatible** provider for one YAML draft.
 The draft may contain:
 
 - `states`, `transitions`, and bounded `guards`;
-- `variables` and `events` for semantic state and event data;
+- `variables` and `events` for semantic state and event data; a variable may
+  optionally declare a bounded `random` spec (`boolean`, `integer`, `number`,
+  or `choice`);
 - `instructions` with language examples, plus `responses` for authored replies.
 
 The response is parsed locally and checked against the existing state-machine
 validator plus conservative limits (64 states, 256 transitions, 128 variables,
-256 events, 256 instructions, 512 responses, and bounded text lengths). A draft
-with errors cannot be applied. **Apply to editor** only changes the current
-CodeMirror document; **Save** remains a separate human action. Unknown room,
+256 events, 256 instructions, 512 responses, at most 32 random choices, and
+numeric random ranges no wider than 1,000,000). A draft with errors cannot be
+applied. **Apply to editor** only changes the current CodeMirror document;
+**Save** remains a separate human action. Random data is descriptive draft data
+until a later runtime contract explicitly consumes it. Unknown room,
 EventIR, guard, and external-runtime semantics stay as reviewable draft data —
 they are not silently compiled or written to Runtime State. Local Agent is not
 used for this structured panel yet because its CLI response is an edit stream,
 not a bounded JSON/YAML draft contract.
+
+If the CompilableWorld Runtime is running, **Check with Runtime** sends the
+current draft to its read-only `/api/studio/import` endpoint. Runtime performs a
+second YAML/World IR check and returns diagnostics, while Runtime State remains
+unchanged. The endpoint uses the URL configured in the Runtime tab. It also
+returns a human-review mapping draft. You can edit the JSON under **Runtime
+mapping draft** and press **Validate mapping**; a `runtime_ready` report still
+does not compile or install a Runtime Package automatically. Once it is ready,
+the Runtime CLI can run `studio-compile` against a complete base world; this
+keeps world/room/exit authoring explicit.
 
 ## Search
 

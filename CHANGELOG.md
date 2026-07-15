@@ -6,6 +6,9 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Controlled Studio randomness** — variable drafts can now declare bounded
+  boolean, integer, number, or choice random specs. Limits and invalid ranges
+  are diagnosed locally; generated random data remains reviewable draft data.
 - **PDF export (Typst)** — a new **PDF** button in the topbar compiles the active
   Markdown document into a real typeset PDF (proper math layout, real page
   breaks — not just the browser's Save-as-PDF, which **Print** still does).

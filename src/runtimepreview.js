@@ -30,3 +30,19 @@ export function previewRuntimeFunction(baseUrl, functionId, inputs) {
     body: JSON.stringify({ function_id: functionId, inputs })
   })
 }
+
+export function importStudioDraft(baseUrl, sourceText, sourcePath = 'eveglyph-studio-draft.yaml') {
+  return requestJson(`${normalizeRuntimeUrl(baseUrl)}/api/studio/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_text: sourceText, source_path: sourcePath })
+  })
+}
+
+export function validateStudioMapping(baseUrl, worldIr, mapping) {
+  return requestJson(`${normalizeRuntimeUrl(baseUrl)}/api/studio/validate-mapping`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ world_ir: worldIr, mapping })
+  })
+}

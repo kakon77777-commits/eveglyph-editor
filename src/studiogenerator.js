@@ -15,9 +15,13 @@ export const STUDIO_LIMITS = Object.freeze({
   instructions: 256,
   responses: 512,
   examplesPerInstruction: 12,
+  randomChoices: 32,
+  randomRange: 1000000,
   textChars: 4000,
   promptChars: 24000,
 })
+
+export const STUDIO_RANDOM_KINDS = Object.freeze(['boolean', 'integer', 'number', 'choice'])
 
 const issue = (severity, code, message, path) => ({ severity, code, message, path })
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value)
@@ -30,6 +34,70 @@ function boundedText(value, path, issues) {
   }
   if (value.length > STUDIO_LIMITS.textChars) {
     issues.push(issue('error', 'text_limit_exceeded', '文字超過 ' + STUDIO_LIMITS.textChars + ' 字元上限', path))
+  }
+}
+
+function validateRandomValue(value, path, issues) {
+  if (typeof value === 'string') {
+    boundedText(value, path, issues)
+  } else if (typeof value === 'number') {
+    if (!Number.isFinite(value)) issues.push(issue('error', 'invalid_random_value', 'random choice 必須是有限數字', path))
+  } else if (typeof value !== 'boolean') {
+    issues.push(issue('error', 'invalid_random_value', 'random choice 只能是文字、數字或布林值', path))
+  }
+}
+
+function validateRandomSpec(random, path, issues) {
+  if (random === undefined) return
+  if (!isObject(random)) {
+    issues.push(issue('error', 'invalid_random_spec', 'random 必須是 object', path))
+    return
+  }
+
+  const kind = random.kind
+  if (!STUDIO_RANDOM_KINDS.includes(kind)) {
+    issues.push(issue('error', 'invalid_random_kind', 'random.kind 必須是 boolean、integer、number 或 choice', path + '.kind'))
+    return
+  }
+
+  if (random.seed !== undefined) boundedText(random.seed, path + '.seed', issues)
+
+  if (kind === 'boolean') return
+
+  if (kind === 'choice') {
+    if (!Array.isArray(random.values)) {
+      issues.push(issue('error', 'missing_random_values', 'choice random 必須提供 values 陣列', path + '.values'))
+      return
+    }
+    if (!random.values.length) {
+      issues.push(issue('error', 'empty_random_values', 'choice random 至少需要一個 values', path + '.values'))
+    }
+    if (random.values.length > STUDIO_LIMITS.randomChoices) {
+      issues.push(issue('error', 'random_choice_limit_exceeded', 'choice random 最多 ' + STUDIO_LIMITS.randomChoices + ' 個 values', path + '.values'))
+    }
+    random.values.forEach((value, index) => validateRandomValue(value, path + '.values[' + index + ']', issues))
+    if (random.values.length === 1) {
+      issues.push(issue('warning', 'degenerate_random_choice', 'choice random 只有一個值，結果不會真正變動', path + '.values'))
+    }
+    return
+  }
+
+  const { min, max } = random
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    issues.push(issue('error', 'invalid_random_bounds', 'number random 必須提供有限數字 min 和 max', path))
+    return
+  }
+  if (max < min) {
+    issues.push(issue('error', 'reversed_random_bounds', 'random.max 不可小於 random.min', path))
+  }
+  if (max - min > STUDIO_LIMITS.randomRange) {
+    issues.push(issue('error', 'random_range_limit_exceeded', 'random 範圍不可超過 ' + STUDIO_LIMITS.randomRange, path))
+  }
+  if (kind === 'integer' && (!Number.isInteger(min) || !Number.isInteger(max))) {
+    issues.push(issue('error', 'invalid_integer_bounds', 'integer random 的 min 和 max 必須是整數', path))
+  }
+  if (max === min) {
+    issues.push(issue('warning', 'degenerate_random_range', 'random min 與 max 相同，結果不會真正變動', path))
   }
 }
 
@@ -104,6 +172,12 @@ export function validateStudioDraft(document) {
   validateNamedRecords(document.instructions, 'instructions', STUDIO_LIMITS.instructions, issues, ['description', 'intent'])
   validateNamedRecords(document.responses, 'responses', STUDIO_LIMITS.responses, issues, ['text', 'description'])
 
+  if (Array.isArray(document.variables)) {
+    document.variables.forEach((record, index) => {
+      if (isObject(record)) validateRandomSpec(record.random, 'variables[' + index + '].random', issues)
+    })
+  }
+
   if (Array.isArray(document.instructions)) {
     document.instructions.forEach((record, index) => {
       const path = 'instructions[' + index + '].examples'
@@ -160,11 +234,12 @@ export function buildStudioPrompt({ instruction = '', source = '', activePath = 
     '硬性規則：',
     '1. 只輸出一個 YAML object，不要 Markdown code fence，不要解釋文字。',
     '2. 根節點必須是 kind: state_machine，並包含 id、initial、states、transitions。',
-    '3. 可額外產生 variables、events、instructions、responses，供語義資料與大量語言指令／回復使用；這些都是 draft，不是已執行規則。',
+    '3. 可額外產生 variables、events、instructions、responses，供語義資料與大量語言指令／回復使用；variables 可選擇加入受控 random，但這些都是 draft，不是已執行規則。',
     '4. transitions 的 on 必須是穩定的事件名稱；guards 只能是短字串條件，不要放 Python、JavaScript、SQL 或任意程式碼。',
     '5. 對不確定的外部引用，使用清楚的 placeholder 或空陣列，不要捏造現有 Runtime API。',
     '6. 控制規模：最多 ' + STUDIO_LIMITS.states + ' states、' + STUDIO_LIMITS.transitions + ' transitions、' + STUDIO_LIMITS.variables + ' variables、' + STUDIO_LIMITS.events + ' events、' + STUDIO_LIMITS.instructions + ' instructions、' + STUDIO_LIMITS.responses + ' responses。',
-    '7. 每個 instruction 最多 ' + STUDIO_LIMITS.examplesPerInstruction + ' 個 examples；每個文字欄位最多 ' + STUDIO_LIMITS.textChars + ' 字元。',
+    '7. random 只能放在 variables[].random，kind 只能是 boolean、integer、number、choice；數字必須有有限 min/max，choice 最多 ' + STUDIO_LIMITS.randomChoices + ' 個 values，範圍最多 ' + STUDIO_LIMITS.randomRange + '。',
+    '8. 每個 instruction 最多 ' + STUDIO_LIMITS.examplesPerInstruction + ' 個 examples；每個文字欄位最多 ' + STUDIO_LIMITS.textChars + ' 字元。',
     '',
     '建議結構：',
     'kind: state_machine',
@@ -176,6 +251,10 @@ export function buildStudioPrompt({ instruction = '', source = '', activePath = 
     '    type: number',
     '    default: 0',
     '    description: ...',
+    '    random:',
+    '      kind: integer',
+    '      min: 1',
+    '      max: 6',
     'events:',
     '  - id: dialogue.responded',
     '    description: ...',

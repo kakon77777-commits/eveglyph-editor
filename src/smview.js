@@ -48,6 +48,42 @@ function parseStateMachine(src) {
   return { doc, id: doc.id || '(unnamed)', initial: doc.initial || null, states: [...seen], transitions }
 }
 
+function renderSemanticRecords(doc) {
+  const sections = [
+    { key: 'variables', label: 'Variables', fields: ['id', 'type', 'default', 'random', 'description'] },
+    { key: 'events', label: 'Events', fields: ['id', 'description', 'payload'] },
+    { key: 'instructions', label: 'Language instructions', fields: ['id', 'intent', 'examples', 'description'] },
+    { key: 'responses', label: 'Responses', fields: ['id', 'when', 'text', 'description'] },
+  ]
+  const active = sections.filter(section => Array.isArray(doc[section.key]) && doc[section.key].length)
+  if (!active.length) return ''
+  return `
+    <div class="sm-semantic-grid">
+      ${active.map(section => `
+        <details class="sm-semantic-section" open>
+          <summary>${esc(section.label)} <span>${doc[section.key].length}</span></summary>
+          <div class="sm-semantic-records">
+            ${doc[section.key].map((record, index) => {
+              const item = record && typeof record === 'object' ? record : { value: record }
+              const title = item.id || item.name || ('record-' + (index + 1))
+              const fields = section.fields.filter(field => item[field] !== undefined)
+              return `<article class="sm-semantic-record">
+                <strong>${esc(title)}</strong>
+                ${fields.map(field => {
+                  const value = Array.isArray(item[field]) || (item[field] && typeof item[field] === 'object')
+                    ? JSON.stringify(item[field])
+                    : item[field]
+                  return `<div><small>${esc(field)}</small><span>${esc(value)}</span></div>`
+                }).join('')}
+              </article>`
+            }).join('')}
+          </div>
+        </details>
+      `).join('')}
+    </div>
+  `
+}
+
 // Simple layered layout: states in one row (v0.1 -- no attempt at a general
 // graph layout algorithm), transitions drawn as arrows between them. Good
 // enough for the small guard-gated relationship/quest machines this is
@@ -133,6 +169,7 @@ export function renderStateMachine(src) {
         ${nodesSvg}
       </svg>
       ${renderDiagnosticsBlock(issues)}
+      ${renderSemanticRecords(sm.doc)}
 
       <div class="sm-editor-controls">
         <div class="sm-add-row">

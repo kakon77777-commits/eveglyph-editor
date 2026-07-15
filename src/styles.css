@@ -232,6 +232,9 @@ html, body {
 .studio-ok { color:var(--ok); font-size:11px; }
 .studio-dim { color:var(--t3); font-size:11px; }
 .studio-draft-output { margin:0; min-height:170px; max-height:360px; overflow:auto; white-space:pre-wrap; word-break:break-word; background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t1); font:10.5px/1.5 var(--fm); }
+.studio-runtime-report { margin:0; max-height:240px; overflow:auto; white-space:pre-wrap; word-break:break-word; background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t2); font:10.5px/1.5 var(--fm); }
+.studio-mapping-output { width:100%; min-height:220px; max-height:420px; resize:vertical; padding:9px; background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t1); font:10.5px/1.5 var(--fm); }
+.studio-mapping-output:focus { border-color:var(--ac); outline:none; }
 
 /* ─── PREVIEW ─── */
 #preview-body {
@@ -479,7 +482,7 @@ textarea#ai-input:focus { border-color:var(--ac-d); }
 #ai-resp.err { color:var(--err); font-size:12px; }
 #ai-resp.warn { color:#f5b942; font-size:12px; }
 
-.resp-actions { display:flex; gap:5px; }
+.resp-actions { display:flex; flex-wrap:wrap; gap:5px; }
 .btn-g.danger { color:var(--err); border-color:rgba(248,113,113,.35); }
 .btn-g.danger:disabled { color:var(--t3); border-color:var(--bdr); opacity:.6; cursor:not-allowed; }
 
@@ -729,6 +732,19 @@ pre.diff span { display:block; padding:0 2px; }
 :root { --sm-edge: var(--t2); }
 .sm-view { padding: 4px 0 14px; }
 .sm-error { color: #f87171; font-size: 12.5px; padding: 10px; }
+.sm-semantic-grid { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.sm-semantic-section { border:1px solid var(--bdr); border-radius:var(--r); background:var(--bg-1); overflow:hidden; }
+.sm-semantic-section > summary { cursor:pointer; list-style:none; padding:7px 9px; color:var(--t1); font-size:11px; font-weight:600; }
+.sm-semantic-section > summary::-webkit-details-marker { display:none; }
+.sm-semantic-section > summary::before { content:'▸'; color:var(--t3); margin-right:6px; }
+.sm-semantic-section[open] > summary::before { content:'▾'; }
+.sm-semantic-section > summary span { color:var(--t3); font:10px var(--fm); margin-left:5px; }
+.sm-semantic-records { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:6px; padding:0 7px 7px; }
+.sm-semantic-record { border:1px solid var(--bdr); border-radius:var(--r); padding:6px 7px; background:var(--bg-0); min-width:0; }
+.sm-semantic-record strong { display:block; color:var(--ac); font:10.5px var(--fm); margin-bottom:4px; overflow-wrap:anywhere; }
+.sm-semantic-record div { display:flex; gap:6px; line-height:1.35; margin-top:2px; }
+.sm-semantic-record small { flex:0 0 58px; color:var(--t3); font:9px var(--fm); }
+.sm-semantic-record span { color:var(--t1); font-size:10px; overflow-wrap:anywhere; white-space:pre-wrap; }
 .sm-header {
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
   margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--bdr);

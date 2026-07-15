@@ -115,7 +115,7 @@
       <div id="t-studio" class="tcontent">
         <div class="ai-sec">
           <label>World Studio draft</label>
-          <p class="studio-help">Generate a state machine with bounded variables, events, language instructions, responses, and transitions. Unknown semantics stay reviewable instead of becoming Runtime rules.</p>
+          <p class="studio-help">Generate a state machine with bounded variables, optional controlled random ranges, events, language instructions, responses, and transitions. Unknown semantics stay reviewable instead of becoming Runtime rules.</p>
         </div>
         <div class="ai-sec">
           <label>Generation request</label>
@@ -133,6 +133,20 @@
           <div class="resp-actions">
             <button class="btn-g" id="studio-apply" disabled>Apply to editor</button>
             <button class="btn-g" id="studio-copy" disabled>Copy YAML</button>
+            <button class="btn-g" id="studio-runtime-check" disabled>Check with Runtime</button>
+          </div>
+        </div>
+        <div class="ai-sec">
+          <label>Runtime import report</label>
+          <pre id="studio-runtime-report" class="studio-runtime-report">No Runtime import yet.</pre>
+        </div>
+        <div class="ai-sec">
+          <label>Runtime mapping draft <span class="studio-dim">human review</span></label>
+          <p class="studio-help">Edit room, EventIR, and guard decisions here, then validate the mapping. This remains a review artifact until a separate package compilation step.</p>
+          <textarea id="studio-mapping-output" class="studio-mapping-output" spellcheck="false" placeholder="Check the draft with Runtime to receive a mapping suggestion."></textarea>
+          <div class="resp-actions">
+            <button class="btn-g" id="studio-mapping-validate" disabled>Validate mapping</button>
+            <button class="btn-g" id="studio-mapping-copy" disabled>Copy mapping JSON</button>
           </div>
         </div>
       </div>
