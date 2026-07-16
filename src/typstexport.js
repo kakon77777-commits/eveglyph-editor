@@ -11,9 +11,14 @@
 // explicit go-ahead 2026-07-14) live in public/fonts/typst/ and are served
 // same-origin instead. CJK coverage: Typst's own "cjk" asset bundle only has
 // a Simplified-Chinese-tuned Noto font — wrong glyph shapes for Neo's
-// Traditional Chinese documents — so Noto Serif TC (variable font, all
-// weights in one file, OFL, from github.com/google/fonts, ~16.85MB,
-// downloaded with Neo's explicit go-ahead 2026-07-14) is loaded instead.
+// Traditional Chinese documents — so Noto Serif TC (OFL, from
+// github.com/google/fonts, downloaded with Neo's explicit go-ahead
+// 2026-07-14) is loaded instead. That download was the variable-font build
+// (all weights in one file, ~16.85MB) - Neo's own real-world test found the
+// WASM compiler doesn't support variable fonts ("variable fonts are not
+// currently supported... try installing a static version instead"). Now two
+// static instances (Regular/Bold, via `fonttools varLib.instancer` on the
+// already-downloaded file - local processing, not a new download).
 import { $typst, initOptions } from '@myriaddreamin/typst.ts'
 import compilerWasmUrl from '@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm?url'
 import rendererWasmUrl from '@myriaddreamin/typst-ts-renderer/pkg/typst_ts_renderer_bg.wasm?url'
@@ -25,7 +30,7 @@ function configure() {
   $typst.setCompilerInitOptions({
     getModule: () => compilerWasmUrl,
     beforeBuild: [initOptions.loadFonts(
-      ['/fonts/typst/NotoSerifTC-Variable.ttf'],
+      ['/fonts/typst/NotoSerifTC-Regular.ttf', '/fonts/typst/NotoSerifTC-Bold.ttf'],
       { assets: ['text'], assetUrlPrefix: '/fonts/typst/' }
     )]
   })

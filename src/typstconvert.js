@@ -43,6 +43,16 @@ function esc(s) {
   return unescapeHtmlEntities(s).replace(ESCAPE_RE, c => '\\' + c)
 }
 
+// tex2typst (v0.6.2) understands `align`/`aligned` but not the LaTeX `split`
+// environment, even though they're the same alignment semantics — leaves
+// `\begin{split}`/`\end{split}` untranslated in its output, which then
+// breaks Typst's math parser (bare "begin"/"end" reads as implicit
+// variable multiplication, "b*e*g*i*n"). Normalize the alias before
+// handing TeX to the converter rather than waiting on an upstream fix.
+function normalizeTexAliases(tex) {
+  return tex.replace(/\\begin\{split\}/g, '\\begin{aligned}').replace(/\\end\{split\}/g, '\\end{aligned}')
+}
+
 function extractMath(source) {
   const stash = []
   const stow = (tex, block) => {
@@ -59,7 +69,16 @@ function restoreMath(typstText, stash) {
     const entry = stash[Number(idxStr)]
     if (!entry) return ''
     let body
-    try { body = tex2typst(entry.tex) } catch { body = entry.tex }
+    try { body = tex2typst(normalizeTexAliases(entry.tex)) } catch { body = null }
+    // tex2typst silently leaves unsupported LaTeX environments/commands
+    // untranslated rather than throwing — a literal `\begin{...}` reaching
+    // Typst's math parser breaks it (and the resulting compiler warning is
+    // cryptic: "did you mean b*e*g*i*n?"). Fall back to showing the raw
+    // LaTeX as a clearly-marked plain-text note instead of feeding Typst
+    // math syntax it can't parse — an honest gap, not a silent break.
+    if (body == null || /\\(begin|end)\{/.test(body)) {
+      return `#text(fill: rgb("#999999"), style: "italic")[[math: ${esc(entry.tex)}]]`
+    }
     return entry.block ? `$ ${body} $` : `$${body}$`
   })
 }

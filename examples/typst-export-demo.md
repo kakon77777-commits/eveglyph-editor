@@ -25,6 +25,10 @@ $$\frac{d}{dx}\left(x^2\right) = 2x$$
 
 $$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$
 
+`split` 環境（跟 `aligned` 語意相同，測試別名正規化）：
+
+$$\begin{split} a &= b + c \\ &= d + e \end{split}$$
+
 ## 清單
 
 - 項目一

@@ -223,6 +223,46 @@ Typst testing output (gitignored — regenerable, not source).
   human visual check is the remaining verification step, not something this
   session could close the loop on itself).
 
+### Two real bugs Neo found via his own real-world testing (2026-07-15, both fixed)
+
+Neo actually opened `demo/typst-export-demo.pdf` and tested with real content —
+exactly the human visual check the entry above said was still outstanding — and
+hit two real compiler diagnostics (screenshotted from the app's own error alert):
+
+- **`\begin{split}...\end{split}` broke math rendering.** `tex2typst` (v0.6.2,
+  latest) understands the LaTeX `align`/`aligned` environments but not `split`,
+  even though it's the same alignment semantics — silently leaves
+  `\begin{split}`/`\end{split}` untranslated in its output rather than throwing,
+  and the literal text then breaks Typst's math parser: bare "begin"/"end" reads
+  as implicit variable multiplication ("b·e·g·i·n"), producing the exact cryptic
+  warning Neo saw. Fixed two ways in `typstconvert.js`: (1) `normalizeTexAliases()`
+  rewrites `split`→`aligned` before handing TeX to the converter (targeted, since
+  they're truly equivalent — verified the rewritten output matches `aligned`'s own
+  correct output exactly); (2) a general safety net in `restoreMath()` — if
+  tex2typst's output still contains a raw `\begin{`/`\end{` (any OTHER unsupported
+  LaTeX construct, e.g. `multline`, tested and confirmed triggering the same
+  failure before the fix), fall back to rendering the raw LaTeX as a clearly-marked
+  gray italic `[math: ...]` note instead of feeding Typst a string it can't parse —
+  an honest, visible gap instead of a cryptic downstream warning.
+- **CJK text used a variable font, which the WASM compiler doesn't support.**
+  The Noto Serif TC file downloaded for Phase 3 was the variable-font build (all
+  weights in one file) — Typst's own diagnostic said so plainly: "variable fonts
+  are not currently supported and may render incorrectly... try installing a
+  static version... instead." Fixed by re-deriving two static instances (Regular
+  400, Bold 700) from the already-downloaded file via `fonttools varLib.instancer`
+  (`pip install fonttools`, standard PyPI package) — local processing of a file
+  already on disk, not a new download, so no separate sign-off needed. Old
+  `NotoSerifTC-Variable.ttf` deleted; `typstexport.js` now loads
+  `NotoSerifTC-Regular.ttf` + `NotoSerifTC-Bold.ttf`.
+- **Verified**: both fixes confirmed via `compileTypstToPdfWithDiagnostics()` —
+  the `split` case now compiles with zero diagnostics (was a hard error before);
+  the variable-font warning is gone entirely from every compile (was present on
+  every compile, not just ones using bold text). Demo file gained a `split`
+  example specifically to exercise the fix. Full demo re-compiled clean end-to-end
+  (136187 bytes, zero diagnostics, zero console errors) and re-written to
+  `demo/typst-export-demo.pdf` for Neo. Synced to the internal repo and
+  re-verified there too, identical result.
+
 ## AI semantic search (whitepaper §12.2, 2026-07-12)
 
 Long-noted gap closed: `search.js`'s header comment had said "AI semantic search is
