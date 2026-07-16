@@ -52,17 +52,20 @@ import { initOverview }            from './overview.js'
 import { initRuntimeView }         from './runtimeview.js'
 import { initStudioView }          from './studio.js'
 import { exportActiveAsPdf }       from './typstui.js'
+import { applyTranslations }       from './i18n/index.js'
 
 // Toggle the app-wide light theme (CSS variables in styles.css).
 export function applyTheme(theme) {
   document.documentElement.classList.toggle('theme-light', theme === 'light')
 }
 
-// i18n Phase 1 (see config.js): sets the real <html lang> attribute (affects
-// screen readers / spell-check / :lang() CSS) — UI strings themselves aren't
-// translated yet, that's the follow-up "compatibility" discussion.
+// i18n Phase 2 (see src/i18n/): sets <html lang> and re-applies every
+// data-i18n* string in the DOM. Front-stage UI chrome only — AI prompt text,
+// Monitor/diagnostic content, and document content are never touched by this.
 export function applyLanguage(lang) {
   document.documentElement.lang = lang || 'en'
+  applyTranslations(lang)
+  statusUpdate()   // status-bar text (Provider/Modified/etc.) is generated in JS, not data-i18n
 }
 
 // Open the right-panel "Find in files" navigator and focus it, prefilling a

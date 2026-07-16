@@ -217,7 +217,7 @@ compile the package, then reload the catalog to preview the validated package.
 | Setting | What it does |
 | --- | --- |
 | Theme | Dark / Light |
-| Language | Sets `<html lang>` (English / 繁體中文 so far). UI text itself is still English-only — this is step one of a planned full translation. |
+| Language | English / 繁體中文 so far, easy to extend. Translates the app's UI chrome (topbar, panels, Settings, status bar) live. Content generated elsewhere in the app (file tree, context menus, diff-review UI, alerts) still shows in English — not yet covered. |
 | Editor font size / family | Self-explanatory |
 | AI Provider | Anthropic / OpenAI-compatible / Local Agent |
 | Default encoding | Fallback when a file's encoding can't be confidently detected, and the encoding used for new files |

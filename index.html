@@ -18,16 +18,16 @@
       <span class="brand-name">EveGlyph Editor</span>
       <span class="brand-sub">EveMissLab</span>
       <span class="brand-ver" id="brand-version" title="EveGlyph-MD · EG-MD-2026"></span>
-      <button class="brand-changelog" id="btn-whats-new" title="What's new">What's new</button>
+      <button class="brand-changelog" id="btn-whats-new" data-i18n="topbar.whatsNew" data-i18n-title="topbar.whatsNew">What's new</button>
     </div>
     <div class="sep"></div>
     <div class="topbar-actions">
-      <button class="btn-p" id="btn-open">Open Folder</button>
-      <button class="btn-s" id="btn-save" disabled>Save</button>
-      <button class="btn-s" id="btn-new" disabled>+ New</button>
-      <button class="btn-s" id="btn-import" title="Import a .docx as Markdown">Import DOCX</button>
-      <button class="btn-s" id="btn-print" title="Print / Save-as-PDF the preview">Print</button>
-      <button class="btn-s" id="btn-export-pdf" title="Export as a real typeset PDF (Typst, runs in your browser — first use downloads ~51MB incl. Traditional Chinese fonts, cached after)">PDF</button>
+      <button class="btn-p" id="btn-open" data-i18n="topbar.openFolder">Open Folder</button>
+      <button class="btn-s" id="btn-save" disabled data-i18n="topbar.save">Save</button>
+      <button class="btn-s" id="btn-new" disabled data-i18n="topbar.newFile">+ New</button>
+      <button class="btn-s" id="btn-import" data-i18n="topbar.importDocx" data-i18n-title="topbar.importDocxTitle">Import DOCX</button>
+      <button class="btn-s" id="btn-print" data-i18n="topbar.print" data-i18n-title="topbar.printTitle">Print</button>
+      <button class="btn-s" id="btn-export-pdf" data-i18n="topbar.exportPdf" data-i18n-title="topbar.exportPdfTitle">PDF</button>
       <input type="file" id="docx-input" accept=".docx" style="display:none">
     </div>
   </header>
@@ -38,7 +38,7 @@
     <!-- SIDEBAR -->
     <aside id="sidebar">
       <div id="folder-hdr">
-        <span id="folder-name">No folder open</span>
+        <span id="folder-name" data-i18n="sidebar.noFolderOpen">No folder open</span>
       </div>
       <div id="file-tree"></div>
     </aside>
@@ -49,14 +49,14 @@
       <div id="editor-container">
         <div id="editor-placeholder">
           <div class="ph-icon">⬡</div>
-          <div class="ph-title">EveGlyph Editor</div>
-          <p class="ph-sub">Clean Markdown in · local agents edit on disk · every change a reviewable diff</p>
+          <div class="ph-title" data-i18n="placeholder.title">EveGlyph Editor</div>
+          <p class="ph-sub" data-i18n="placeholder.subtitle">Clean Markdown in · local agents edit on disk · every change a reviewable diff</p>
           <ol class="ph-steps">
-            <li><span class="ph-n">1</span><span><b>Open Folder</b> — your workspace, or the bundled <code>examples/</code> to explore</span></li>
-            <li><span class="ph-n">2</span><span><b>Write &amp; preview</b> — Markdown · math · callouts · <kbd>Ctrl</kbd>+<kbd>F</kbd> search</span></li>
-            <li><span class="ph-n">3</span><span><b>Run an agent</b> — Settings ⚙ → Local Agent → review the diff (Accept / Reject)</span></li>
+            <li><span class="ph-n">1</span><span><b data-i18n="placeholder.step1Label">Open Folder</b> <span data-i18n-html="placeholder.step1Text">— your workspace, or the bundled <code>examples/</code> to explore</span></span></li>
+            <li><span class="ph-n">2</span><span><b data-i18n="placeholder.step2Label">Write &amp; preview</b> <span data-i18n-html="placeholder.step2Text">— Markdown · math · callouts · <kbd>Ctrl</kbd>+<kbd>F</kbd> search</span></span></li>
+            <li><span class="ph-n">3</span><span><b data-i18n="placeholder.step3Label">Run an agent</b> <span data-i18n="placeholder.step3Text">— Settings ⚙ → Local Agent → review the diff (Accept / Reject)</span></span></li>
           </ol>
-          <p class="ph-foot">Local-agent mode runs a CLI with auto-approve — read SECURITY.md first.</p>
+          <p class="ph-foot" data-i18n="placeholder.footer">Local-agent mode runs a CLI with auto-approve — read SECURITY.md first.</p>
         </div>
       </div>
     </div>
@@ -64,15 +64,15 @@
     <!-- RIGHT PANEL -->
     <aside id="right-panel">
       <div id="panel-tabs">
-        <button class="ptab active" data-t="preview">Preview</button>
-        <button class="ptab" data-t="runtime" title="CompilableWorld Runtime FunctionIR preview">Runtime</button>
-        <button class="ptab" data-t="world" title="Workspace Overview — scan every World IR document">🌐 World</button>
-        <button class="ptab" data-t="studio" title="Generate and review bounded World IR drafts">Studio</button>
-        <button class="ptab" data-t="ai">AI</button>
-        <button class="ptab" data-t="search">🔍</button>
-        <button class="ptab" data-t="log" title="Monitor — diagnostic stream">◷</button>
-        <button class="ptab" data-t="docs" title="User Guide &amp; Changelog">📖</button>
-        <button class="ptab" data-t="settings">⚙</button>
+        <button class="ptab active" data-t="preview" data-i18n="panelTabs.preview">Preview</button>
+        <button class="ptab" data-t="runtime" data-i18n="panelTabs.runtime" data-i18n-title="panelTabs.runtimeTitle">Runtime</button>
+        <button class="ptab" data-t="world" data-i18n="panelTabs.world" data-i18n-title="panelTabs.worldTitle">🌐 World</button>
+        <button class="ptab" data-t="studio" data-i18n="panelTabs.studio" data-i18n-title="panelTabs.studioTitle">Studio</button>
+        <button class="ptab" data-t="ai" data-i18n="panelTabs.ai">AI</button>
+        <button class="ptab" data-t="search" data-i18n="panelTabs.search">🔍</button>
+        <button class="ptab" data-t="log" data-i18n="panelTabs.log" data-i18n-title="panelTabs.logTitle">◷</button>
+        <button class="ptab" data-t="docs" data-i18n="panelTabs.docs" data-i18n-title="panelTabs.docsTitle">📖</button>
+        <button class="ptab" data-t="settings" data-i18n="panelTabs.settings">⚙</button>
       </div>
 
       <!-- Preview -->
@@ -86,67 +86,67 @@
            since it reads every file in the workspace, not just the active one. -->
       <div id="t-world" class="tcontent">
         <div class="ai-sec">
-          <button class="btn-p" id="btn-scan-workspace" style="width:100%">↻ Scan workspace</button>
+          <button class="btn-p" id="btn-scan-workspace" style="width:100%" data-i18n="world.scanWorkspace">↻ Scan workspace</button>
         </div>
         <div id="overview-body" class="ov-body">
-          <div class="ov-empty">Click "Scan workspace" to inventory every state machine / entity / entity list in the open folder.</div>
+          <div class="ov-empty" data-i18n="world.scanEmpty">Click "Scan workspace" to inventory every state machine / entity / entity list in the open folder.</div>
         </div>
       </div>
 
       <!-- CompilableWorld Runtime: catalog + read-only FunctionIR preview. -->
       <div id="t-runtime" class="tcontent">
         <div class="ai-sec">
-          <label>CompilableWorld Runtime URL</label>
+          <label data-i18n="runtime.urlLabel">CompilableWorld Runtime URL</label>
           <input id="cw-runtime-url" type="url" placeholder="http://127.0.0.1:8765">
-          <button class="btn-p" id="cw-load-functions">Load FunctionIR catalog</button>
-          <span id="cw-runtime-status" class="cw-runtime-status">Runtime preview is read-only.</span>
+          <button class="btn-p" id="cw-load-functions" data-i18n="runtime.loadCatalog">Load FunctionIR catalog</button>
+          <span id="cw-runtime-status" class="cw-runtime-status" data-i18n="runtime.readOnlyStatus">Runtime preview is read-only.</span>
         </div>
         <div class="ai-sec">
-          <label>Function</label>
+          <label data-i18n="runtime.functionLabel">Function</label>
           <select id="cw-function-select" disabled></select>
           <div id="cw-function-inputs" class="cw-input-grid"></div>
-          <button class="btn-p" id="cw-preview-function" disabled>Preview (read-only)</button>
+          <button class="btn-p" id="cw-preview-function" disabled data-i18n="runtime.previewFunction">Preview (read-only)</button>
         </div>
-        <pre id="cw-function-result" class="cw-result">No preview yet.</pre>
+        <pre id="cw-function-result" class="cw-result" data-i18n="runtime.noPreviewYet">No preview yet.</pre>
       </div>
 
       <!-- Studio: bounded AI authoring drafts. Applying changes the editor only;
            saving to disk remains an explicit human action. -->
       <div id="t-studio" class="tcontent">
         <div class="ai-sec">
-          <label>World Studio draft</label>
-          <p class="studio-help">Generate a state machine with bounded variables, optional controlled random ranges, events, language instructions, responses, and transitions. Unknown semantics stay reviewable instead of becoming Runtime rules.</p>
+          <label data-i18n="studio.draftLabel">World Studio draft</label>
+          <p class="studio-help" data-i18n="studio.help">Generate a state machine with bounded variables, optional controlled random ranges, events, language instructions, responses, and transitions. Unknown semantics stay reviewable instead of becoming Runtime rules.</p>
         </div>
         <div class="ai-sec">
-          <label>Generation request</label>
+          <label data-i18n="studio.requestLabel">Generation request</label>
           <textarea id="studio-instruction" placeholder="例如：建立一個村莊信任與商隊失蹤的多階段狀態機，讓玩家可以用不同說法詢問、懷疑、協助或背叛。"></textarea>
-          <button class="btn-p" id="studio-generate">Generate bounded draft</button>
-          <span id="studio-status" class="studio-status">Draft is review-only until applied.</span>
+          <button class="btn-p" id="studio-generate" data-i18n="studio.generate">Generate bounded draft</button>
+          <span id="studio-status" class="studio-status" data-i18n="studio.reviewOnlyStatus">Draft is review-only until applied.</span>
         </div>
         <div class="ai-sec">
-          <label>Draft diagnostics</label>
-          <div id="studio-issues" class="studio-issues"><span class="studio-dim">No draft generated.</span></div>
+          <label data-i18n="studio.diagnosticsLabel">Draft diagnostics</label>
+          <div id="studio-issues" class="studio-issues"><span class="studio-dim" data-i18n="studio.noDraft">No draft generated.</span></div>
         </div>
         <div class="ai-sec">
-          <label>Generated YAML</label>
+          <label data-i18n="studio.yamlLabel">Generated YAML</label>
           <pre id="studio-draft-output" class="studio-draft-output"></pre>
           <div class="resp-actions">
-            <button class="btn-g" id="studio-apply" disabled>Apply to editor</button>
-            <button class="btn-g" id="studio-copy" disabled>Copy YAML</button>
-            <button class="btn-g" id="studio-runtime-check" disabled>Check with Runtime</button>
+            <button class="btn-g" id="studio-apply" disabled data-i18n="studio.apply">Apply to editor</button>
+            <button class="btn-g" id="studio-copy" disabled data-i18n="studio.copyYaml">Copy YAML</button>
+            <button class="btn-g" id="studio-runtime-check" disabled data-i18n="studio.checkRuntime">Check with Runtime</button>
           </div>
         </div>
         <div class="ai-sec">
-          <label>Runtime import report</label>
-          <pre id="studio-runtime-report" class="studio-runtime-report">No Runtime import yet.</pre>
+          <label data-i18n="studio.importReportLabel">Runtime import report</label>
+          <pre id="studio-runtime-report" class="studio-runtime-report" data-i18n="studio.noImportYet">No Runtime import yet.</pre>
         </div>
         <div class="ai-sec">
-          <label>Runtime mapping draft <span class="studio-dim">human review</span></label>
-          <p class="studio-help">Edit room, EventIR, and guard decisions here, then validate the mapping. This remains a review artifact until a separate package compilation step.</p>
-          <textarea id="studio-mapping-output" class="studio-mapping-output" spellcheck="false" placeholder="Check the draft with Runtime to receive a mapping suggestion."></textarea>
+          <label><span data-i18n="studio.mappingLabel">Runtime mapping draft</span> <span class="studio-dim" data-i18n="studio.mappingReviewNote">human review</span></label>
+          <p class="studio-help" data-i18n="studio.mappingHelp">Edit room, EventIR, and guard decisions here, then validate the mapping. This remains a review artifact until a separate package compilation step.</p>
+          <textarea id="studio-mapping-output" class="studio-mapping-output" spellcheck="false" data-i18n-placeholder="studio.mappingPlaceholder" placeholder="Check the draft with Runtime to receive a mapping suggestion."></textarea>
           <div class="resp-actions">
-            <button class="btn-g" id="studio-mapping-validate" disabled>Validate mapping</button>
-            <button class="btn-g" id="studio-mapping-copy" disabled>Copy mapping JSON</button>
+            <button class="btn-g" id="studio-mapping-validate" disabled data-i18n="studio.mappingValidate">Validate mapping</button>
+            <button class="btn-g" id="studio-mapping-copy" disabled data-i18n="studio.mappingCopy">Copy mapping JSON</button>
           </div>
         </div>
       </div>
@@ -154,35 +154,35 @@
       <!-- AI -->
       <div id="t-ai" class="tcontent">
         <div class="ai-sec">
-          <label>Selection</label>
+          <label data-i18n="ai.selectionLabel">Selection</label>
           <div class="code-disp" id="ai-sel">—</div>
         </div>
         <div class="ai-sec">
-          <label>Quick actions</label>
+          <label data-i18n="ai.quickActionsLabel">Quick actions</label>
           <div class="preset-list" id="preset-list"></div>
         </div>
         <div class="ai-sec">
-          <label>Custom prompt <span style="color:var(--t3)">(Ctrl+Enter)</span></label>
-          <textarea id="ai-input" placeholder="Ask about selection or document..."></textarea>
-          <select id="ai-mode" title="Local-agent modify mode">
-            <option value="patch">Patch — edit, then review the diff</option>
-            <option value="suggest">Suggest — advice only, no file edits</option>
-            <option value="direct">Direct — apply, with one-click revert</option>
+          <label><span data-i18n="ai.customPromptLabel">Custom prompt</span> <span style="color:var(--t3)" data-i18n="ai.customPromptHint">(Ctrl+Enter)</span></label>
+          <textarea id="ai-input" data-i18n-placeholder="ai.inputPlaceholder" placeholder="Ask about selection or document..."></textarea>
+          <select id="ai-mode" data-i18n-title="ai.modeTitle" title="Local-agent modify mode">
+            <option value="patch" data-i18n="ai.modePatch">Patch — edit, then review the diff</option>
+            <option value="suggest" data-i18n="ai.modeSuggest">Suggest — advice only, no file edits</option>
+            <option value="direct" data-i18n="ai.modeDirect">Direct — apply, with one-click revert</option>
           </select>
-          <button class="btn-p" id="btn-ai-send">Send</button>
+          <button class="btn-p" id="btn-ai-send" data-i18n="ai.send">Send</button>
         </div>
         <div class="ai-sec" id="ai-resp-wrap" style="display:none">
-          <label>Response</label>
+          <label data-i18n="ai.responseLabel">Response</label>
           <div id="ai-resp"></div>
           <div class="resp-actions">
-            <button class="btn-g" id="btn-replace">Replace</button>
-            <button class="btn-g" id="btn-append">Append</button>
-            <button class="btn-g" id="btn-copy-r">Copy</button>
-            <button class="btn-g danger" id="btn-agent-stop" disabled>Stop</button>
+            <button class="btn-g" id="btn-replace" data-i18n="ai.replace">Replace</button>
+            <button class="btn-g" id="btn-append" data-i18n="ai.append">Append</button>
+            <button class="btn-g" id="btn-copy-r" data-i18n="ai.copy">Copy</button>
+            <button class="btn-g danger" id="btn-agent-stop" disabled data-i18n="ai.stop">Stop</button>
           </div>
           <div class="resp-actions" id="diff-actions" style="display:none">
-            <button class="btn-p" id="btn-diff-accept">✓ Accept</button>
-            <button class="btn-g danger" id="btn-diff-reject">✗ Reject</button>
+            <button class="btn-p" id="btn-diff-accept" data-i18n="ai.diffAccept">✓ Accept</button>
+            <button class="btn-g danger" id="btn-diff-reject" data-i18n="ai.diffReject">✗ Reject</button>
           </div>
         </div>
       </div>
@@ -191,39 +191,39 @@
            as two clearly-separate modes, not blended. -->
       <div id="t-search" class="tcontent">
         <div class="search-mode-tabs">
-          <button class="smtab active" data-sm="exact">🔍 Exact</button>
-          <button class="smtab" data-sm="ai">✨ AI</button>
+          <button class="smtab active" data-sm="exact" data-i18n="search.exactTab">🔍 Exact</button>
+          <button class="smtab" data-sm="ai" data-i18n="search.aiTab">✨ AI</button>
         </div>
 
         <div id="search-exact" class="search-mode-panel active">
           <div class="ai-sec">
-            <label>Find in files <span style="color:var(--t3)">(Enter)</span></label>
-            <input type="text" id="search-input" placeholder="Search text or regex…">
-            <input type="text" id="search-replace" placeholder="Replace with… (empty = delete)">
+            <label><span data-i18n="search.findLabel">Find in files</span> <span style="color:var(--t3)" data-i18n="search.findHint">(Enter)</span></label>
+            <input type="text" id="search-input" data-i18n-placeholder="search.findPlaceholder" placeholder="Search text or regex…">
+            <input type="text" id="search-replace" data-i18n-placeholder="search.replacePlaceholder" placeholder="Replace with… (empty = delete)">
             <div class="search-opts">
-              <label title="Case sensitive"><input type="checkbox" id="search-case"> Aa</label>
-              <label title="Whole word"><input type="checkbox" id="search-word"> W</label>
-              <label title="Regular expression"><input type="checkbox" id="search-regex"> .*</label>
+              <label data-i18n-title="search.caseSensitiveTitle" title="Case sensitive"><input type="checkbox" id="search-case"> <span data-i18n="search.caseSensitive">Aa</span></label>
+              <label data-i18n-title="search.wholeWordTitle" title="Whole word"><input type="checkbox" id="search-word"> <span data-i18n="search.wholeWord">W</span></label>
+              <label data-i18n-title="search.regexTitle" title="Regular expression"><input type="checkbox" id="search-regex"> <span data-i18n="search.regex">.*</span></label>
             </div>
             <div class="search-scope">
-              <label><input type="radio" name="search-scope" value="file" checked> Current file</label>
-              <label><input type="radio" name="search-scope" value="workspace"> Workspace</label>
+              <label><input type="radio" name="search-scope" value="file" checked> <span data-i18n="search.scopeFile">Current file</span></label>
+              <label><input type="radio" name="search-scope" value="workspace"> <span data-i18n="search.scopeWorkspace">Workspace</span></label>
             </div>
-            <button class="btn-s" id="btn-replace-all" style="margin-top:7px;width:100%">Replace all…</button>
+            <button class="btn-s" id="btn-replace-all" style="margin-top:7px;width:100%" data-i18n="search.replaceAll">Replace all…</button>
           </div>
           <div id="search-results"></div>
         </div>
 
         <div id="search-ai" class="search-mode-panel">
           <div class="ai-sec">
-            <label>Ask in plain language <span style="color:var(--t3)">(Enter)</span></label>
-            <input type="text" id="aisearch-input" placeholder="e.g. where do we handle authentication?">
+            <label><span data-i18n="search.aiAskLabel">Ask in plain language</span> <span style="color:var(--t3)" data-i18n="search.aiAskHint">(Enter)</span></label>
+            <input type="text" id="aisearch-input" data-i18n-placeholder="search.aiAskPlaceholder" placeholder="e.g. where do we handle authentication?">
             <div class="search-scope">
-              <label><input type="radio" name="aisearch-scope" value="file" checked> Current file</label>
-              <label><input type="radio" name="aisearch-scope" value="workspace"> Workspace</label>
+              <label><input type="radio" name="aisearch-scope" value="file" checked> <span data-i18n="search.scopeFile">Current file</span></label>
+              <label><input type="radio" name="aisearch-scope" value="workspace"> <span data-i18n="search.scopeWorkspace">Workspace</span></label>
             </div>
-            <button class="btn-p" id="btn-aisearch" style="margin-top:7px;width:100%">✨ Search</button>
-            <span style="font-size:10px;color:var(--t3)">Needs a cloud AI provider (Anthropic / OpenAI-compatible) in Settings — reads content to answer, never edits anything. Not exact: ranked by relevance, one-shot over a size-capped corpus.</span>
+            <button class="btn-p" id="btn-aisearch" style="margin-top:7px;width:100%" data-i18n="search.aiSearchBtn">✨ Search</button>
+            <span style="font-size:10px;color:var(--t3)" data-i18n="search.aiSearchHint">Needs a cloud AI provider (Anthropic / OpenAI-compatible) in Settings — reads content to answer, never edits anything. Not exact: ranked by relevance, one-shot over a size-capped corpus.</span>
           </div>
           <div id="aisearch-results"></div>
         </div>
@@ -232,11 +232,11 @@
       <!-- Monitor (diagnostic stream — back-stage; reads eveglyph-monitor.jsonl) -->
       <div id="t-log" class="tcontent">
         <div class="ai-sec">
-          <label>Monitor stream <span style="color:var(--t3)">(diagnostic log)</span></label>
-          <input type="text" id="monitor-filter" placeholder="Filter by type or payload…">
+          <label><span data-i18n="monitor.streamLabel">Monitor stream</span> <span style="color:var(--t3)" data-i18n="monitor.streamHint">(diagnostic log)</span></label>
+          <input type="text" id="monitor-filter" data-i18n-placeholder="monitor.filterPlaceholder" placeholder="Filter by type or payload…">
           <div class="mon-controls">
-            <button class="btn-s" id="btn-monitor-refresh">↻ Refresh</button>
-            <label class="mon-auto"><input type="checkbox" id="monitor-auto"> Auto</label>
+            <button class="btn-s" id="btn-monitor-refresh" data-i18n="monitor.refresh">↻ Refresh</button>
+            <label class="mon-auto"><input type="checkbox" id="monitor-auto"> <span data-i18n="monitor.auto">Auto</span></label>
             <span id="monitor-status" class="mon-status"></span>
           </div>
         </div>
@@ -246,8 +246,8 @@
       <!-- Docs: User Guide + Changelog, rendered from the repo's own .md files -->
       <div id="t-docs" class="tcontent">
         <div class="docs-nav">
-          <button class="btn-s" id="btn-docs-guide">📘 User Guide</button>
-          <button class="btn-s" id="btn-docs-changelog">🕘 What's New</button>
+          <button class="btn-s" id="btn-docs-guide" data-i18n="docs.guide">📘 User Guide</button>
+          <button class="btn-s" id="btn-docs-changelog" data-i18n="docs.changelog">🕘 What's New</button>
         </div>
         <div id="docs-body" class="docs-body"></div>
       </div>
@@ -255,50 +255,50 @@
       <!-- Settings -->
       <div id="t-settings" class="tcontent">
         <div class="sg">
-          <label>Theme</label>
+          <label data-i18n="settings.theme">Theme</label>
           <select id="s-theme">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+            <option value="dark" data-i18n="settings.themeDark">Dark</option>
+            <option value="light" data-i18n="settings.themeLight">Light</option>
           </select>
         </div>
         <div class="sg">
-          <label>Language <span style="color:var(--t3)">(UI text stays English for now — see PROGRESS.md)</span></label>
+          <label><span data-i18n="settings.language">Language</span> <span style="color:var(--t3)" data-i18n="settings.languageHint">(UI text stays English for now — see PROGRESS.md)</span></label>
           <select id="s-language"></select>
         </div>
         <div class="sg">
-          <label>Editor font size <span style="color:var(--t3)">(px)</span></label>
+          <label><span data-i18n="settings.editorFontSize">Editor font size</span> <span style="color:var(--t3)" data-i18n="settings.editorFontSizeHint">(px)</span></label>
           <input type="number" id="s-font-size" min="10" max="28" step="0.5">
         </div>
         <div class="sg">
-          <label>Editor font <span style="color:var(--t3)">(CSS family)</span></label>
+          <label><span data-i18n="settings.editorFont">Editor font</span> <span style="color:var(--t3)" data-i18n="settings.editorFontHint">(CSS family)</span></label>
           <input type="text" id="s-font-family" placeholder="'JetBrains Mono', monospace">
         </div>
         <div class="sg">
-          <label>AI Provider</label>
+          <label data-i18n="settings.aiProvider">AI Provider</label>
           <select id="s-provider">
             <option value="anthropic">Anthropic (Claude)</option>
             <option value="openai">OpenAI-compatible</option>
-            <option value="local-agent">Local Agent (CLI)</option>
+            <option value="local-agent" data-i18n="settings.localAgentOption">Local Agent (CLI)</option>
           </select>
         </div>
 
         <!-- API-provider fields -->
         <div class="sg" id="s-url-wrap" style="display:none">
-          <label>API Base URL</label>
+          <label data-i18n="settings.apiBaseUrl">API Base URL</label>
           <input type="text" id="s-url" placeholder="http://localhost:3000">
         </div>
         <div class="sg" id="s-key-wrap">
-          <label>API Key</label>
+          <label data-i18n="settings.apiKey">API Key</label>
           <input type="password" id="s-key" placeholder="sk-...">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:4px">
-            <input type="checkbox" id="s-key-persist"> Remember on this device <span style="color:var(--t3)">(plaintext in localStorage — see SECURITY.md)</span>
+            <input type="checkbox" id="s-key-persist"> <span data-i18n="settings.rememberDevice">Remember on this device</span> <span style="color:var(--t3)" data-i18n="settings.rememberDeviceHint">(plaintext in localStorage — see SECURITY.md)</span>
           </label>
         </div>
         <div class="sg" id="s-model-wrap">
-          <label>Model <span style="color:var(--t3)">(pick from the list, or type an id)</span></label>
+          <label><span data-i18n="settings.model">Model</span> <span style="color:var(--t3)" data-i18n="settings.modelHint">(pick from the list, or type an id)</span></label>
           <div class="agent-row">
             <input type="text" id="s-model" list="s-model-list" placeholder="claude-opus-4-8" autocomplete="off">
-            <button class="btn-s icon-btn" id="btn-fetch-models" title="Fetch available models from the API">↻</button>
+            <button class="btn-s icon-btn" id="btn-fetch-models" data-i18n-title="settings.fetchModelsTitle" title="Fetch available models from the API">↻</button>
           </div>
           <datalist id="s-model-list"></datalist>
           <span id="s-model-hint" style="font-size:10px;color:var(--t3)"></span>
@@ -307,45 +307,45 @@
         <!-- Local-agent fields -->
         <div id="s-agent-wrap" style="display:none; flex-direction:column; gap:12px">
           <div class="sg">
-            <label>Agent</label>
+            <label data-i18n="settings.agent">Agent</label>
             <div class="agent-row">
               <select id="s-agent"></select>
-              <button class="btn-s icon-btn" id="btn-agent-detect" title="Detect installed agents">+</button>
+              <button class="btn-s icon-btn" id="btn-agent-detect" data-i18n-title="settings.detectAgentsTitle" title="Detect installed agents">+</button>
             </div>
           </div>
           <div class="sg">
-            <label>Workspace path (absolute)</label>
+            <label data-i18n="settings.workspacePath">Workspace path (absolute)</label>
             <div class="agent-row">
               <input type="text" id="s-workspace" placeholder="D:\path\to\your\folder">
-              <button class="btn-s icon-btn" id="btn-use-bridge-cwd" title="Use app folder">+</button>
+              <button class="btn-s icon-btn" id="btn-use-bridge-cwd" data-i18n-title="settings.useAppFolderTitle" title="Use app folder">+</button>
             </div>
             <span id="s-agent-hint" style="font-size:10px; color:var(--t3)"></span>
           </div>
           <div class="sg">
-            <label>Command override (advanced)</label>
-            <input type="text" id="s-agentcmd" placeholder="(blank = bridge default)">
-            <span style="font-size:10px; color:var(--t3)">Runs as your literal shell command — bypasses permission-tier flags entirely, so it requires Trusted.</span>
+            <label data-i18n="settings.commandOverride">Command override (advanced)</label>
+            <input type="text" id="s-agentcmd" data-i18n-placeholder="settings.commandOverridePlaceholder" placeholder="(blank = bridge default)">
+            <span style="font-size:10px; color:var(--t3)" data-i18n="settings.commandOverrideHint">Runs as your literal shell command — bypasses permission-tier flags entirely, so it requires Trusted.</span>
           </div>
           <div class="sg">
-            <label>Permission</label>
+            <label data-i18n="settings.permission">Permission</label>
             <select id="s-agent-permission">
-              <option value="cautious">Cautious — edit existing only, no create/delete</option>
-              <option value="standard">Standard — edit + create, no delete</option>
-              <option value="trusted">Trusted — full, skips re-confirm</option>
+              <option value="cautious" data-i18n="settings.permissionCautious">Cautious — edit existing only, no create/delete</option>
+              <option value="standard" data-i18n="settings.permissionStandard">Standard — edit + create, no delete</option>
+              <option value="trusted" data-i18n="settings.permissionTrusted">Trusted — full, skips re-confirm</option>
             </select>
           </div>
           <div class="sg">
-            <label>Run timeout <span style="color:var(--t3)">(seconds)</span></label>
+            <label><span data-i18n="settings.runTimeout">Run timeout</span> <span style="color:var(--t3)" data-i18n="settings.runTimeoutHint">(seconds)</span></label>
             <input type="number" id="s-agent-timeout" min="10" max="1800" step="10">
           </div>
           <div class="sg">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="checkbox" id="s-agent-quiet"> Show raw agent output
+              <input type="checkbox" id="s-agent-quiet"> <span data-i18n="settings.showRawOutput">Show raw agent output</span>
             </label>
           </div>
           <div class="cfp-block cfp-warning" style="margin:0">
-            <div class="cfp-label">⚠ File-editing agent</div>
-            <div style="font-size:11px; color:var(--t1); line-height:1.5">
+            <div class="cfp-label" data-i18n="settings.fileEditingAgentWarning">⚠ File-editing agent</div>
+            <div style="font-size:11px; color:var(--t1); line-height:1.5" data-i18n="settings.fileEditingAgentWarningBody">
               The agent runs with auto-approve and can read, edit and create files
               in the workspace folder. Only active while the local dev server
               (start-eveglyph.bat) is running.
@@ -353,51 +353,51 @@
           </div>
 
           <div class="sg">
-            <label>Workspace agent rules</label>
-            <button class="btn-s" id="btn-eveglyph-init">+ Create .eveglyph/rules.md</button>
-            <span style="font-size:10px; color:var(--t3)">An operating manual prepended to every agent run; edit it after creating.</span>
+            <label data-i18n="settings.workspaceRules">Workspace agent rules</label>
+            <button class="btn-s" id="btn-eveglyph-init" data-i18n="settings.createRulesFile">+ Create .eveglyph/rules.md</button>
+            <span style="font-size:10px; color:var(--t3)" data-i18n="settings.createRulesFileHint">An operating manual prepended to every agent run; edit it after creating.</span>
           </div>
         </div>
 
         <div class="sg">
-          <label>Default encoding <span style="color:var(--t3)">(fallback &amp; new files)</span></label>
+          <label><span data-i18n="settings.defaultEncoding">Default encoding</span> <span style="color:var(--t3)" data-i18n="settings.defaultEncodingHint">(fallback &amp; new files)</span></label>
           <select id="s-default-encoding"></select>
         </div>
 
         <div class="sg">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-            <input type="checkbox" id="s-memory-enabled"> Inject .eveglyph/ memory into agent runs
+            <input type="checkbox" id="s-memory-enabled"> <span data-i18n="settings.injectMemory">Inject .eveglyph/ memory into agent runs</span>
           </label>
           <div style="margin-top:4px;padding-left:20px;display:flex;flex-direction:column;gap:3px">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-rules"> rules.md</label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-glossary"> glossary.md</label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-pitfalls"> memory/pitfalls.md</label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-recent"> memory/recent.md</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-rules"> <span data-i18n="settings.memRules">rules.md</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-glossary"> <span data-i18n="settings.memGlossary">glossary.md</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-pitfalls"> <span data-i18n="settings.memPitfalls">memory/pitfalls.md</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-mem-recent"> <span data-i18n="settings.memRecent">memory/recent.md</span></label>
           </div>
         </div>
 
         <div class="sg">
-          <label>EveGlyph-MD frontmatter <span style="color:var(--t3)">(type · status · tags)</span></label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-eveglyph-enabled"> Schema-aware (chip, preview badges, agent context)</label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:3px"><input type="checkbox" id="s-eveglyph-stamp"> Stamp new .md files with frontmatter</label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:3px"><input type="checkbox" id="s-eveglyph-inject"> Send the active doc's class to the agent</label>
+          <label><span data-i18n="settings.frontmatterLabel">EveGlyph-MD frontmatter</span> <span style="color:var(--t3)" data-i18n="settings.frontmatterHint">(type · status · tags)</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2)"><input type="checkbox" id="s-eveglyph-enabled"> <span data-i18n="settings.frontmatterEnabled">Schema-aware (chip, preview badges, agent context)</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:3px"><input type="checkbox" id="s-eveglyph-stamp"> <span data-i18n="settings.frontmatterStamp">Stamp new .md files with frontmatter</span></label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:3px"><input type="checkbox" id="s-eveglyph-inject"> <span data-i18n="settings.frontmatterInject">Send the active doc's class to the agent</span></label>
           <div style="display:flex;gap:6px;margin-top:6px">
-            <select id="s-eveglyph-type" title="Default type for new files" style="flex:1"></select>
-            <select id="s-eveglyph-status" title="Default status for new files" style="flex:1"></select>
+            <select id="s-eveglyph-type" data-i18n-title="settings.defaultTypeTitle" title="Default type for new files" style="flex:1"></select>
+            <select id="s-eveglyph-status" data-i18n-title="settings.defaultStatusTitle" title="Default status for new files" style="flex:1"></select>
           </div>
         </div>
 
         <div style="display:flex;gap:6px">
-          <button class="btn-p" id="btn-save-settings">Save</button>
-          <button class="btn-s" id="btn-test">Test</button>
+          <button class="btn-p" id="btn-save-settings" data-i18n="settings.save">Save</button>
+          <button class="btn-s" id="btn-test" data-i18n="settings.test">Test</button>
         </div>
         <div id="agent-connect-row" style="display:none;gap:6px">
-          <button class="btn-p" id="btn-agent-connect">+ Connect Agent</button>
-          <button class="btn-s" id="btn-agent-disconnect">- Disconnect</button>
+          <button class="btn-p" id="btn-agent-connect" data-i18n="settings.connectAgent">+ Connect Agent</button>
+          <button class="btn-s" id="btn-agent-disconnect" data-i18n="settings.disconnectAgent">- Disconnect</button>
         </div>
         <div id="settings-msg"></div>
         <div class="sg" style="margin-top:8px">
-          <label style="color:var(--t3);font-size:9px">
+          <label style="color:var(--t3);font-size:9px" data-i18n-html="settings.anthropicNote">
             Note: Anthropic direct browser access requires<br>
             anthropic-dangerous-direct-browser-access header.<br>
             For local agents (Open WebUI etc), use OpenAI-compat.
@@ -405,7 +405,7 @@
         </div>
 
         <div class="sg about-sg">
-          <label>About</label>
+          <label data-i18n="settings.about">About</label>
           <div id="about-body" class="about-body"></div>
         </div>
       </div>
@@ -414,12 +414,12 @@
 
   <!-- STATUSBAR -->
   <footer id="statusbar">
-    <span id="s-cursor">Ln 1, Col 1</span>
+    <span id="s-cursor" data-i18n="statusbar.lnCol">Ln 1, Col 1</span>
     <span id="s-mod"></span>
     <span id="s-file" style="color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px"></span>
-    <span id="s-eveglyph" class="s-eveglyph" title="EveGlyph-MD document class — click to set"></span>
-    <span id="status-provider">Provider: —</span>
-    <span id="s-encoding" class="s-enc" title="File encoding — click to change"></span>
+    <span id="s-eveglyph" class="s-eveglyph" data-i18n-title="statusbar.eveglyphClassTitle" title="EveGlyph-MD document class — click to set"></span>
+    <span id="status-provider"></span>
+    <span id="s-encoding" class="s-enc" data-i18n-title="statusbar.encodingTitle" title="File encoding — click to change"></span>
   </footer>
 
 </div>

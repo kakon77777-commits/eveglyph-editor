@@ -1,6 +1,7 @@
 import { S } from './state.js'
 import { CONFIG } from './config.js'
 import { getClass, validateClass } from './frontmatter.js'
+import { t } from './i18n/index.js'
 
 // Status-bar EveGlyph-MD chip: shows the active .md file's `type · status` (warns on
 // out-of-enum values), or a muted "+ frontmatter" affordance when none is present.
@@ -18,34 +19,34 @@ function eveglyphChipUpdate() {
     return
   }
   if (!cls.type && !cls.status) {
-    el.textContent = '+ frontmatter'
+    el.textContent = t('statusbar.frontmatterAdd')
     el.className = 's-eveglyph s-eveglyph-empty'
-    el.title = 'No EveGlyph-MD frontmatter — click to add type / status / tags'
+    el.title = t('statusbar.frontmatterAddTitle')
     return
   }
   const issues = validateClass(cls)
   el.textContent = `${cls.type || '—'} · ${cls.status || '—'}`
   el.className = 's-eveglyph' + (issues.length ? ' s-eveglyph-warn' : '')
-  el.title = issues.length ? issues.map(i => i.msg).join('; ') : 'EveGlyph-MD document class — click to change'
+  el.title = issues.length ? issues.map(i => i.msg).join('; ') : t('statusbar.eveglyphClassChangeTitle')
 }
 
 export function statusUpdate() {
   const fi = S.active ? S.files.get(S.active) : null
-  document.getElementById('s-mod').textContent = fi?.modified ? 'Modified' : ''
+  document.getElementById('s-mod').textContent = fi?.modified ? t('statusbar.modified') : ''
   document.getElementById('s-file').textContent = S.active ?? ''
   eveglyphChipUpdate()
   const encEl = document.getElementById('s-encoding')
   if (encEl) encEl.textContent = (S.active && fi?.encoding) ? fi.encoding : ''
 
   const provider = S.cfg.provider === 'anthropic'
-    ? 'Claude'
+    ? t('statusbar.providerClaude')
     : S.cfg.provider === 'local-agent'
-      ? `Agent:${S.cfg.agent} ${S.agentConnected ? 'connected' : 'idle'}`
-      : 'OpenAI-compat'
+      ? `Agent:${S.cfg.agent} ${S.agentConnected ? t('statusbar.agentConnected') : t('statusbar.agentIdle')}`
+      : t('statusbar.providerOpenaiCompat')
 
   const workspace = S.cfg.provider === 'local-agent' && S.cfg.workspace
     ? ` - ${S.cfg.workspace}`
     : ''
 
-  document.getElementById('status-provider').textContent = `Provider: ${provider}${workspace}`
+  document.getElementById('status-provider').textContent = `${t('statusbar.providerPrefix')} ${provider}${workspace}`
 }

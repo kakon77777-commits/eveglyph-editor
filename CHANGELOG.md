@@ -6,10 +6,13 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
-- **Language setting (i18n Phase 1)** — a new **Language** selector in
-  Settings ⚙ (English / 繁體中文 so far, easy to extend). Sets the real
-  `<html lang>` attribute live. UI text itself isn't translated yet — that's
-  a deliberate follow-up phase, not solved here.
+- **Language setting + real translation (i18n Phase 1+2)** — a new
+  **Language** selector in Settings ⚙ (English / 繁體中文 so far, easy to
+  extend). All of `index.html`'s UI chrome (topbar, sidebar, every panel tab,
+  Settings, status bar) now actually translates when you switch — no
+  framework, plain per-locale dictionaries (`src/i18n/`), English as
+  fallback. Dynamically-generated content elsewhere in the app (file tree,
+  context menus, diff-review UI, alerts) is a known gap, not yet covered.
 - **Controlled Studio randomness** — variable drafts can now declare bounded
   boolean, integer, number, or choice random specs. Limits and invalid ranges
   are diagnosed locally; generated random data remains reviewable draft data.

@@ -2,7 +2,7 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-07-15
-> (i18n Phase 1: language setting).
+> (i18n Phase 2: real English/繁體中文 translation of index.html's UI chrome).
 
 ## What this is
 
@@ -58,6 +58,53 @@ staged: this phase is infrastructure only, not translated UI strings.
   across `index.html`/`src/*.js` get translated first, and how far "best
   compatibility" should reach (does agent-facing output, AI prompts, or
   monitor/diagnostic text change with language, or only front-stage UI chrome?).
+
+## i18n Phase 2 — real translation (2026-07-15, "我們試試看")
+
+Resolved the open questions above. Approach: plain per-locale JS dictionaries
+(`src/i18n/en.js`, `src/i18n/zh-TW.js`), no framework, English as base/
+fallback — matches this codebase's hand-rolled-over-dependency style (same
+philosophy as the AIMD formula evaluator or the Typst converter). Scope,
+Neo's call: front-stage UI chrome (buttons/labels/menus/tooltips/alerts) —
+AI prompt text, Monitor/diagnostic content, and document content stay
+untouched regardless of language.
+
+- `src/i18n/index.js` — `t(key, lang)` (dot-path lookup, e.g.
+  `"topbar.save"`, falls back to English then to the raw key so a typo is
+  visible instead of blank) and `applyTranslations(lang)` (walks the DOM for
+  `data-i18n`/`data-i18n-title`/`data-i18n-placeholder`/`data-i18n-html`
+  attributes and re-applies them — cheap enough to just re-run wholesale on
+  every language change rather than diff).
+- **All of `index.html`'s static chrome converted** — 136 `data-i18n`, 20
+  `data-i18n-title`, 7 `data-i18n-placeholder`, 3 `data-i18n-html` (used only
+  where inline formatting matters, e.g. the onboarding steps' `<code>`/`<kbd>`
+  tags — safe here since these are hand-written dictionary strings, not user
+  input). Technical/product proper nouns (Runtime, World, Studio, Typst,
+  provider names) deliberately kept in English in both locales, matching how
+  Neo himself writes them in his other bilingual projects.
+- `src/status.js`'s JS-generated status-bar text (Provider/Modified/agent
+  connected-idle/frontmatter-chip states) also converted to `t()` — this one
+  wasn't optional, since leaving it hardcoded would've meant the status bar
+  stayed English while everything around it switched languages.
+- `applyLanguage()` (main.js) now calls `applyTranslations()` + `statusUpdate()`
+  alongside setting `<html lang>`, on both boot and the Settings ⚙ change
+  handler.
+- **Verified**: switching to 繁體中文 correctly translates every panel (topbar,
+  sidebar empty-state, onboarding placeholder incl. preserved `<code>`/`<kbd>`
+  tags, World/Runtime/Studio/AI/Search/Monitor/Docs/Settings tabs, status
+  bar), switching back to English restores exactly the original text, a
+  DOM-wide scan for any element showing its raw key instead of a real string
+  found zero real gaps (2 false positives from a flawed test heuristic —
+  `rules.md`/`glossary.md` look like dot-path keys but are correctly
+  untranslated literal filenames in both locales). Zero console errors either
+  direction.
+- **Known, honest gap — not covered by this pass**: content generated
+  dynamically by other `src/*.js` files (file tree entries, tab bar, the
+  encoding/frontmatter context menus, the agent diff-review UI, AI preset
+  labels, the Docs tab's own chrome, Monitor entries, and `alert()` calls
+  scattered across `files.js`/`import.js`/`ai.js`/etc.) still renders in
+  English regardless of the Language setting. Broad but not exhaustive —
+  a future pass, not silently claimed as done.
 
 ## AMEP RigorLoop preset (whitepaper §3, resolved 2026-07-14)
 
