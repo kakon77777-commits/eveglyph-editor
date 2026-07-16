@@ -1,8 +1,8 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-14
-> (Typst export: all 3 phases + callout/AIMD conversion + typesetting polish).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-15
+> (i18n Phase 1: language setting).
 
 ## What this is
 
@@ -26,6 +26,38 @@ bridge (`vite-agent-bridge.js`) over localhost-gated HTTP/NDJSON. ~22 `src/` mod
 - **v0.4 — review UX + real enforcement** [shipped] (`0.4.0`, 2026-06-27). See below.
 - **v0.5 — AIMD / Cogni-Flow computable math** [in progress]. Phases 1–3 (syntax,
   two-tier compute, real mount/unmount) landed 2026-07-12, unreleased. See below.
+
+## i18n Phase 1 — language setting (2026-07-15)
+
+Neo: "先來一個語言設置。然後我們來討論如何最好的兼容性" (first a language
+setting, then we'll discuss the best compatibility approach) — deliberately
+staged: this phase is infrastructure only, not translated UI strings.
+
+- New **Language** selector in Settings ⚙ (right under Theme), backed by
+  `CONFIG.languages`/`CONFIG.languageLabels` (currently `en`/`zh-TW`, easy to
+  extend — same enum-driven-select pattern as EveGlyph-MD's type/status
+  dropdowns). `S.cfg.language` persists through the same localStorage blob as
+  every other setting.
+- Real (if small) effect wired now: `applyLanguage()` sets the actual
+  `<html lang>` attribute live on change and on boot — affects screen readers,
+  browser spell-check, and any `:lang()` CSS. UI text itself stays English;
+  translating it is the next phase, intentionally not decided yet.
+- Verified: selector populates correctly (English/繁體中文), switching fires
+  the real onchange handler (`<html lang>` updates immediately), persists to
+  localStorage, survives a real page reload, and the Settings ⚙ "Save" button
+  path (`cfgSave()`) also persists it correctly — confirmed via a real DOM
+  click, not a mocked call (a fresh `import()` inside a test script produces
+  an isolated module instance disconnected from the live page's own `S`
+  object — same JS-realm quirk already documented in memory from the Typst
+  work; theme exhibits the identical false-negative under that same flawed
+  test method, confirming it's a testing-methodology artifact, not a real
+  bug). Zero console errors.
+- **Deliberately not decided here, open for the next discussion**: the actual
+  string-translation architecture (i18n key/value dictionaries vs. per-locale
+  files vs. something else), which of the many hardcoded English strings
+  across `index.html`/`src/*.js` get translated first, and how far "best
+  compatibility" should reach (does agent-facing output, AI prompts, or
+  monitor/diagnostic text change with language, or only front-stage UI chrome?).
 
 ## AMEP RigorLoop preset (whitepaper §3, resolved 2026-07-14)
 

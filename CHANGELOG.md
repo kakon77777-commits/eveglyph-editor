@@ -6,6 +6,10 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Language setting (i18n Phase 1)** — a new **Language** selector in
+  Settings ⚙ (English / 繁體中文 so far, easy to extend). Sets the real
+  `<html lang>` attribute live. UI text itself isn't translated yet — that's
+  a deliberate follow-up phase, not solved here.
 - **Controlled Studio randomness** — variable drafts can now declare bounded
   boolean, integer, number, or choice random specs. Limits and invalid ranges
   are diagnosed locally; generated random data remains reviewable draft data.

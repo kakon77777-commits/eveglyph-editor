@@ -13,6 +13,7 @@ export const S = {
   // localStorage overrides on top (the whole cfg object is persisted as one blob).
   cfg: {
     theme: CONFIG.theme,
+    language: CONFIG.language,
     editorFontSize: CONFIG.editor.fontSize,
     editorFontFamily: CONFIG.editor.fontFamily,
     provider: CONFIG.provider,

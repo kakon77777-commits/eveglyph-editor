@@ -179,6 +179,16 @@ export function cfgLoad() {
   const themeSel = $('s-theme')
   if (themeSel) themeSel.value = S.cfg.theme || 'dark'
 
+  const langSel = $('s-language')
+  if (langSel) {
+    if (!langSel.options.length) for (const code of CONFIG.languages) {
+      const o = document.createElement('option')
+      o.value = code; o.textContent = CONFIG.languageLabels[code] || code
+      langSel.appendChild(o)
+    }
+    langSel.value = S.cfg.language || 'en'
+  }
+
   const fsEl = $('s-font-size')
   if (fsEl) fsEl.value = S.cfg.editorFontSize ?? 13.5
 
@@ -241,6 +251,7 @@ export function cfgSave(showMessage = true) {
     defaultEncoding: $('s-default-encoding')?.value || S.cfg.defaultEncoding || 'UTF-8',
     agentMode: S.cfg.agentMode || 'patch',  // set via the AI-panel selector, not a Settings field — preserve it
     theme: $('s-theme')?.value || S.cfg.theme || 'dark',
+    language: $('s-language')?.value || S.cfg.language || 'en',
     editorFontSize: parseFloat($('s-font-size')?.value) || S.cfg.editorFontSize || 13.5,
     editorFontFamily: ($('s-font-family')?.value.trim()) || S.cfg.editorFontFamily || undefined,
     agentPermission: $('s-agent-permission')?.value || S.cfg.agentPermission || 'standard',

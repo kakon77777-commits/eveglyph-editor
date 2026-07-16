@@ -35,6 +35,12 @@ export const CONFIG = {
 
   // ── Appearance ──
   theme: 'dark',                                          // [user] app theme: dark | light
+  // i18n Phase 1: the setting + <html lang> only. UI strings stay English until
+  // the translation-string architecture itself is decided (Neo: "先來一個語言
+  // 設置。然後我們來討論如何最好的兼容性") — deliberately not solved here.
+  language: 'en',                                         // [user] UI language — see `languages` below
+  languages: ['en', 'zh-TW'],                              // [const] supported UI languages so far
+  languageLabels: { en: 'English', 'zh-TW': '繁體中文' }, // [const]
 
   // ── AI provider (persisted, user-facing) ──
   provider: 'anthropic',                                  // [user] anthropic | openai | local-agent

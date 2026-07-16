@@ -58,6 +58,13 @@ export function applyTheme(theme) {
   document.documentElement.classList.toggle('theme-light', theme === 'light')
 }
 
+// i18n Phase 1 (see config.js): sets the real <html lang> attribute (affects
+// screen readers / spell-check / :lang() CSS) — UI strings themselves aren't
+// translated yet, that's the follow-up "compatibility" discussion.
+export function applyLanguage(lang) {
+  document.documentElement.lang = lang || 'en'
+}
+
 // Open the right-panel "Find in files" navigator and focus it, prefilling a
 // single-line editor selection. (CodeMirror's own Ctrl+F handles in-FILE search when
 // the editor is focused; this is the workspace-scope navigator for every other state.)
@@ -190,6 +197,12 @@ function bindAll() {
     try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
     monitor('settings:theme', { theme: S.cfg.theme })
   }
+  document.getElementById('s-language').onchange = (e) => {
+    S.cfg.language = e.target.value
+    applyLanguage(S.cfg.language)
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
+    monitor('settings:language', { language: S.cfg.language })
+  }
   document.getElementById('s-font-size').onchange = (e) => {
     const v = parseFloat(e.target.value)
     if (!Number.isFinite(v) || v < 8 || v > 40) { e.target.value = S.cfg.editorFontSize; return }
@@ -282,6 +295,7 @@ function bindAll() {
 // ─── BOOT ─────────────────────────────────────────────────────────
 cfgLoad()
 applyTheme(S.cfg.theme)
+applyLanguage(S.cfg.language)
 bindAll()
 renderAbout()
 initDocs()
