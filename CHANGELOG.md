@@ -6,6 +6,12 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Resizable panes + full-width panel tabs** — the sidebar and right panel
+  can now be drag-resized (a splitter between each pane and its neighbor),
+  and the panel-tab row (Preview/Runtime/World/Studio/AI/Search/Monitor/
+  Docs/Settings) moved to its own full-width row under the topbar instead of
+  being squeezed into the right panel, where 9 tabs no longer fit legibly.
+  Widths persist across reloads.
 - **Language setting + real translation (i18n Phase 1–3)** — a new
   **Language** selector in Settings ⚙ (English / 繁體中文 so far, easy to
   extend). No framework, plain per-locale dictionaries (`src/i18n/`), English

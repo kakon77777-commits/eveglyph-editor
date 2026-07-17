@@ -53,6 +53,7 @@ import { initRuntimeView }         from './runtimeview.js'
 import { initStudioView }          from './studio.js'
 import { exportActiveAsPdf }       from './typstui.js'
 import { applyTranslations }       from './i18n/index.js'
+import { applyLayout, initResizers } from './resize.js'
 
 // Toggle the app-wide light theme (CSS variables in styles.css).
 export function applyTheme(theme) {
@@ -90,6 +91,8 @@ function openSearchPanel() {
 
 // ─── BIND ─────────────────────────────────────────────────────────
 function bindAll() {
+  initResizers()
+
   // Status bar
   document.getElementById('s-encoding').onclick = (e) => { monitor('click', { target: 'encoding' }); openEncodingMenu(e.currentTarget) }
   document.getElementById('s-eveglyph').onclick = (e) => { monitor('click', { target: 'eveglyph-class' }); openFrontmatterMenu(e.currentTarget) }
@@ -305,6 +308,7 @@ function bindAll() {
 cfgLoad()
 applyTheme(S.cfg.theme)
 applyLanguage(S.cfg.language)
+applyLayout()
 bindAll()
 renderAbout()
 initDocs()

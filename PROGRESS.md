@@ -1,9 +1,54 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-15
-> (i18n Phase 3: dynamic JS-generated UI content now translated too — English/
-> 繁體中文 coverage is essentially complete across front-stage UI chrome).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-17
+> (resizable panes + panel-tabs moved to a full-width row).
+
+## Resizable panes + panel-tabs relocated (2026-07-17)
+
+Neo, after screenshotting the panel-tabs row cramped into 9 tiny icons even at
+full screen: "我們的選項變多了...簡單說所有視窗都改成可以拉深跟移動的了" —
+more tabs than the original 3-column fixed-width layout was designed for.
+Confirmed scope via a quick clarifying question rather than guessing: drag-to-
+resize only (no dockable/floating panels, no drag-to-reorder tabs), and the
+panel-tabs row gets its own full-width row under the topbar (not squeezed into
+the existing topbar-buttons row).
+
+- `#panel-tabs` moved out of `#right-panel` to a new direct child of `#app`,
+  its own grid row (`--pth: 34px`) between the topbar and `#main`. Tabs no
+  longer `flex:1`-stretch to fill a narrow 340px column — natural width,
+  left-aligned, horizontal-scroll fallback if a window is ever narrower than
+  all 9 tabs combined. The `.ptab` click-handler logic in `main.js` needed zero
+  changes (already position-independent, queries `.ptab`/`.tcontent` by class).
+- New `src/resize.js` — two `.resize-handle` divs (`#rh-sidebar` between
+  sidebar/editor-pane, `#rh-rightpanel` between editor-pane/right-panel) drag
+  the `--sw`/`--rw` CSS custom properties directly (`#main`'s
+  `grid-template-columns` became `var(--sw) 4px 1fr 4px var(--rw)`). Clamped
+  to sensible min/max (`CONFIG.layout.{sidebarMin,sidebarMax,rightPanelMin,
+  rightPanelMax}` = 160–480 / 260–640px). Persists to `S.cfg.sidebarWidth`/
+  `rightPanelWidth` → localStorage immediately on drop (same "sticks without
+  needing the Settings ⚙ Save button" pattern as theme/language/font size),
+  applied on boot via `applyLayout()`.
+- `body.resizing` class (added for the drag's duration) disables text-selection
+  and sets `pointer-events:none` on the CodeMirror editor — dragging a splitter
+  across the editor pane would otherwise fight with CM6's own mouse-driven text
+  selection.
+- **Real bug caught before it shipped**: `settings.js`'s `cfgSave()` (the
+  Settings ⚙ "Save" button) rebuilds `S.cfg` from scratch from form fields —
+  `sidebarWidth`/`rightPanelWidth` aren't form fields, so without an explicit
+  fix, clicking Save after resizing a pane would have silently reset both
+  widths to default on the next reload. Fixed by preserving them from the
+  current `S.cfg` at the top of the rebuilt object, same pattern already used
+  for `compilableWorldRuntimeUrl`.
+- **Verified end-to-end in the running dev app** (not just visual — the
+  Browser pane's screenshot action was flaky again this session, same
+  recurring infra issue noted in earlier phases): dispatched real
+  `mousedown`/`mousemove`/`mouseup` sequences on both handles — sidebar grew
+  240→320px live, persisted to localStorage, survived a real page reload;
+  both handles' clamp bounds hold when dragged far past their min/max
+  (160px / 640px); `body.resizing` cleans up correctly on mouseup; tab
+  switching (Settings/World/Preview) still works identically after the DOM
+  move; zero console errors throughout. Reset to default widths after testing.
 
 ## What this is
 

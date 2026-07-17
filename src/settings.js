@@ -239,6 +239,10 @@ export function cfgLoad() {
 
 export function cfgSave(showMessage = true) {
   S.cfg = {
+    // Not editable via a Settings field (set by dragging the resize handles,
+    // see resize.js) — preserve rather than let a Save click reset them.
+    sidebarWidth: S.cfg.sidebarWidth ?? CONFIG.layout.sidebarWidth,
+    rightPanelWidth: S.cfg.rightPanelWidth ?? CONFIG.layout.rightPanelWidth,
     provider: $('s-provider').value,
     url: $('s-url').value.trim(),
     key: $('s-key').value.trim(),

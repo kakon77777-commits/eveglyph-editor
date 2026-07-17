@@ -33,6 +33,14 @@ export const CONFIG = {
     location: 'Taipei City, Taiwan',                       // [const]
   },
 
+  // ── Layout (persisted) — drag-resizable panes, see src/resize.js ──
+  layout: {
+    sidebarWidth: 240,                                    // [user] px — default seed; live override persists as cfg.sidebarWidth
+    rightPanelWidth: 340,                                 // [user] px — default seed; live override persists as cfg.rightPanelWidth
+    sidebarMin: 160, sidebarMax: 480,                     // [tunable] drag clamp range
+    rightPanelMin: 260, rightPanelMax: 640,               // [tunable] drag clamp range
+  },
+
   // ── Appearance ──
   theme: 'dark',                                          // [user] app theme: dark | light
   // i18n Phase 1: the setting + <html lang> only. UI strings stay English until

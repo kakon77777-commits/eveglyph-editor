@@ -12,6 +12,8 @@ export const S = {
   // Defaults sourced from the config contract (config.js); cfgLoad merges the user's
   // localStorage overrides on top (the whole cfg object is persisted as one blob).
   cfg: {
+    sidebarWidth: CONFIG.layout.sidebarWidth,
+    rightPanelWidth: CONFIG.layout.rightPanelWidth,
     theme: CONFIG.theme,
     language: CONFIG.language,
     editorFontSize: CONFIG.editor.fontSize,

@@ -32,6 +32,20 @@
     </div>
   </header>
 
+  <!-- PANEL TABS — own full-width grid row (2026-07-17: moved out of
+       #right-panel, which at --rw was too narrow to hold 9 tabs legibly). -->
+  <div id="panel-tabs">
+    <button class="ptab active" data-t="preview" data-i18n="panelTabs.preview">Preview</button>
+    <button class="ptab" data-t="runtime" data-i18n="panelTabs.runtime" data-i18n-title="panelTabs.runtimeTitle">Runtime</button>
+    <button class="ptab" data-t="world" data-i18n="panelTabs.world" data-i18n-title="panelTabs.worldTitle">🌐 World</button>
+    <button class="ptab" data-t="studio" data-i18n="panelTabs.studio" data-i18n-title="panelTabs.studioTitle">Studio</button>
+    <button class="ptab" data-t="ai" data-i18n="panelTabs.ai">AI</button>
+    <button class="ptab" data-t="search" data-i18n="panelTabs.search">🔍</button>
+    <button class="ptab" data-t="log" data-i18n="panelTabs.log" data-i18n-title="panelTabs.logTitle">◷</button>
+    <button class="ptab" data-t="docs" data-i18n="panelTabs.docs" data-i18n-title="panelTabs.docsTitle">📖</button>
+    <button class="ptab" data-t="settings" data-i18n="panelTabs.settings">⚙</button>
+  </div>
+
   <!-- MAIN -->
   <div id="main">
 
@@ -42,6 +56,9 @@
       </div>
       <div id="file-tree"></div>
     </aside>
+
+    <!-- Drag to resize the sidebar (2026-07-17, see src/resize.js) -->
+    <div class="resize-handle" id="rh-sidebar"></div>
 
     <!-- EDITOR PANE -->
     <div id="editor-pane">
@@ -61,19 +78,11 @@
       </div>
     </div>
 
+    <!-- Drag to resize the right panel (2026-07-17, see src/resize.js) -->
+    <div class="resize-handle" id="rh-rightpanel"></div>
+
     <!-- RIGHT PANEL -->
     <aside id="right-panel">
-      <div id="panel-tabs">
-        <button class="ptab active" data-t="preview" data-i18n="panelTabs.preview">Preview</button>
-        <button class="ptab" data-t="runtime" data-i18n="panelTabs.runtime" data-i18n-title="panelTabs.runtimeTitle">Runtime</button>
-        <button class="ptab" data-t="world" data-i18n="panelTabs.world" data-i18n-title="panelTabs.worldTitle">🌐 World</button>
-        <button class="ptab" data-t="studio" data-i18n="panelTabs.studio" data-i18n-title="panelTabs.studioTitle">Studio</button>
-        <button class="ptab" data-t="ai" data-i18n="panelTabs.ai">AI</button>
-        <button class="ptab" data-t="search" data-i18n="panelTabs.search">🔍</button>
-        <button class="ptab" data-t="log" data-i18n="panelTabs.log" data-i18n-title="panelTabs.logTitle">◷</button>
-        <button class="ptab" data-t="docs" data-i18n="panelTabs.docs" data-i18n-title="panelTabs.docsTitle">📖</button>
-        <button class="ptab" data-t="settings" data-i18n="panelTabs.settings">⚙</button>
-      </div>
 
       <!-- Preview -->
       <div id="t-preview" class="tcontent active">

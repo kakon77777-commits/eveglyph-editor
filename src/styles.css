@@ -28,9 +28,10 @@
 
   --r:  4px;
   --th: 42px;   /* topbar */
+  --pth: 34px;  /* panel-tabs row */
   --sh: 24px;   /* statusbar */
-  --sw: 240px;  /* sidebar */
-  --rw: 340px;  /* right panel */
+  --sw: 240px;  /* sidebar — drag-resizable, see resize.js */
+  --rw: 340px;  /* right panel — drag-resizable, see resize.js */
 }
 
 /* Light theme — overrides the colour tokens only (layout/font tokens inherited).
@@ -72,7 +73,7 @@ html, body {
 /* ─── APP GRID ─── */
 #app {
   display: grid;
-  grid-template-rows: var(--th) 1fr var(--sh);
+  grid-template-rows: var(--th) var(--pth) 1fr var(--sh);
   height: 100vh;
 }
 
@@ -92,12 +93,22 @@ html, body {
 .topbar-actions { margin-left: auto; display:flex; align-items:center; gap:6px; }
 
 /* ─── MAIN GRID ─── */
-#main { display: grid; grid-template-columns: var(--sw) 1fr var(--rw); overflow: hidden; }
+#main { display: grid; grid-template-columns: var(--sw) 4px 1fr 4px var(--rw); overflow: hidden; }
+
+/* Drag-resizable splitters between sidebar/editor-pane/right-panel (2026-07-17).
+   Resize only — no docking, no tab reordering, see resize.js. The visible line
+   sits on the handle itself (replacing what used to be a static border on the
+   adjacent pane), width var(--bdr) by default, var(--ac) on hover/drag so the
+   draggable target is obvious. */
+.resize-handle { background: var(--bdr); cursor: col-resize; transition: background .1s; }
+.resize-handle:hover, body.resizing .resize-handle.active { background: var(--ac); }
+body.resizing { cursor: col-resize !important; }
+body.resizing, body.resizing * { user-select: none !important; }
+body.resizing #editor-container, body.resizing .cm-editor { pointer-events: none; }
 
 /* ─── SIDEBAR ─── */
 #sidebar {
   background: var(--bg-1);
-  border-right: 1px solid var(--bdr);
   display: flex; flex-direction: column; overflow: hidden;
 }
 #folder-hdr {
@@ -190,17 +201,23 @@ html, body {
 
 /* ─── RIGHT PANEL ─── */
 #right-panel {
-  background: var(--bg-1); border-left: 1px solid var(--bdr);
+  background: var(--bg-1);
   display: flex; flex-direction: column; overflow: hidden;
 }
+/* Panel tabs (2026-07-17: own full-width grid row between topbar and #main,
+   see index.html — used to be squeezed into #right-panel's --rw, which
+   couldn't legibly fit 9 tabs). Tabs no longer stretch to fill (flex:1) —
+   left-aligned, natural width, scrolls horizontally in the unlikely case a
+   narrow window still can't fit them all. */
 #panel-tabs {
   display: flex; border-bottom: 1px solid var(--bdr);
-  background: var(--bg-0); flex-shrink:0;
+  background: var(--bg-0); flex-shrink:0; overflow-x:auto;
 }
+#panel-tabs::-webkit-scrollbar { height: 3px; }
 .ptab {
-  flex:1; padding: 8px; background:none; border:none;
+  flex: 0 0 auto; padding: 8px 16px; background:none; border:none;
   color: var(--t2); cursor:pointer; font-size:12px; font-family:var(--fu);
-  border-bottom: 2px solid transparent; transition:all .1s;
+  border-bottom: 2px solid transparent; transition:all .1s; white-space:nowrap;
 }
 .ptab:hover { color:var(--t1); }
 .ptab.active { color:var(--ac); border-bottom-color:var(--ac); }
@@ -456,7 +473,7 @@ html, body {
 /* Print / Save-as-PDF — show only the rendered preview as a clean document. */
 @media print {
   html, body { height:auto !important; overflow:visible !important; background:#fff !important; }
-  #topbar, #sidebar, #editor-pane, #statusbar, #panel-tabs,
+  #topbar, #sidebar, #editor-pane, #statusbar, #panel-tabs, .resize-handle,
   #t-ai, #t-settings, #t-search { display:none !important; }
   #app, #main { display:block !important; height:auto !important; }
   #right-panel { display:block !important; width:auto !important; border:none !important; }
