@@ -7,6 +7,7 @@ import { statusUpdate } from './status.js'
 import { tabAdd, tabUpdate, tabPrune } from './tabs.js'
 import { monitor } from './monitor.js'
 import { pickFolder } from './folderbrowser.js'
+import { t } from './i18n/index.js'
 
 function bridgeFileUrl(root, file, encoding, fallback) {
   const params = { cwd: root, path: file }
@@ -40,8 +41,8 @@ export async function openFolder() {
 
     if (!ok) {
       const fn = document.getElementById('folder-name')
-      if (fn) fn.textContent = `⚠ cannot open: ${chosen}`
-      alert(`Cannot open workspace:\n${chosen}\n\nTry a different folder.`)
+      if (fn) fn.textContent = `${t('files.cannotOpenStatus')} ${chosen}`
+      alert(t('files.cannotOpenAlert', { path: chosen }))
     }
     await monitor(ok ? 'openFolder:success' : 'openFolder:error', { cwd: chosen, mode: 'folder-browser' })
     return
@@ -84,7 +85,7 @@ export async function openFolder() {
   }
 
   if (!window.showDirectoryPicker) {
-    const typed = prompt('Workspace folder path:', bridgeWorkspace || '')
+    const typed = prompt(t('files.workspacePathPrompt'), bridgeWorkspace || '')
     if (!typed) {
       await monitor('openFolder:cancel', { mode: 'path-prompt' })
       return
@@ -284,7 +285,7 @@ export async function saveFile() {
 }
 
 export async function newFile() {
-  const name = prompt('File name (without extension):')
+  const name = prompt(t('files.newFilePrompt'))
   if (!name) {
     await monitor('file:new:cancel', {})
     return
@@ -353,7 +354,7 @@ export async function importFile(fname, content) {
   } catch (e) {
     console.error(e)
     await monitor('file:import:error', { path: fname, error: String(e?.message || e) })
-    alert('Could not save the imported file: ' + (e?.message || e))
+    alert(t('files.importSaveFailedAlert', { error: e?.message || e }))
     return false
   }
 }

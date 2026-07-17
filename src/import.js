@@ -7,6 +7,7 @@
 import { S }          from './state.js'
 import { importFile } from './files.js'
 import { monitor }    from './monitor.js'
+import { t }          from './i18n/index.js'
 
 // Stage 2 — rules pass. Normalize what a DOCX→MD conversion reliably mangles
 // (heading spacing, list/blank-line noise). Deterministic, no AI. Exported so it
@@ -30,8 +31,8 @@ function uniqueName(base) {
 }
 
 export async function importDocx(file) {
-  if (!file || !/\.docx$/i.test(file.name)) { alert('Drop a .docx file.'); return false }
-  if (!S.workspaceMode) { alert('Open a workspace folder first, then import.'); return false }
+  if (!file || !/\.docx$/i.test(file.name)) { alert(t('importDocx.dropAlert')); return false }
+  if (!S.workspaceMode) { alert(t('importDocx.openWorkspaceFirstAlert')); return false }
 
   await monitor('import:docx:start', { name: file.name, bytes: file.size })
   try {
@@ -55,7 +56,7 @@ export async function importDocx(file) {
   } catch (e) {
     console.error(e)
     await monitor('import:docx:error', { error: String(e?.message || e) })
-    alert('DOCX import failed: ' + (e?.message || e))
+    alert(t('importDocx.failedAlert', { error: e?.message || e }))
     return false
   }
 }

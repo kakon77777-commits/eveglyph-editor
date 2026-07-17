@@ -9,9 +9,10 @@ import { getClass, upsertFrontmatter, EVEGLYPH_TYPES, EVEGLYPH_STATUSES } from '
 import { editorGet, editorSet } from './editor.js'
 import { statusUpdate } from './status.js'
 import { monitor } from './monitor.js'
+import { t } from './i18n/index.js'
 
 const escAttr = (s) => String(s).replace(/"/g, '&quot;')
-const parseTags = (raw) => raw.split(',').map(t => t.trim()).filter(Boolean)
+const parseTags = (raw) => raw.split(',').map(tag => tag.trim()).filter(Boolean)
 
 export function openFrontmatterMenu(anchor) {
   if (!S.active || !S.editor) return
@@ -24,14 +25,14 @@ export function openFrontmatterMenu(anchor) {
   const menu = document.createElement('div')
   menu.className = 'enc-menu fm-menu'
   menu.innerHTML =
-    `<div class="enc-head">Type</div>` +
-    EVEGLYPH_TYPES.map(t => `<div class="enc-item" data-type="${t}">${t}${cls.type === t ? ' ✓' : ''}</div>`).join('') +
+    `<div class="enc-head">${t('frontmatterMenu.type')}</div>` +
+    EVEGLYPH_TYPES.map(ty => `<div class="enc-item" data-type="${ty}">${ty}${cls.type === ty ? ' ✓' : ''}</div>`).join('') +
     `<div class="enc-sep"></div>` +
-    `<div class="enc-head">Status</div>` +
+    `<div class="enc-head">${t('frontmatterMenu.status')}</div>` +
     EVEGLYPH_STATUSES.map(s => `<div class="enc-item" data-status="${s}">${s}${cls.status === s ? ' ✓' : ''}</div>`).join('') +
     `<div class="enc-sep"></div>` +
-    `<div class="enc-head">Tags</div>` +
-    `<div class="fm-tags-row"><input type="text" class="fm-tags-input" placeholder="comma, separated" value="${escAttr(cls.tags.join(', '))}"></div>`
+    `<div class="enc-head">${t('frontmatterMenu.tags')}</div>` +
+    `<div class="fm-tags-row"><input type="text" class="fm-tags-input" placeholder="${t('frontmatterMenu.tagsPlaceholder')}" value="${escAttr(cls.tags.join(', '))}"></div>`
   document.body.appendChild(menu)
 
   const rect = anchor.getBoundingClientRect()

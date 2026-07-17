@@ -48,6 +48,7 @@ import jsYaml from 'js-yaml'
 import { validateEntity, validateEntityList } from './validate.js'
 import { renderDiagnosticsBlock } from './diagnostics.js'
 import { editorGet, editorSet } from './editor.js'
+import { t } from './i18n/index.js'
 
 const esc = (s) => String(s).replace(/[&<>"']/g, c =>
   ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
@@ -92,9 +93,9 @@ export function renderEntityForm(src) {
   try {
     doc = jsYaml.load(src)
   } catch (e) {
-    return `<div class="sm-error">⚠ Not a valid entity document: ${esc(e.message)}</div>`
+    return `<div class="sm-error">${t('entityview.invalidEntity', { message: esc(e.message) })}</div>`
   }
-  if (!doc || typeof doc !== 'object') return `<div class="sm-error">⚠ Not a valid entity document: empty or not a mapping</div>`
+  if (!doc || typeof doc !== 'object') return `<div class="sm-error">${t('entityview.emptyOrNotMapping')}</div>`
 
   const rest = Object.keys(doc).filter(k => !FORM_HEADER_FIELDS.includes(k))
   const issues = validateEntity(doc)
@@ -103,7 +104,7 @@ export function renderEntityForm(src) {
     <div class="ev-form">
       <div class="ev-form-header">
         <span class="ev-type-tag">${esc(doc.type || 'entity')}</span>
-        <span class="ev-id">${esc(doc.id || '(no id)')}</span>
+        <span class="ev-id">${esc(doc.id || t('entityview.noId'))}</span>
       </div>
       <table class="ev-field-table">
         <tbody>
@@ -113,7 +114,7 @@ export function renderEntityForm(src) {
             const isArray = Array.isArray(v)
             return `<tr><th>${esc(k)}</th><td>
               <input type="text" class="ev-input" data-field="${esc(k)}" data-array="${isArray}"
-                     value="${esc(fieldToInputValue(v))}"${isArray ? ' placeholder="comma, separated, values"' : ''}>
+                     value="${esc(fieldToInputValue(v))}"${isArray ? ` placeholder="${t('entityview.valuesPlaceholder')}"` : ''}>
             </td></tr>`
           }).join('\n')}
         </tbody>
@@ -160,10 +161,10 @@ export function renderEntityTable(src) {
   try {
     doc = jsYaml.load(src)
   } catch (e) {
-    return `<div class="sm-error">⚠ Not a valid entity_list document: ${esc(e.message)}</div>`
+    return `<div class="sm-error">${t('entityview.invalidEntityList', { message: esc(e.message) })}</div>`
   }
   const entities = Array.isArray(doc?.entities) ? doc.entities : []
-  if (!entities.length) return `<div class="sm-error">⚠ entity_list document has no entities</div>`
+  if (!entities.length) return `<div class="sm-error">${t('entityview.noEntities')}</div>`
 
   // Column set = union of keys across all entities, id/type/name first if
   // present (the common case), everything else after in first-seen order --
@@ -180,8 +181,8 @@ export function renderEntityTable(src) {
   return `
     <div class="ev-table-view">
       <div class="ev-form-header">
-        <span class="ev-type-tag">entity_list</span>
-        <span class="ev-count">${entities.length} entities</span>
+        <span class="ev-type-tag">${t('entityview.entityListLabel')}</span>
+        <span class="ev-count">${t('entityview.entityCount', { count: entities.length })}</span>
       </div>
       <table class="ev-field-table ev-list-table">
         <thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>

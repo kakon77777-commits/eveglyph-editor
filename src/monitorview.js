@@ -6,6 +6,7 @@
 // Event text is rendered via textContent (never innerHTML) — agent stdout samples and
 // file paths in the stream are untrusted.
 import { CONFIG } from './config.js'
+import { t } from './i18n/index.js'
 
 let lastEvents = []
 let lastFilter = ''
@@ -50,15 +51,15 @@ export async function loadMonitor() {
     lastEvents = (Array.isArray(data.events) ? data.events : []).filter(e => e && typeof e === 'object')
     renderMonitor()
     if (status) status.textContent = data.exists
-      ? `${lastEvents.length} event(s) · ${(data.file || '').split(/[\\/]/).pop() || ''}`
-      : 'No events yet — the stream is created on first activity.'
+      ? t('monitorDynamic.eventCount', { count: lastEvents.length, file: (data.file || '').split(/[\\/]/).pop() || '' })
+      : t('monitorDynamic.noEventsYet')
   } catch (e) {
     lastEvents = []
     body.replaceChildren()
     if (status) status.textContent =
-      e?.message === 'bridge-old' ? 'Restart the dev server (start-eveglyph.bat) to enable the monitor viewer.'
-      : e?.name === 'TypeError'   ? 'Bridge offline — start the dev server to view the monitor stream.'
-      : (e?.message || 'Monitor unavailable.')
+      e?.message === 'bridge-old' ? t('monitorDynamic.restartBridge')
+      : e?.name === 'TypeError'   ? t('monitorDynamic.bridgeOffline')
+      : (e?.message || t('monitorDynamic.unavailable'))
   }
 }
 
@@ -73,7 +74,7 @@ function renderMonitor() {
   if (!rows.length) {
     const d = document.createElement('div')
     d.className = 'mon-empty'
-    d.textContent = f ? 'No matching events.' : 'No events.'
+    d.textContent = f ? t('monitorDynamic.noMatchingEvents') : t('monitorDynamic.noEvents')
     body.appendChild(d)
     return
   }

@@ -30,6 +30,8 @@ function loadSdk() {
   return sdkPromise
 }
 
+import { t } from './i18n/index.js'
+
 const esc = (s) => String(s).replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
@@ -38,14 +40,14 @@ export async function runAmepPreset(packId, text) {
   const resp = document.getElementById('ai-resp')
   wrap.style.display = 'flex'
   resp.className = 'loading'
-  resp.innerHTML = '<span class="spinner"></span> Loading AMEP runtime (first run this session downloads ~14MB, cached after)…'
+  resp.innerHTML = `<span class="spinner"></span> ${t('amepDynamic.loading')}`
 
   const { monitor } = await import('./monitor.js')
   await monitor('amep:run:start', { pack: packId, textBytes: text.length })
 
   try {
     const sdk = await loadSdk()
-    resp.innerHTML = `<span class="spinner"></span> Running ${esc(packId)}…`
+    resp.innerHTML = `<span class="spinner"></span> ${t('amepDynamic.running', { pack: esc(packId) })}`
     const result = await sdk.runAMEP({
       amep_version: AMEP_VERSION,
       pack: { id: packId, version: '0.1.0' },
@@ -57,7 +59,7 @@ export async function runAmepPreset(packId, text) {
     await monitor('amep:run:success', { pack: packId, status: result?.status })
   } catch (e) {
     resp.className = 'err'
-    resp.textContent = `✗ AMEP (${packId}) failed: ${e.message}\n\nThis runs a separate open-source module from evemisstechnology.com in your browser — check your connection, or that the site is reachable, and try again.`
+    resp.textContent = t('amepDynamic.failed', { pack: packId, message: e.message })
     await monitor('amep:run:error', { pack: packId, error: String(e?.message || e) })
   }
 }
@@ -78,10 +80,10 @@ function renderAmepResult(packId, result) {
   const statusClass = status === 'completed' ? 'ok' : status === 'partial' ? 'warn' : 'err'
 
   const groups = [
-    ['Witness findings', data.witness_findings],
-    ['Equivalence findings', data.equivalence_findings],
-    ['Citation findings', data.citation_findings],
-    ['Fractures', data.fractures],
+    [t('amepDynamic.witnessFindings'), data.witness_findings],
+    [t('amepDynamic.equivalenceFindings'), data.equivalence_findings],
+    [t('amepDynamic.citationFindings'), data.citation_findings],
+    [t('amepDynamic.fractures'), data.fractures],
   ]
 
   const totalFindings = (refl.witness_findings || 0) + (refl.equivalence_findings || 0) + (refl.citation_findings || 0)
@@ -91,7 +93,7 @@ function renderAmepResult(packId, result) {
       <span class="amep-badge amep-badge-${statusClass}">${esc(status)}</span>
       <span class="amep-pack-name">${esc(packId)} · AMEP v${esc(result?.amep_version || '')}</span>
     </div>
-    <div class="amep-summary">${esc(refl.claims_checked ?? 0)} claim(s) checked · ${esc(totalFindings)} finding(s) · ${esc(refl.fractures ?? 0)} fracture(s)</div>`
+    <div class="amep-summary">${t('amepDynamic.summary', { claims: refl.claims_checked ?? 0, findings: totalFindings, fractures: refl.fractures ?? 0 })}</div>`
 
   for (const [label, items] of groups) {
     if (!items || !items.length) continue
@@ -101,16 +103,16 @@ function renderAmepResult(packId, result) {
   }
 
   if (Array.isArray(refl.next_actions) && refl.next_actions.length) {
-    html += `<div class="amep-group"><div class="amep-group-h">Next actions</div><ul class="amep-actions">`
+    html += `<div class="amep-group"><div class="amep-group-h">${t('amepDynamic.nextActions')}</div><ul class="amep-actions">`
     html += refl.next_actions.map(a => `<li>${esc(a)}</li>`).join('')
     html += `</ul></div>`
   }
 
   if (!totalFindings && !(refl.next_actions || []).length) {
-    html += `<div class="amep-empty">No findings — nothing flagged by RigorLoop's marker scan.</div>`
+    html += `<div class="amep-empty">${t('amepDynamic.noFindings')}</div>`
   }
 
-  html += `<div class="amep-footnote">RigorLoop is a heuristic marker/keyword scanner (regex-style claim/citation/equivalence pattern matching) — not a theorem prover or LLM call. Runs client-side via <a href="https://evemisstechnology.com/amep/" target="_blank" rel="noopener noreferrer">AMEP</a>, a separate open method-pack project.</div>`
+  html += `<div class="amep-footnote">${t('amepDynamic.footnote')}</div>`
   html += `</div>`
   return html
 }

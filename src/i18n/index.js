@@ -10,6 +10,8 @@ import zhTW from './zh-TW.js'
 
 const LOCALES = { en, 'zh-TW': zhTW }
 
+let currentLang = 'en'
+
 function lookup(dict, key) {
   let cur = dict
   for (const part of key.split('.')) {
@@ -19,15 +21,26 @@ function lookup(dict, key) {
   return typeof cur === 'string' ? cur : undefined
 }
 
-// Translates a dot-path key ("topbar.save") in the given (or current) locale,
-// falling back to English, then to the key itself so a typo is visible
-// rather than silently blank.
-export function t(key, lang) {
-  const locale = LOCALES[lang] || LOCALES[currentLang] || en
-  return lookup(locale, key) ?? lookup(en, key) ?? key
+// Translates a dot-path key ("topbar.save"), falling back to English, then to
+// the key itself so a typo is visible rather than silently blank. `params`
+// substitutes {name} placeholders (e.g. t('files.newFilePrompt', {path}))
+// with String(value) — no nested formatting, this is deliberately simple.
+export function t(key, params) {
+  const locale = LOCALES[currentLang] || en
+  let str = lookup(locale, key) ?? lookup(en, key) ?? key
+  if (params) {
+    for (const [name, value] of Object.entries(params)) {
+      str = str.replaceAll(`{${name}}`, String(value))
+    }
+  }
+  return str
 }
 
-let currentLang = 'en'
+// Convenience for the common "count (+ plural suffix key)" pattern, e.g.
+// tPlural('search.matchCount', 'search.matchCountPlural', n, {count: n}).
+export function tPlural(singularKey, pluralKey, n, params) {
+  return t(n === 1 ? singularKey : pluralKey, params)
+}
 
 // Walks the DOM applying every data-i18n* attribute found. Call on boot and
 // whenever the language setting changes — cheap enough (a few hundred
@@ -35,15 +48,15 @@ let currentLang = 'en'
 export function applyTranslations(lang, root = document) {
   currentLang = lang || 'en'
   root.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.getAttribute('data-i18n'), currentLang)
+    el.textContent = t(el.getAttribute('data-i18n'))
   })
   root.querySelectorAll('[data-i18n-title]').forEach(el => {
-    el.title = t(el.getAttribute('data-i18n-title'), currentLang)
+    el.title = t(el.getAttribute('data-i18n-title'))
   })
   root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    el.placeholder = t(el.getAttribute('data-i18n-placeholder'), currentLang)
+    el.placeholder = t(el.getAttribute('data-i18n-placeholder'))
   })
   root.querySelectorAll('[data-i18n-html]').forEach(el => {
-    el.innerHTML = t(el.getAttribute('data-i18n-html'), currentLang)
+    el.innerHTML = t(el.getAttribute('data-i18n-html'))
   })
 }

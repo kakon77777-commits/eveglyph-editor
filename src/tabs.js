@@ -1,6 +1,7 @@
 // ─── TABS ─────────────────────────────────────────────────────────
 import { S }        from './state.js'
 import { openFile } from './files.js'
+import { t }        from './i18n/index.js'
 
 export function tabAdd(path) {
   if (S.tabs.includes(path)) { tabActivate(path); return }
@@ -45,7 +46,7 @@ export function tabClose(path) {
       S.active = null
       if (S.editor) { S.editor.destroy(); S.editor = null }
       const ec = document.getElementById('editor-container')
-      ec.innerHTML = `<div id="editor-placeholder"><div class="ph-icon">⬡</div><p>Select a file</p></div>`
+      ec.innerHTML = `<div id="editor-placeholder"><div class="ph-icon">⬡</div><p>${t('tabsDynamic.selectFile')}</p></div>`
     }
   }
 }

@@ -5,13 +5,15 @@
 // line-level coloring. Pure string→HTML: every line is escaped (agent/git output is
 // UNTRUSTED) and rendered as text via textContent-equivalent escaping, never markup.
 
+import { t } from './i18n/index.js'
+
 const esc = (s) => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
 
 // Readable path from a "diff --git a/x b/x" header (handles spaces + rename forms).
 function fileLabel(header) {
   const m = header.match(/^diff --git a\/(.+?) b\/(.+)$/)
   if (m) return m[2]
-  return header.replace(/^diff --git\s*/, '').trim() || 'changes'
+  return header.replace(/^diff --git\s*/, '').trim() || t('diffview.changesFallback')
 }
 
 function lineClass(l) {
@@ -52,7 +54,7 @@ export function renderDiffHTML(diff, { open = true } = {}) {
   return groups.map(g => {
     const body = g.lines.map(l => `<span class="${lineClass(l)}">${esc(l) || ' '}</span>`).join('\n')
     const counts = `<span class="df-counts"><span class="df-add">+${g.adds}</span><span class="df-del">−${g.dels}</span></span>`
-    const name = esc(g.label || 'changes')
+    const name = esc(g.label || t('diffview.changesFallback'))
     return `<details class="dfile"${open ? ' open' : ''}>` +
       `<summary class="dfile-h"><span class="dfile-name" title="${name}">${name}</span>${counts}</summary>` +
       `<pre class="diff">${body}</pre>` +

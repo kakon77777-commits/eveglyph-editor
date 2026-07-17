@@ -17,6 +17,7 @@ import { openFile } from './files.js'
 import { isStateMachineDoc } from './smview.js'
 import { isEntityDoc, isEntityListDoc } from './entityview.js'
 import { validateStateMachine, validateEntity, validateEntityList } from './validate.js'
+import { t } from './i18n/index.js'
 
 const esc = (s) => String(s).replace(/[&<>"']/g, c =>
   ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
@@ -94,33 +95,33 @@ export function renderOverview(scan) {
 
   return `
     <div class="ov-summary">
-      <span class="ov-summary-item">${scan.state_machines.length} state machines</span>
-      <span class="ov-summary-item">${scan.entities.length} entities</span>
-      <span class="ov-summary-item">${scan.entity_lists.length} entity lists</span>
-      ${scan.otherYamlCount ? `<span class="ov-summary-item ov-dim">${scan.otherYamlCount} other .yaml (no recognized kind)</span>` : ''}
-      ${totalIssues ? `<span class="ov-summary-item ov-error">${totalIssues} total errors</span>` : ''}
+      <span class="ov-summary-item">${t('overview.summaryStateMachines', { count: scan.state_machines.length })}</span>
+      <span class="ov-summary-item">${t('overview.summaryEntities', { count: scan.entities.length })}</span>
+      <span class="ov-summary-item">${t('overview.summaryEntityLists', { count: scan.entity_lists.length })}</span>
+      ${scan.otherYamlCount ? `<span class="ov-summary-item ov-dim">${t('overview.summaryOtherYaml', { count: scan.otherYamlCount })}</span>` : ''}
+      ${totalIssues ? `<span class="ov-summary-item ov-error">${t('overview.summaryTotalErrors', { count: totalIssues })}</span>` : ''}
     </div>
 
     ${scan.state_machines.length ? `
       <div class="ov-group">
-        <h4>State Machines</h4>
+        <h4>${t('overview.stateMachines')}</h4>
         ${scan.state_machines.map(sm => row(sm.path, `${issueBadge(sm.issues)} <span class="ov-id">${esc(sm.id)}</span> <span class="ov-meta">${sm.stateCount} states</span>`)).join('\n')}
       </div>` : ''}
 
     ${scan.entities.length ? `
       <div class="ov-group">
-        <h4>Entities</h4>
+        <h4>${t('overview.entities')}</h4>
         ${scan.entities.map(e => row(e.path, `${issueBadge(e.issues)} <span class="ov-id">${esc(e.id)}</span> <span class="ov-meta">${esc(e.type)}</span>`)).join('\n')}
       </div>` : ''}
 
     ${scan.entity_lists.length ? `
       <div class="ov-group">
-        <h4>Entity Lists</h4>
+        <h4>${t('overview.entityLists')}</h4>
         ${scan.entity_lists.map(el => row(el.path, `${issueBadge(el.issues)} <span class="ov-meta">${el.count} entities</span>`)).join('\n')}
       </div>` : ''}
 
     ${!scan.state_machines.length && !scan.entities.length && !scan.entity_lists.length
-      ? `<div class="ov-empty">No recognized World IR documents found in this workspace.</div>` : ''}
+      ? `<div class="ov-empty">${t('overview.noDocuments')}</div>` : ''}
   `
 }
 
@@ -140,17 +141,17 @@ export function initOverview() {
 
   btn?.addEventListener('click', async () => {
     btn.disabled = true
-    btn.textContent = 'Scanning…'
+    btn.textContent = t('overview.scanning')
     try {
       if (!S.workspaceRoot && !S.dirHandle) {
-        body.innerHTML = `<div class="ov-empty">Open a folder first.</div>`
+        body.innerHTML = `<div class="ov-empty">${t('overview.openFolderFirst')}</div>`
         return
       }
       const scan = await scanWorkspace()
       body.innerHTML = renderOverview(scan)
     } finally {
       btn.disabled = false
-      btn.textContent = '↻ Scan workspace'
+      btn.textContent = t('world.scanWorkspace')
     }
   })
 }

@@ -7,6 +7,7 @@
 import { S } from './state.js'
 import { openFile, saveFile } from './files.js'
 import { statusUpdate } from './status.js'
+import { t } from './i18n/index.js'
 
 // Shared with the Settings "default encoding" dropdown (settings.js) so the two
 // lists can never drift apart.
@@ -24,11 +25,11 @@ export function openEncodingMenu(anchor) {
   const menu = document.createElement('div')
   menu.className = 'enc-menu'
   menu.innerHTML =
-    `<div class="enc-head">Reopen with encoding</div>` +
+    `<div class="enc-head">${t('encodingMenu.reopenWith')}</div>` +
     ENCODINGS.map(e =>
       `<div class="enc-item" data-e="${e}">${e}${cur === e.toLowerCase() ? ' ✓' : ''}</div>`).join('') +
     `<div class="enc-sep"></div>` +
-    `<div class="enc-item enc-save" data-save="1">Save as UTF-8 (convert)</div>`
+    `<div class="enc-item enc-save" data-save="1">${t('encodingMenu.saveAsUtf8')}</div>`
   document.body.appendChild(menu)
 
   const rect = anchor.getBoundingClientRect()

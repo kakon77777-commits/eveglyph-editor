@@ -3,6 +3,7 @@
 // the single source of truth in config.js (CONFIG.product) into the Settings "About"
 // block and the topbar version badge. Display-only; values are set via textContent.
 import { CONFIG } from './config.js'
+import { t } from './i18n/index.js'
 
 export function renderAbout() {
   const p = CONFIG.product
@@ -13,13 +14,13 @@ export function renderAbout() {
   const el = document.getElementById('about-body')
   if (!el) return
   const rows = [
-    ['Product', `${p.name} — ${p.format}`],
-    ['Version', `${p.version}  ·  ${p.egCode}`],
-    ['Author',  p.author],
-    ['Company', `${p.company}　${p.companyZh}`],
-    ['Contact', p.email],
-    ['Location', p.location],
-    ['License', `${p.license} © ${p.year} ${p.company}`],
+    [t('aboutDynamic.product'), `${p.name} — ${p.format}`],
+    [t('aboutDynamic.version'), `${p.version}  ·  ${p.egCode}`],
+    [t('aboutDynamic.author'),  p.author],
+    [t('aboutDynamic.company'), `${p.company}　${p.companyZh}`],
+    [t('aboutDynamic.contact'), p.email],
+    [t('aboutDynamic.location'), p.location],
+    [t('aboutDynamic.license'), `${p.license} © ${p.year} ${p.company}`],
   ]
   el.replaceChildren()
   for (const [k, v] of rows) {

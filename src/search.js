@@ -10,6 +10,7 @@ import { editorGet, editorGoToMatch, editorSet, editorReplaceRange } from './edi
 import { openFile, refreshFromDisk, saveFile } from './files.js'
 import { monitor }           from './monitor.js'
 import { renderDiffHTML }    from './diffview.js'
+import { t, tPlural }        from './i18n/index.js'
 
 const $ = (id) => document.getElementById(id)
 
@@ -63,7 +64,7 @@ export async function runSearch() {
 
   let re
   try { re = buildRegex(q, opts) }
-  catch (e) { out.innerHTML = `<div class="search-empty">Invalid regex: ${esc(e.message)}</div>`; return }
+  catch (e) { out.innerHTML = `<div class="search-empty">${t('searchDynamic.invalidRegex', { message: esc(e.message) })}</div>`; return }
 
   await monitor('search:run', { scope, ...opts, qlen: q.length })
 
@@ -71,7 +72,7 @@ export async function runSearch() {
   if (scope === 'file') {
     if (S.active) all = findInText(editorGet(), re, S.active)
   } else {
-    out.innerHTML = '<div class="search-empty">Searching…</div>'
+    out.innerHTML = `<div class="search-empty">${t('searchDynamic.searching')}</div>`
     for (const path of [...S.files.keys()]) {
       const text = await textForPath(path)
       if (text != null) all.push(...findInText(text, re, path))
@@ -84,7 +85,7 @@ const esc = (s) => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;'
 
 function renderResults(results) {
   const out = $('search-results')
-  if (!results.length) { out.innerHTML = '<div class="search-empty">No matches.</div>'; return }
+  if (!results.length) { out.innerHTML = `<div class="search-empty">${t('searchDynamic.noMatches')}</div>`; return }
 
   const byFile = new Map()
   for (const r of results) { (byFile.get(r.path) || byFile.set(r.path, []).get(r.path)).push(r) }
@@ -92,7 +93,9 @@ function renderResults(results) {
   out.innerHTML = ''
   const head = document.createElement('div')
   head.className = 'search-count'
-  head.textContent = `${results.length} match${results.length === 1 ? '' : 'es'} · ${byFile.size} file${byFile.size === 1 ? '' : 's'}`
+  const matchWord = tPlural('searchDynamic.matchCount', 'searchDynamic.matchCountPlural', results.length, { count: results.length })
+  const fileWord = tPlural('searchDynamic.fileCount', 'searchDynamic.fileCountPlural', byFile.size, { count: byFile.size })
+  head.textContent = `${matchWord} · ${fileWord}`
   out.appendChild(head)
 
   for (const [path, list] of byFile) {
@@ -105,7 +108,7 @@ function renderResults(results) {
       item.className = 'search-hit'
       const ln = document.createElement('span'); ln.className = 'search-ln'; ln.textContent = r.line
       const sn = document.createElement('span'); sn.className = 'search-snip'; sn.textContent = r.snippet
-      const rep = document.createElement('button'); rep.className = 'search-rep'; rep.textContent = 'replace'; rep.title = 'Replace this match (undoable)'
+      const rep = document.createElement('button'); rep.className = 'search-rep'; rep.textContent = t('searchDynamic.replace'); rep.title = t('searchDynamic.replaceTitle')
       rep.onclick = (e) => { e.stopPropagation(); replaceOne(r) }
       item.append(ln, sn, rep)
       item.onclick = () => jumpTo(r)
@@ -154,7 +157,7 @@ export async function replaceAll() {
   const out = $('search-results')
   if (!q.trim()) return
   const opts = readOpts()
-  let re; try { re = buildRegex(q, opts) } catch (e) { out.innerHTML = `<div class="search-empty">Invalid regex: ${esc(e.message)}</div>`; return }
+  let re; try { re = buildRegex(q, opts) } catch (e) { out.innerHTML = `<div class="search-empty">${t('searchDynamic.invalidRegex', { message: esc(e.message) })}</div>`; return }
   const spec = replSpec(repl, opts.regex)
   const scope = document.querySelector('input[name="search-scope"]:checked')?.value || 'file'
 
@@ -171,11 +174,12 @@ export async function replaceAll() {
     targets.push({ path, newText: text.replace(re, spec) })
     total += count
   }
-  if (!total) { out.innerHTML = '<div class="search-empty">No matches to replace.</div>'; return }
+  if (!total) { out.innerHTML = `<div class="search-empty">${t('searchDynamic.noMatchesToReplace')}</div>`; return }
 
-  const warn = opts.regex ? '\n\n⚠ Regex replace: $1, $2 … expand capture groups.' : ''
-  const where = scope === 'file' ? 'the current file' : `${targets.length} file(s)`
-  if (!confirm(`Replace ${total} match${total === 1 ? '' : 'es'} in ${where} with "${repl}"?${warn}`)) return
+  const warn = opts.regex ? t('searchDynamic.regexWarn') : ''
+  const where = scope === 'file' ? t('searchDynamic.currentFileScope') : t('searchDynamic.fileCountParen', { count: targets.length })
+  const plural = total === 1 ? '' : 'es'
+  if (!confirm(t('searchDynamic.confirmReplaceAll', { total, plural, where, repl, warn }))) return
 
   if (scope === 'file') {
     editorSet(targets[0].newText)   // one transaction → Ctrl+Z undoes the whole replace
@@ -189,13 +193,13 @@ export async function replaceAll() {
   // replace's own baseline (git add -A stages it too), so Reverting the replace
   // afterward would no longer land back where the pending review was taken from.
   if (S._pendingReview) {
-    out.innerHTML = '<div class="search-empty">⚠ An agent diff is still pending review (Accept/Reject/Revert it in the AI tab first) — workspace replace is blocked until then, so it doesn\'t get folded into the same snapshot.</div>'
+    out.innerHTML = `<div class="search-empty">${t('searchDynamic.pendingReviewBlock')}</div>`
     return
   }
 
   // Workspace: the dangerous bulk op gets the heavy safety.
   const cwd = S.workspaceRoot
-  out.innerHTML = '<div class="search-empty">Replacing…</div>'
+  out.innerHTML = `<div class="search-empty">${t('searchDynamic.replacing')}</div>`
 
   // Fold the active file's unsaved edits into the baseline first, so the snapshot
   // captures the user's actual work and Revert restores it (not just their last save).
@@ -208,17 +212,17 @@ export async function replaceAll() {
   } catch {}
 
   // No git checkpoint → this bulk overwrite CANNOT be undone. Warn BEFORE writing.
-  if (!reviewable && !confirm(`⚠ Git is unavailable here, so replacing across ${targets.length} file(s) CANNOT be undone. Proceed anyway?`)) {
+  if (!reviewable && !confirm(t('searchDynamic.confirmNoUndo', { count: targets.length }))) {
     runSearch(); return
   }
 
   const failed = []
-  for (const t of targets) {
-    const fi = S.files.get(t.path)
+  for (const target of targets) {
+    const fi = S.files.get(target.path)
     try {
-      const r = await fetch('/api/workspace/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cwd, path: t.path, content: t.newText, encoding: fi?.encoding || S.cfg.defaultEncoding || 'UTF-8' }) })
-      if (!r.ok) failed.push(t.path)
-    } catch { failed.push(t.path) }
+      const r = await fetch('/api/workspace/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cwd, path: target.path, content: target.newText, encoding: fi?.encoding || S.cfg.defaultEncoding || 'UTF-8' }) })
+      if (!r.ok) failed.push(target.path)
+    } catch { failed.push(target.path) }
   }
   await refreshFromDisk()
   await monitor('search:replace-all', { scope, total, files: targets.length, failed: failed.length })
@@ -233,11 +237,14 @@ function renderReplaceResult(total, fileCount, diff, reviewable, cwd, failed = [
   out.innerHTML = ''
   const okFiles = fileCount - failed.length
   const head = document.createElement('div'); head.className = 'search-count'
-  head.textContent = `Replaced in ${okFiles} file${okFiles === 1 ? '' : 's'}${reviewable ? ' — review the diff, then Revert to undo.' : ' (git unavailable → no undo).'}`
+  const filePlural = okFiles === 1 ? '' : 's'
+  const suffix = reviewable ? t('searchDynamic.reviewDiffSuffix') : t('searchDynamic.noUndoSuffix')
+  head.textContent = t('searchDynamic.replacedIn', { count: okFiles, plural: filePlural }) + suffix
   out.appendChild(head)
   if (failed.length) {
     const warn = document.createElement('div'); warn.className = 'search-empty'; warn.style.color = 'var(--err)'
-    warn.textContent = `⚠ ${failed.length} file(s) failed to write: ${failed.slice(0, 5).join(', ')}${failed.length > 5 ? '…' : ''}`
+    const list = failed.slice(0, 5).join(', ') + (failed.length > 5 ? '…' : '')
+    warn.textContent = t('searchDynamic.filesFailedWarn', { count: failed.length, list })
     out.appendChild(warn)
   }
   if (diff?.available && diff.hasChanges) {
@@ -246,7 +253,7 @@ function renderReplaceResult(total, fileCount, diff, reviewable, cwd, failed = [
     out.appendChild(box)
   }
   if (reviewable) {
-    const btn = document.createElement('button'); btn.className = 'btn-g danger'; btn.textContent = '↩ Revert replace'; btn.style.marginTop = '8px'
+    const btn = document.createElement('button'); btn.className = 'btn-g danger'; btn.textContent = t('searchDynamic.revertReplace'); btn.style.marginTop = '8px'
     btn.onclick = () => revertReplace(cwd)
     out.appendChild(btn)
   }
@@ -256,9 +263,9 @@ async function revertReplace(cwd) {
   try {
     await fetch('/api/git/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cwd }) })
     await refreshFromDisk()
-    $('search-results').innerHTML = '<div class="search-empty">↩ Reverted — replacements discarded.</div>'
+    $('search-results').innerHTML = `<div class="search-empty">${t('searchDynamic.reverted')}</div>`
     await monitor('search:replace:revert', { cwd })
   } catch (e) {
-    $('search-results').innerHTML = `<div class="search-empty">Revert failed: ${esc(e.message)}</div>`
+    $('search-results').innerHTML = `<div class="search-empty">${t('searchDynamic.revertFailed', { message: esc(e.message) })}</div>`
   }
 }

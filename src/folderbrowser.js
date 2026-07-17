@@ -6,6 +6,8 @@
 // pickFolder(startPath) opens a modal and resolves to the chosen absolute path,
 // or null if the user cancels.
 
+import { t } from './i18n/index.js'
+
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
@@ -19,19 +21,19 @@ export function pickFolder(startPath) {
     const ov = document.createElement('div')
     ov.className = 'fb-overlay'
     ov.innerHTML = `
-      <div class="fb-panel" role="dialog" aria-label="Choose workspace folder">
+      <div class="fb-panel" role="dialog" aria-label="${t('folderBrowser.title')}">
         <div class="fb-head">
-          <span class="fb-title">Choose workspace folder</span>
-          <button class="fb-x" title="Cancel">×</button>
+          <span class="fb-title">${t('folderBrowser.title')}</span>
+          <button class="fb-x" title="${t('folderBrowser.cancelTitle')}">×</button>
         </div>
         <div class="fb-drives"></div>
         <div class="fb-path" title="current folder"></div>
         <div class="fb-list"></div>
         <div class="fb-foot">
-          <button class="btn-s fb-up">↑ Up</button>
+          <button class="btn-s fb-up">${t('folderBrowser.up')}</button>
           <span class="fb-spacer"></span>
-          <button class="btn-s fb-cancel">Cancel</button>
-          <button class="btn-p fb-open">Open this folder</button>
+          <button class="btn-s fb-cancel">${t('folderBrowser.cancel')}</button>
+          <button class="btn-p fb-open">${t('folderBrowser.openFolder')}</button>
         </div>
       </div>`
     document.body.appendChild(ov)
@@ -77,7 +79,7 @@ export function pickFolder(startPath) {
         b.onclick = () => load(b.dataset.d))
 
       if (!info.dirs.length) {
-        list.innerHTML = '<div class="fb-empty">(no subfolders here — pick this folder, or go up)</div>'
+        list.innerHTML = `<div class="fb-empty">${t('folderBrowser.noSubfolders')}</div>`
         return
       }
       list.innerHTML = info.dirs

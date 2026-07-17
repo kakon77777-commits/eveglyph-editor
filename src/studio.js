@@ -12,6 +12,7 @@ import {
   parseStudioDraft,
   summarizeStudioIssues,
 } from './studiogenerator.js'
+import { t } from './i18n/index.js'
 
 let wired = false
 let lastDraft = null
@@ -31,7 +32,7 @@ function setIssues(issues) {
   const node = document.getElementById('studio-issues')
   if (!node) return
   if (!issues.length) {
-    node.innerHTML = '<span class="studio-ok">✓ Draft passed structural checks</span>'
+    node.innerHTML = `<span class="studio-ok">${t('studioDynamic.passedChecks')}</span>`
     return
   }
   node.innerHTML = issues.map(item =>
@@ -58,7 +59,7 @@ function renderRuntimeReport(worldIr) {
   const node = document.getElementById('studio-runtime-report')
   if (!node) return
   if (!worldIr) {
-    node.textContent = 'No Runtime import yet.'
+    node.textContent = t('studioDynamic.noRuntimeImport')
     return
   }
   const summary = worldIr.summary || {}
@@ -67,11 +68,11 @@ function renderRuntimeReport(worldIr) {
     ? worldIr.migration_plan.required_decisions
     : []
   const lines = [
-    `World IR: ${summary.documents || 0} document(s) · ${summary.entities || 0} entit(y/ies) · ${summary.state_machines || 0} state machine(s)`,
-    `Compile ready: ${worldIr.compile_ready === true ? 'yes' : 'no — mapping and package authoring remain explicit'}`,
+    t('studioDynamic.worldIrSummary', { docs: summary.documents || 0, entities: summary.entities || 0, sm: summary.state_machines || 0 }),
+    worldIr.compile_ready === true ? t('studioDynamic.compileReadyYes') : t('studioDynamic.compileReadyNo'),
   ]
-  if (blockers.length) lines.push('', 'Compile blockers:', ...blockers.map(item => `- ${item}`))
-  if (decisions.length) lines.push('', 'Required mapping decisions:', ...decisions.map(item => `- ${item.code}: ${item.message}`))
+  if (blockers.length) lines.push('', t('studioDynamic.compileBlockers'), ...blockers.map(item => `- ${item}`))
+  if (decisions.length) lines.push('', t('studioDynamic.requiredDecisions'), ...decisions.map(item => `- ${item.code}: ${item.message}`))
   node.textContent = lines.join('\n')
 }
 
@@ -80,15 +81,15 @@ function setDraftResult(result) {
   const apply = document.getElementById('studio-apply')
   const copy = document.getElementById('studio-copy')
   if (!output || !apply || !copy) return
-  output.textContent = result.yaml || '(no serializable draft)'
+  output.textContent = result.yaml || t('studioDynamic.noSerializableDraft')
   const summary = summarizeStudioIssues(result.issues)
   apply.disabled = !result.yaml || !summary.ok
   copy.disabled = !result.yaml
   setIssues(result.issues)
   setStatus(
     summary.ok
-      ? (summary.warnings ? 'Draft valid with ' + summary.warnings + ' warning(s)' : 'Draft ready for review')
-      : summary.errors + ' error(s) block Apply',
+      ? (summary.warnings ? t('studioDynamic.draftValidWithWarnings', { count: summary.warnings }) : t('studioDynamic.draftReady'))
+      : t('studioDynamic.errorsBlockApply', { count: summary.errors }),
     summary.ok ? 'ok' : 'error'
   )
 }
@@ -116,7 +117,7 @@ export function initStudioView() {
 
   generate.addEventListener('click', async () => {
     if (S.cfg.provider === 'local-agent') {
-      setStatus('Structured Studio generation currently needs Anthropic or OpenAI provider', 'error')
+      setStatus(t('studioDynamic.needsCloudProvider'), 'error')
       return
     }
     const source = currentSource()
@@ -134,9 +135,9 @@ export function initStudioView() {
     mappingOutput.value = ''
     lastRuntimeWorldIr = null
     renderRuntimeReport(null)
-    output.textContent = 'Generating bounded draft…'
+    output.textContent = t('studioDynamic.generating')
     setIssues([])
-    setStatus('Calling configured AI provider…')
+    setStatus(t('studioDynamic.callingProvider'))
     await monitor('studio:generate:start', {
       provider: S.cfg.provider,
       active: S.active || null,
@@ -156,7 +157,7 @@ export function initStudioView() {
       lastDraft = null
       output.textContent = ''
       setIssues([{ severity: 'error', code: 'ai_call_error', message: error?.message || String(error), path: '' }])
-      setStatus('AI generation failed', 'error')
+      setStatus(t('studioDynamic.aiGenerationFailed'), 'error')
       await monitor('studio:generate:error', { error: String(error?.message || error) })
     } finally {
       generate.disabled = false
@@ -167,7 +168,7 @@ export function initStudioView() {
   apply.addEventListener('click', async () => {
     if (!lastDraft?.yaml || summarizeStudioIssues(lastDraft.issues).ok === false) return
     editorSet(lastDraft.yaml)
-    setStatus('Draft applied to editor; Save remains manual', 'ok')
+    setStatus(t('studioDynamic.draftApplied'), 'ok')
     await monitor('studio:draft:apply', { active: S.active || null, draftChars: lastDraft.yaml.length })
   })
 
@@ -175,10 +176,10 @@ export function initStudioView() {
     if (!lastDraft?.yaml) return
     try {
       await navigator.clipboard.writeText(lastDraft.yaml)
-      setStatus('Draft copied as YAML', 'ok')
+      setStatus(t('studioDynamic.draftCopied'), 'ok')
       await monitor('studio:draft:copy', { draftChars: lastDraft.yaml.length })
     } catch (error) {
-      setStatus('Clipboard unavailable: ' + (error?.message || String(error)), 'error')
+      setStatus(t('studioDynamic.clipboardUnavailable', { message: error?.message || String(error) }), 'error')
     }
   })
 
@@ -186,7 +187,7 @@ export function initStudioView() {
     if (!lastDraft?.yaml) return
     const runtimeUrl = S.cfg.compilableWorldRuntimeUrl || 'http://127.0.0.1:8765'
     runtimeCheck.disabled = true
-    setStatus('Sending draft to Runtime importer (read-only)…')
+    setStatus(t('studioDynamic.sendingToRuntime'))
     try {
       const result = await importStudioDraft(runtimeUrl, lastDraft.yaml, S.active || 'eveglyph-studio-draft.yaml')
       const issues = runtimeIssues(result.world_ir)
@@ -200,8 +201,8 @@ export function initStudioView() {
       const diagnostic = result.world_ir?.diagnostics || {}
       setStatus(
         diagnostic.errors
-          ? `${diagnostic.errors} Runtime import error(s); no Runtime State changed`
-          : `Runtime import checked · ${diagnostic.warnings || 0} warning(s) · read-only`,
+          ? t('studioDynamic.runtimeImportErrors', { count: diagnostic.errors })
+          : t('studioDynamic.runtimeImportChecked', { count: diagnostic.warnings || 0 }),
         diagnostic.errors ? 'error' : 'ok'
       )
       await monitor('studio:runtime-import:result', {
@@ -211,7 +212,7 @@ export function initStudioView() {
         compileReady: result.world_ir?.compile_ready === true,
       })
     } catch (error) {
-      setStatus('Runtime importer unavailable: ' + (error?.message || String(error)), 'error')
+      setStatus(t('studioDynamic.runtimeImporterUnavailable', { message: error?.message || String(error) }), 'error')
       await monitor('studio:runtime-import:error', { runtimeUrl, error: String(error?.message || error) })
     } finally {
       runtimeCheck.disabled = false
@@ -222,10 +223,10 @@ export function initStudioView() {
     if (!mappingOutput.value.trim()) return
     try {
       await navigator.clipboard.writeText(mappingOutput.value)
-      setStatus('Mapping draft copied as JSON', 'ok')
+      setStatus(t('studioDynamic.mappingCopied'), 'ok')
       await monitor('studio:mapping:copy', { mappingChars: mappingOutput.value.length })
     } catch (error) {
-      setStatus('Clipboard unavailable: ' + (error?.message || String(error)), 'error')
+      setStatus(t('studioDynamic.clipboardUnavailable', { message: error?.message || String(error) }), 'error')
     }
   })
 
@@ -235,12 +236,12 @@ export function initStudioView() {
     try {
       mapping = JSON.parse(mappingOutput.value)
     } catch (error) {
-      setStatus('Mapping JSON is invalid: ' + (error?.message || String(error)), 'error')
+      setStatus(t('studioDynamic.mappingInvalid', { message: error?.message || String(error) }), 'error')
       return
     }
     const runtimeUrl = S.cfg.compilableWorldRuntimeUrl || 'http://127.0.0.1:8765'
     mappingValidate.disabled = true
-    setStatus('Validating mapping with Runtime (read-only)…')
+    setStatus(t('studioDynamic.validatingMapping'))
     try {
       const result = await validateStudioMapping(runtimeUrl, lastRuntimeWorldIr, mapping)
       const report = result.report || {}
@@ -249,10 +250,10 @@ export function initStudioView() {
       const diagnostic = report.diagnostics || {}
       setStatus(
         report.runtime_ready
-          ? 'Mapping is Runtime-ready; package compilation remains explicit'
+          ? t('studioDynamic.mappingRuntimeReady')
           : report.mapping_complete
-            ? 'Mapping fields are complete, but Runtime semantics still need review'
-            : `${diagnostic.errors || 0} mapping error(s) block Runtime use`,
+            ? t('studioDynamic.mappingCompleteReviewNeeded')
+            : t('studioDynamic.mappingErrorsBlock', { count: diagnostic.errors || 0 }),
         report.runtime_ready ? 'ok' : 'error'
       )
       await monitor('studio:mapping:validate', {
@@ -263,7 +264,7 @@ export function initStudioView() {
         warnings: diagnostic.warnings || 0,
       })
     } catch (error) {
-      setStatus('Runtime mapping validator unavailable: ' + (error?.message || String(error)), 'error')
+      setStatus(t('studioDynamic.mappingValidatorUnavailable', { message: error?.message || String(error) }), 'error')
       await monitor('studio:mapping:error', { runtimeUrl, error: String(error?.message || error) })
     } finally {
       mappingValidate.disabled = false

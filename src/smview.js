@@ -23,6 +23,8 @@ import jsYaml from 'js-yaml'
 import { validateStateMachine, unreachableStatesOf } from './validate.js'
 import { renderDiagnosticsBlock } from './diagnostics.js'
 import { editorGet, editorSet } from './editor.js'
+// Aliased: this file uses `t` extensively as a transition-object variable name.
+import { t as i18n } from './i18n/index.js'
 
 const esc = (s) => String(s).replace(/[&<>"']/g, c =>
   ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
@@ -50,10 +52,10 @@ function parseStateMachine(src) {
 
 function renderSemanticRecords(doc) {
   const sections = [
-    { key: 'variables', label: 'Variables', fields: ['id', 'type', 'default', 'random', 'description'] },
-    { key: 'events', label: 'Events', fields: ['id', 'description', 'payload'] },
-    { key: 'instructions', label: 'Language instructions', fields: ['id', 'intent', 'examples', 'description'] },
-    { key: 'responses', label: 'Responses', fields: ['id', 'when', 'text', 'description'] },
+    { key: 'variables', label: i18n('smview.variables'), fields: ['id', 'type', 'default', 'random', 'description'] },
+    { key: 'events', label: i18n('smview.events'), fields: ['id', 'description', 'payload'] },
+    { key: 'instructions', label: i18n('smview.instructions'), fields: ['id', 'intent', 'examples', 'description'] },
+    { key: 'responses', label: i18n('smview.responses'), fields: ['id', 'when', 'text', 'description'] },
   ]
   const active = sections.filter(section => Array.isArray(doc[section.key]) && doc[section.key].length)
   if (!active.length) return ''
@@ -94,7 +96,7 @@ export function renderStateMachine(src) {
   try {
     sm = parseStateMachine(src)
   } catch (e) {
-    return `<div class="sm-error">⚠ Not a valid state_machine document: ${esc(e.message)}</div>`
+    return `<div class="sm-error">${i18n('smview.invalidDoc', { message: esc(e.message) })}</div>`
   }
 
   const issues = validateStateMachine(sm.doc)
@@ -144,7 +146,7 @@ export function renderStateMachine(src) {
       <g class="${cls}">
         <rect x="${p.x}" y="${p.y}" width="${boxW}" height="${boxH}" rx="8"/>
         <text x="${p.x + boxW/2}" y="${p.y + boxH/2 + 5}" text-anchor="middle">${esc(s)}${isUnreachable ? ' ⚠' : ''}</text>
-        <text class="sm-node-delete" data-state="${esc(s)}" x="${p.x + boxW - 8}" y="${p.y + 15}" text-anchor="middle" title="Delete state">✕</text>
+        <text class="sm-node-delete" data-state="${esc(s)}" x="${p.x + boxW - 8}" y="${p.y + 15}" text-anchor="middle" title="${i18n('smview.deleteState')}">✕</text>
       </g>
     `
   }).join('\n')
@@ -156,8 +158,8 @@ export function renderStateMachine(src) {
     <div class="sm-view">
       <div class="sm-header">
         <span class="sm-id">${esc(sm.id)}</span>
-        ${sm.initial ? `<span class="sm-initial-tag">initial: ${esc(sm.initial)}</span>` : ''}
-        <span class="sm-count">${sm.states.length} states · ${sm.transitions.length} transitions</span>
+        ${sm.initial ? `<span class="sm-initial-tag">${i18n('smview.initial')} ${esc(sm.initial)}</span>` : ''}
+        <span class="sm-count">${i18n('smview.stateCount', { states: sm.states.length, transitions: sm.transitions.length })}</span>
       </div>
       <svg viewBox="0 0 ${width} ${height + 30}" width="100%" style="max-width:${width}px">
         <defs>
@@ -173,30 +175,30 @@ export function renderStateMachine(src) {
 
       <div class="sm-editor-controls">
         <div class="sm-add-row">
-          <input type="text" class="sm-new-state-input" placeholder="new state name">
-          <button class="btn-s sm-add-state-btn">+ Add State</button>
+          <input type="text" class="sm-new-state-input" placeholder="${i18n('smview.newStatePlaceholder')}">
+          <button class="btn-s sm-add-state-btn">${i18n('smview.addState')}</button>
         </div>
         <div class="sm-add-row sm-add-transition">
           <select class="sm-tx-from">${stateOptions}</select>
           <span class="sm-arrow-glyph">→</span>
           <select class="sm-tx-to">${stateOptions}</select>
-          <input type="text" class="sm-tx-on" placeholder="on: event_name">
-          <input type="text" class="sm-tx-guards" placeholder="guards (separate with |)">
-          <button class="btn-s sm-add-tx-btn">+ Add Transition</button>
+          <input type="text" class="sm-tx-on" placeholder="${i18n('smview.onEventPlaceholder')}">
+          <input type="text" class="sm-tx-guards" placeholder="${i18n('smview.guardsPlaceholder')}">
+          <button class="btn-s sm-add-tx-btn">${i18n('smview.addTransition')}</button>
         </div>
       </div>
 
       <details class="sm-raw">
-        <summary>Raw transitions</summary>
+        <summary>${i18n('smview.rawTransitions')}</summary>
         <table class="sm-table">
-          <thead><tr><th>from</th><th>to</th><th>on</th><th>guards</th><th></th></tr></thead>
+          <thead><tr><th>${i18n('smview.thFrom')}</th><th>${i18n('smview.thTo')}</th><th>${i18n('smview.thOn')}</th><th>${i18n('smview.thGuards')}</th><th></th></tr></thead>
           <tbody>
             ${sm.transitions.map((t, i) => `<tr>
               <td>${esc(t.from ?? '')}</td>
               <td>${esc(t.to ?? '')}</td>
               <td>${esc(t.on ?? '')}</td>
               <td>${Array.isArray(t.guards) ? t.guards.map(g => `<code>${esc(g)}</code>`).join('<br>') : ''}</td>
-              <td><button class="sm-tx-delete" data-index="${i}" title="Delete transition">✕</button></td>
+              <td><button class="sm-tx-delete" data-index="${i}" title="${i18n('smview.deleteTransition')}">✕</button></td>
             </tr>`).join('\n')}
           </tbody>
         </table>

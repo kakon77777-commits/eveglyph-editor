@@ -13,6 +13,7 @@ import { callAiProvider } from './ai.js'
 import { editorGet, editorGoToMatch } from './editor.js'
 import { openFile } from './files.js'
 import { monitor } from './monitor.js'
+import { t, tPlural } from './i18n/index.js'
 
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
@@ -87,21 +88,21 @@ export async function runAiSearch() {
   if (!query) { out.innerHTML = ''; return }
 
   if (S.cfg.provider === 'local-agent') {
-    out.innerHTML = '<div class="search-empty">AI search needs a cloud provider (Anthropic or OpenAI-compatible) in Settings — Local Agent (CLI) uses a different call shape.</div>'
+    out.innerHTML = `<div class="search-empty">${t('aiSearchDynamic.needsCloudProvider')}</div>`
     return
   }
   if (!S.cfg.key) {
-    out.innerHTML = '<div class="search-empty">Set an API key in Settings ⚙ first.</div>'
+    out.innerHTML = `<div class="search-empty">${t('aiSearchDynamic.needsApiKey')}</div>`
     return
   }
 
   const scope = document.querySelector('input[name="aisearch-scope"]:checked')?.value || 'file'
-  out.innerHTML = '<div class="search-empty"><span class="spinner"></span> Asking AI…</div>'
+  out.innerHTML = `<div class="search-empty"><span class="spinner"></span> ${t('aiSearchDynamic.asking')}</div>`
   await monitor('aisearch:run', { scope, provider: S.cfg.provider, qlen: query.length })
 
   const corpus = await buildCorpus(scope)
   if (!corpus.text.trim()) {
-    out.innerHTML = '<div class="search-empty">Nothing to search — open a file first.</div>'
+    out.innerHTML = `<div class="search-empty">${t('aiSearchDynamic.nothingToSearch')}</div>`
     return
   }
 
@@ -124,21 +125,22 @@ function renderAiResults(results, corpus) {
     const warn = document.createElement('div')
     warn.className = 'search-empty'
     warn.style.color = 'var(--t2)'
-    warn.textContent = `⚠ Workspace is larger than the ${(CONFIG.aiSearch.maxContextChars / 1000).toFixed(0)}k-char one-shot limit — only ${corpus.fileCount} file(s) were searched. Narrow to specific files or search "Current file" for full coverage.`
+    warn.textContent = t('aiSearchDynamic.truncatedWarn', { cap: (CONFIG.aiSearch.maxContextChars / 1000).toFixed(0), count: corpus.fileCount })
     out.appendChild(warn)
   }
 
   if (!results.length) {
     const empty = document.createElement('div')
     empty.className = 'search-empty'
-    empty.textContent = 'No relevant passages found.'
+    empty.textContent = t('aiSearchDynamic.noResults')
     out.appendChild(empty)
     return
   }
 
   const head = document.createElement('div')
   head.className = 'search-count'
-  head.textContent = `${results.length} result${results.length === 1 ? '' : 's'} (AI-ranked, not exact)`
+  const resultWord = tPlural('aiSearchDynamic.resultCount', 'aiSearchDynamic.resultCountPlural', results.length, { count: results.length })
+  head.textContent = resultWord + t('aiSearchDynamic.aiRanked')
   out.appendChild(head)
 
   for (const r of results) {

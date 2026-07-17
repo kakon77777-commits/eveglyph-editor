@@ -217,7 +217,7 @@ compile the package, then reload the catalog to preview the validated package.
 | Setting | What it does |
 | --- | --- |
 | Theme | Dark / Light |
-| Language | English / 繁體中文 so far, easy to extend. Translates the app's UI chrome (topbar, panels, Settings, status bar) live. Content generated elsewhere in the app (file tree, context menus, diff-review UI, alerts) still shows in English — not yet covered. |
+| Language | English / 繁體中文 so far, easy to extend. Translates the app's UI chrome live — topbar, panels, Settings, status bar, and dynamically-generated content (file tree, context menus, diff-review UI, AI presets, search results, alerts). AI prompt text sent to providers, Monitor diagnostic logs, and your document content itself always stay as written, regardless of this setting. |
 | Editor font size / family | Self-explanatory |
 | AI Provider | Anthropic / OpenAI-compatible / Local Agent |
 | Default encoding | Fallback when a file's encoding can't be confidently detected, and the encoding used for new files |

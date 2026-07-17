@@ -2,7 +2,8 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-07-15
-> (i18n Phase 2: real English/繁體中文 translation of index.html's UI chrome).
+> (i18n Phase 3: dynamic JS-generated UI content now translated too — English/
+> 繁體中文 coverage is essentially complete across front-stage UI chrome).
 
 ## What this is
 
@@ -105,6 +106,71 @@ untouched regardless of language.
   scattered across `files.js`/`import.js`/`ai.js`/etc.) still renders in
   English regardless of the Language setting. Broad but not exhaustive —
   a future pass, not silently claimed as done.
+
+## i18n Phase 3 — dynamic content closes the gap (2026-07-15, "我們繼續完成")
+
+Closed the Phase 2 gap: every remaining `src/*.js` file that generates
+front-stage UI text at runtime (not static `data-i18n` HTML) now routes
+through `t()`/`tPlural()`. ~20 files touched: `files.js`, `encodingmenu.js`,
+`frontmattermenu.js`, `diffview.js`, `agent.js`, `folderbrowser.js`, `ai.js`
+(preset labels + alerts, not prompt text), `import.js`, `search.js`,
+`aisearch.js`, `monitorview.js`, `overview.js`, `runtimeview.js`, `studio.js`,
+`smview.js`, `entityview.js`, `diagnostics.js`, `about.js`, `amep.js`,
+`tabs.js`, `typstui.js`.
+
+- `t()`'s signature changed from `t(key, lang)` to `t(key, params)` —
+  language is now tracked as module-level state (set by `applyTranslations()`),
+  and `params` does `{name}` placeholder substitution
+  (`str.replaceAll('{name}', value)`). Added `tPlural(singularKey, pluralKey,
+  n, params)` for count-dependent strings (search match/file counts, agent
+  activity line counts, AI-search result counts) — zh-TW doesn't grammatically
+  need plural forms, but the key pair keeps both dictionaries structurally
+  parallel and leaves room for languages that do.
+- `en.js`/`zh-TW.js` grew from ~200 lines (Phase 2's static-chrome namespaces)
+  to ~202 unique keys across new namespaces: `presets`, `files`,
+  `encodingMenu`, `frontmatterMenu`, `diffview`, `agent` (largest single
+  addition), `folderBrowser`, `aiDynamic`, `importDocx`, `searchDynamic`,
+  `aiSearchDynamic`, `monitorDynamic`, `overview`, `runtimeDynamic`,
+  `studioDynamic` (largest namespace overall), `smview`, `entityview`,
+  `diagnosticsDynamic`, `aboutDynamic`, `amepDynamic`, `tabsDynamic`,
+  `typstuiDynamic`.
+- `applyLanguage()` (main.js) now also re-invokes `statusUpdate()`,
+  `renderPresets()`, and `renderAbout()` — these render from JS, not static
+  HTML, so a language switch needs to explicitly re-render them, not just
+  re-walk the DOM for `data-i18n` attributes.
+- `ai.js`'s `PRESETS` entries changed from `label: '...'` (string, fixed at
+  module load) to `labelKey: '...'` (resolved via `t()` at render time in
+  `renderPresets()`), so the quick-action button labels actually update on a
+  language switch instead of freezing at boot-time English.
+- Handled `t` as a pre-existing local variable name (transition objects,
+  loop variables) file-by-file: left alone where scoping already makes it
+  safe (`files.js`, `overview.js`), renamed the local variable where it was a
+  quick fix (`frontmattermenu.js`, `search.js`), and used an aliased import
+  (`import { t as i18n } from './i18n/index.js'`) in `smview.js`, which uses
+  `t` as a transition-object variable pervasively enough that renaming
+  call-by-call would've been riskier than aliasing the one import.
+- **Verified three ways**: `node --check` on every touched file (clean);
+  live browser test of representative flows (AI preset list, About panel,
+  search "no matches", World "open a folder first" alert, AI "type a task"
+  alert) in both languages, round-trip, zero console errors; and a from-
+  scratch static-analysis script (`pathToFileURL()` + dynamic `import()` to
+  load the real dictionaries, regex-extract every `t(`/`i18n(`/`tPlural(`
+  call site across `src/*.js`, cross-check each key against both
+  dictionaries) — **202 unique keys referenced, 0 missing from either
+  locale**. Script was scratch-only, deleted after the check passed.
+- **Still honestly out of scope, unchanged on purpose**:
+  - `validate.js`'s 14 World IR validation messages are hardcoded
+    Traditional Chinese by Neo's own original design (the file's own comment
+    says so) — a pre-existing English/zh-TW asymmetry in the *other*
+    direction, left alone rather than silently "fixed" without asking.
+  - AI prompt/system-message text built in `ai.js`/`agent.js`/`aisearch.js`
+    (the `build()` functions, `taskBlock`/`langRule`/`permClause`, the actual
+    `prompt` strings sent to providers) — deliberately untouched, per Phase
+    2's scope call: this text must stay consistent for the AI regardless of
+    the UI's display language.
+  - Monitor/diagnostic event payload content and document/Markdown content
+    itself — never in scope, both by design (diagnostic logs and user
+    documents aren't UI chrome).
 
 ## AMEP RigorLoop preset (whitepaper §3, resolved 2026-07-14)
 

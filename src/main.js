@@ -65,7 +65,13 @@ export function applyTheme(theme) {
 export function applyLanguage(lang) {
   document.documentElement.lang = lang || 'en'
   applyTranslations(lang)
-  statusUpdate()   // status-bar text (Provider/Modified/etc.) is generated in JS, not data-i18n
+  // These render dynamically in JS (not data-i18n static HTML), so they need
+  // an explicit re-render to pick up the new language — status bar text,
+  // the AI quick-actions preset list (built from PRESETS' labelKey), and the
+  // About panel (Settings ⚙ → About).
+  statusUpdate()
+  renderPresets()
+  renderAbout()
 }
 
 // Open the right-panel "Find in files" navigator and focus it, prefilling a

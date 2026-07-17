@@ -6,6 +6,7 @@ import { refreshFromDisk } from './files.js'
 import { statusUpdate } from './status.js'
 import { monitor } from './monitor.js'
 import { renderDiffHTML } from './diffview.js'
+import { t, tPlural } from './i18n/index.js'
 
 // Best-effort readable name for the user's browser language, so the agent
 // replies in the user's language instead of defaulting to an arbitrary one.
@@ -70,7 +71,7 @@ export async function runAgent(userTask) {
   if (!cwd) {
     await monitor('agent:run:block', { reason: 'missing workspace' })
     resp.className = 'err'
-    resp.textContent = 'Set the workspace absolute path in Settings first. That is the folder the agent will edit.'
+    resp.textContent = t('agent.missingWorkspace')
     return
   }
 
@@ -83,7 +84,7 @@ export async function runAgent(userTask) {
     statusUpdate()
     await monitor('agent:run:block', { reason: 'bridge offline', agent, cwd })
     resp.className = 'err'
-    resp.textContent = 'Local bridge is offline. Start EveGlyph Editor with start-eveglyph.bat or npm run dev.'
+    resp.textContent = t('agent.bridgeOffline')
     return
   }
 
@@ -93,8 +94,8 @@ export async function runAgent(userTask) {
     await monitor('agent:run:block', { reason: 'agent not runnable', agent, cwd, error: selected?.error || '' })
     resp.className = 'err'
     resp.textContent = selected?.path
-      ? `${agent} was found but cannot run: ${selected.error || 'unknown error'}. Add a command override in Settings or install a runnable CLI.`
-      : `${agent} is not on PATH. Add a command override in Settings or install the CLI.`
+      ? t('agent.agentBlockedFound', { agent, error: selected.error || 'unknown error' })
+      : t('agent.agentBlockedNotFound', { agent })
     return
   }
 
@@ -109,7 +110,7 @@ export async function runAgent(userTask) {
     if (perm === 'trusted') {
       S._agentOkCwd = cwd
     } else {
-      const ok = confirm(`Local-agent mode lets "${agent}" run with auto-approve and edit files in:\n\n${cwd}\n\nContinue?`)
+      const ok = confirm(t('agent.confirmRun', { agent, cwd }))
       if (!ok) {
         await monitor('agent:run:cancel', { agent, cwd })
         return
@@ -180,7 +181,8 @@ ${langRule}`)
   const renderActivity = () => {
     if (!S.agentRunning) return
     const secs = Math.round((Date.now() - startedAt) / 1000)
-    const head = `<div class="agent-act-h"><span class="agent-act-dot"></span><span>✦ Wish granted — working… <b>${secs}s</b> · ${actCount} line${actCount === 1 ? '' : 's'}</span></div>`
+    const lineWord = tPlural('agent.lineCount', 'agent.lineCountPlural', actCount)
+    const head = `<div class="agent-act-h"><span class="agent-act-dot"></span><span>${t('agent.activityWorking')} <b>${secs}s</b> · ${actCount} ${lineWord}</span></div>`
     const body = (!S.cfg.agentQuiet && actLines.length)
       ? `<pre class="agent-act-log">${actLines.map(actEsc).join('\n')}</pre>` : ''
     resp.className = ''
@@ -248,7 +250,7 @@ ${langRule}`)
     S.lastResp = collected
     if (sawError || exitCode) {
       resp.className = 'err'
-      resp.textContent = `✗ Agent finished with errors (exit ${exitCode || '?'}). Check the result, or the monitor log.`
+      resp.textContent = t('agent.finishedWithErrors', { code: exitCode || '?' })
       showDiffActions(false)
     } else if (mode === 'suggest') {
       // Suggest: the agent should only advise. But the CLI *can* edit files; if it
@@ -258,7 +260,7 @@ ${langRule}`)
       if (review.state === 'changes') {
         await refreshFromDisk()
         resp.className = ''
-        resp.innerHTML = `<div class="diff-head">⚠ Suggest mode — but the agent edited files anyway. Revert if unwanted.</div>` + renderDiff(review.diff, 'direct')
+        resp.innerHTML = `<div class="diff-head">${t('agent.suggestButEdited')}</div>` + renderDiff(review.diff, 'direct')
         // Treated the same as Direct mode (no manual Accept gate — see below), so
         // it needs the same auto-commit to avoid the same misattribution bug.
         await commitDirectChanges(cwd, userTask)
@@ -267,19 +269,19 @@ ${langRule}`)
       } else if (review.state === 'error') {
         resp.className = 'warn'
         resp.textContent = (collected.trim() ? collected.trim() + '\n\n' : '') +
-          '⚠ Suggest mode — but couldn’t read the diff to confirm the agent left files untouched. Check the workspace manually.'
+          t('agent.suggestDiffReadFailed')
         showDiffActions(false)
       } else {
         resp.className = ''
-        resp.textContent = collected.trim() || '✓ Done — the agent returned no text.'
+        resp.textContent = collected.trim() || t('agent.suggestNoText')
         showDiffActions(false)
       }
     } else {
-      resp.innerHTML = '<span class="spinner"></span> Refreshing files…'
+      resp.innerHTML = `<span class="spinner"></span> ${t('agent.refreshingFiles')}`
       await refreshFromDisk()
       if (!reviewable) {
         resp.className = ''
-        resp.textContent = '✓ Done. Files refreshed. (git unavailable → no diff review)'
+        resp.textContent = t('agent.doneNoGit')
         showDiffActions(false)
       } else {
         const review = await fetchAgentDiff(cwd)
@@ -293,11 +295,11 @@ ${langRule}`)
           // Diff READ failed — the agent may well have changed files. Warn instead of
           // the old silent "no file changes" false negative (PatchMD honesty).
           resp.className = 'warn'
-          resp.textContent = '⚠ Couldn’t load the diff to review — the agent may have changed files. Verify manually (file tree / git status) before assuming nothing changed.'
+          resp.textContent = t('agent.diffReadFailed')
           showDiffActions(false)
         } else {
           resp.className = ''
-          resp.textContent = '✓ Done — the agent made no file changes.'
+          resp.textContent = t('agent.doneNoChanges')
           showDiffActions(false)
         }
       }
@@ -305,7 +307,7 @@ ${langRule}`)
     if (!S.cfg.agentQuiet && mode !== 'suggest' && collected.trim()) {
       const det = document.createElement('details')
       det.className = 'agent-raw'
-      const sum = document.createElement('summary'); sum.textContent = 'Raw agent output'
+      const sum = document.createElement('summary'); sum.textContent = t('agent.rawOutputSummary')
       const pre = document.createElement('pre'); pre.textContent = collected
       det.append(sum, pre)
       resp.appendChild(det)
@@ -315,8 +317,8 @@ ${langRule}`)
     resp.className = 'err'
     const stopped = e.name === 'AbortError'
     resp.textContent = stopped
-      ? '■ Stopped.'
-      : `✗ Error: ${e.message}. Local-agent mode only works while the dev server is running.`
+      ? t('agent.stopped')
+      : t('agent.errorGeneric', { message: e.message })
     showDiffActions(false)   // a failed/stopped run must not leave stale, actionable diff buttons
     await monitor(stopped ? 'agent:run:stopped' : 'agent:run:error', { agent, cwd, error: String(e?.message || e), runtimeMs: Date.now() - startedAt })
   } finally {
@@ -369,13 +371,13 @@ function showDiffActions(show, mode = 'patch') {
   if (row) row.style.display = show ? 'flex' : 'none'
   // Direct mode keeps the changes by default → no Accept gate, only a Revert.
   if (accept) accept.style.display = (show && mode !== 'direct') ? '' : 'none'
-  if (reject) reject.textContent = mode === 'direct' ? '↩ Revert' : '✗ Reject'
+  if (reject) reject.textContent = mode === 'direct' ? t('agent.revert') : t('agent.reject')
 }
 
 function renderDiff(diff, mode = 'patch') {
   const head = mode === 'direct'
-    ? "The agent's changes are applied — Revert to undo, or just keep them."
-    : "Review the agent's changes — Accept to keep (commit), Reject to discard."
+    ? t('agent.diffHeadDirect')
+    : t('agent.diffHeadPatch')
   return `<div class="diff-head">${head}</div>${renderDiffHTML(diff)}`
 }
 
@@ -427,9 +429,9 @@ export async function acceptReview() {
       body: JSON.stringify({ cwd: r.cwd, message: r.message })
     })
     resp.className = ''
-    resp.textContent = '✓ Accepted — committed.'
+    resp.textContent = t('agent.accepted')
     await monitor('git:ui:accept', { cwd: r.cwd })
-  } catch (e) { resp.className = 'err'; resp.textContent = `✗ Accept failed: ${e.message}` }
+  } catch (e) { resp.className = 'err'; resp.textContent = t('agent.acceptFailed', { message: e.message }) }
   S._pendingReview = null
   showDiffActions(false)
 }
@@ -445,9 +447,9 @@ export async function rejectReview() {
     })
     await refreshFromDisk()
     resp.className = ''
-    resp.textContent = '↩ Reverted — the agent\'s changes were discarded.'
+    resp.textContent = t('agent.reverted')
     await monitor('git:ui:reject', { cwd: r.cwd })
-  } catch (e) { resp.className = 'err'; resp.textContent = `✗ Reject failed: ${e.message}` }
+  } catch (e) { resp.className = 'err'; resp.textContent = t('agent.rejectFailed', { message: e.message }) }
   S._pendingReview = null
   showDiffActions(false)
 }

@@ -9,6 +9,7 @@ import { editorGet } from './editor.js'
 import { markdownToTypst } from './typstconvert.js'
 import { compileTypstToPdf } from './typstexport.js'
 import { monitor } from './monitor.js'
+import { t } from './i18n/index.js'
 
 function downloadBytes(bytes, filename) {
   const blob = new Blob([bytes], { type: 'application/pdf' })
@@ -24,13 +25,13 @@ function downloadBytes(bytes, filename) {
 
 export async function exportActiveAsPdf() {
   if (!S.active || !/\.md$/i.test(S.active)) {
-    alert('Open a Markdown (.md) file first — PDF export works on EveGlyph-MD documents.')
+    alert(t('typstuiDynamic.openMdFirstAlert'))
     return
   }
   const btn = document.getElementById('btn-export-pdf')
   const original = btn.textContent
   btn.disabled = true
-  btn.textContent = 'Compiling…'
+  btn.textContent = t('typstuiDynamic.compiling')
   const md = editorGet()
   await monitor('typst:export:start', { file: S.active, mdBytes: md.length })
   try {
@@ -42,7 +43,7 @@ export async function exportActiveAsPdf() {
   } catch (e) {
     const detail = Array.isArray(e) ? e.map(d => d.message || String(d)).join('; ') : (e?.message || String(e))
     await monitor('typst:export:error', { file: S.active, error: detail })
-    alert('PDF export failed: ' + detail + '\n\nCompiles via Typst (WASM, entirely in your browser, first run downloads ~51MB — cached after). Check the Monitor tab for details.')
+    alert(t('typstuiDynamic.exportFailedAlert', { message: detail }))
   } finally {
     btn.disabled = false
     btn.textContent = original

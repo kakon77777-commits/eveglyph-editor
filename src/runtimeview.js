@@ -1,5 +1,6 @@
 import { S, CFG_KEY } from './state.js'
 import { fetchFunctionCatalog, previewRuntimeFunction } from './runtimepreview.js'
+import { t } from './i18n/index.js'
 
 const esc = (value) => String(value).replace(/[&<>"']/g, c =>
   ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
@@ -26,7 +27,7 @@ function renderInputs(record) {
       <span>${esc(name)} <small>${esc(type)}</small></span>
       <input type="number" step="any" data-cw-input="${esc(name)}" value="0">
     </label>
-  `).join('') || '<span class="cw-dim">No inputs</span>'
+  `).join('') || `<span class="cw-dim">${t('runtimeDynamic.noInputs')}</span>`
 }
 
 function selectedRecord() {
@@ -44,7 +45,7 @@ function renderCatalog(catalog) {
   select.disabled = records.length === 0
   document.getElementById('cw-preview-function').disabled = records.length === 0
   renderInputs(records[0])
-  setStatus(`${records.length} FunctionIR record(s) loaded`, 'ok')
+  setStatus(t('runtimeDynamic.recordsLoaded', { count: records.length }), 'ok')
 }
 
 export function initRuntimeView() {
@@ -64,7 +65,7 @@ export function initRuntimeView() {
   loadButton.addEventListener('click', async () => {
     saveRuntimeUrl(urlInput.value)
     loadButton.disabled = true
-    setStatus('Loading FunctionIR catalog…')
+    setStatus(t('runtimeDynamic.loadingCatalog'))
     try {
       renderCatalog(await fetchFunctionCatalog(urlInput.value))
     } catch (error) {
@@ -83,17 +84,17 @@ export function initRuntimeView() {
     const inputs = {}
     for (const input of panel.querySelectorAll('[data-cw-input]')) {
       if (input.value.trim() === '') {
-        setStatus(`Input ${input.dataset.cwInput} is required`, 'error')
+        setStatus(t('runtimeDynamic.inputRequired', { name: input.dataset.cwInput }), 'error')
         return
       }
       inputs[input.dataset.cwInput] = Number(input.value)
     }
     previewButton.disabled = true
-    setStatus('Previewing (read-only)…')
+    setStatus(t('runtimeDynamic.previewing'))
     try {
       const preview = await previewRuntimeFunction(urlInput.value, record.function_id, inputs)
       result.textContent = JSON.stringify(preview, null, 2)
-      setStatus(`Preview complete · ${record.function_id}`, 'ok')
+      setStatus(t('runtimeDynamic.previewComplete', { id: record.function_id }), 'ok')
     } catch (error) {
       setStatus(error?.message || String(error), 'error')
     } finally {
