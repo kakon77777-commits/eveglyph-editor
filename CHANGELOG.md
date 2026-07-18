@@ -6,6 +6,13 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Automatic MathJax fallback** — a formula KaTeX can't render gets one more
+  try through MathJax before being reported as failed. Not everything KaTeX
+  can't do, MathJax can — but real gaps like the `multline` environment or
+  chemistry notation (`\ce{...}`) now render correctly instead of showing a
+  diagnostic. Loads lazily (only when there's an actual failure to retry),
+  and a rescued formula gets a subtle marker so it's clear it took a
+  fallback path.
 - **Math auto-normalization (Safe Rewrite)** — some formulas that look like a
   KaTeX gap are really just a syntax alias KaTeX doesn't recognize by name
   (e.g. `split`, which means the same as `aligned`). Those now get quietly

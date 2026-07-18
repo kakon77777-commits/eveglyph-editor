@@ -2,9 +2,94 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-07-18
-> (multi-backend rendering roadmap Phase 2, partial — Backend Registry, Safe
-> Rewrite, Capability Analyzer, Renderer Badge; MathJax deferred as its own
-> follow-up, see below).
+> (multi-backend rendering roadmap Phase 2 — MathJax fallback landed as its
+> own follow-up, same day; Phase 2 now fully complete).
+
+## Multi-backend rendering, Phase 2b — MathJax automatic fallback (2026-07-18)
+
+Follow-up to the Phase 2 entry below, same day: "先 MathJax吧。話說先用。之後看
+狀況。要是不好用。就寫新的吧。"（Neo — let's do MathJax first, try using it,
+see how it goes, write something new if it's no good). Re-prototyped properly
+this time instead of stopping at the pre-built bundle's IIFE problem.
+
+- **Used `@mathjax/src`'s lower-level component API directly** (`TeX`/`SVG`/
+  `liteAdaptor`/`RegisterHTMLHandler` classes, `mathjax.document(...)`), not
+  the pre-built `tex-svg.js` bundle that blocked the earlier attempt.
+  `liteAdaptor` is MathJax's own DOM-independent virtual node implementation
+  (not jsdom) — produces a node serialized to a plain HTML/SVG string via
+  `adaptor.outerHTML()`, same "produce a string, sanitize it" pattern as
+  everywhere else in this app. Prototyped in plain Node first (no browser
+  needed — `liteAdaptor` doesn't touch a real DOM), confirmed working, *then*
+  confirmed it also works unchanged when actually imported through Vite in
+  the browser — cheaper iteration loop, and a real "does it survive the
+  bundler" check before investing further.
+- **Real empirical capability results** (not assumed): loaded packages
+  `base + ams + newcommand + configmacros + mhchem` (deliberately skipping
+  `noundefined`, which makes MathJax silently render undefined commands as
+  plain text — the same silent-degradation class Phase 1 exists to catch).
+  Of Phase 1's 4 confirmed katex gaps, MathJax rescues 2 (`multline` — `ams`
+  package; `\ce{...}` mhchem — `mhchem` package) and correctly still fails
+  the other 2 (`tikzcd` — neither engine implements real TikZ; an actually-
+  undefined macro — no engine can render a command that was never defined
+  anywhere). Not "MathJax fixes everything KaTeX can't" — a real, bounded,
+  honestly-reported improvement.
+- **New `src/math/mathjaxbackend.js`** — `renderWithMathJax(tex, display)`,
+  lazy-loaded via dynamic `import()` (same pattern as the Typst WASM work),
+  never throws (`{ ok, html }` / `{ ok: false, error }`).
+- **`src/mathdiagnostics.js` substantially reworked** to support this:
+  `mathDiagnosticsScan()` now does one unified `.katex-error, .katex` pass in
+  true document order and positionally correlates each output node against
+  `formulaAttempts` — an ordered list `preview.js` builds from every
+  `preProcess` call. That correlation needed one non-obvious discovery:
+  auto-render invokes `options.preProcess(tex)` as a method call, so a
+  *non-arrow* `preProcess` function can read `this.displayMode` for the
+  formula currently being processed — verified empirically (logged it across
+  mixed inline/display formulas), not documented anywhere obvious. Without
+  that, there'd be no way to know whether a failed formula needs an inline
+  or block-level MathJax retry.
+- **Async, self-healing UX, not a blocking wait.** The synchronous KaTeX
+  pass and diagnostics panel appear immediately (Phase 1's behavior,
+  unchanged); MathJax fallback attempts run afterward and patch specific
+  DOM nodes + update the panel in place as each one resolves — a rescued
+  formula's diagnostic entry disappears and the formula itself starts
+  rendering, typically within a couple seconds. Guarded against a real race
+  (the user keeps typing while a fallback is in flight from a stale render)
+  with a simple generation counter, bumped on every `previewUpdate()` call
+  and checked before any DOM patch — stress-tested by firing two renders
+  back-to-back and confirming the first (stale) one's async fallback never
+  touches the second (current) one's DOM.
+- **Renderer Badge extended**: the existing "N formulas auto-normalized"
+  note now also reports "N formulas rendered via MathJax after KaTeX
+  couldn't," and a rescued formula gets a faint dashed outline in the
+  preview (hover for why) — distinguishing "this is what you wrote" from
+  "this took a fallback path" without being alarming about it.
+- **Real code-splitting confirmed via an actual production build**, not
+  assumed: MathJax's SVG/font output module (`svg-*.js`) landed as its own
+  ~1.1MB / ~400KB-gzip chunk, separate from the main app bundle (which barely
+  grew) — only fetched when `renderWithMathJax()` is actually called, i.e.
+  only for a document that hits a real KaTeX gap. A user who never encounters
+  one pays zero MathJax cost, matching the roadmap's `W_active(D) ≪
+  W_total` principle. (A first build, done *before* wiring the fallback into
+  `preview.js`'s real render path, showed zero MathJax code in the bundle at
+  all — correct dead-code elimination, not a bug, but a reminder to always
+  check code-splitting claims against a build that actually exercises the
+  import path.)
+- `examples/math-corpus.md`'s "Unsupported" section split into "Rescued by
+  MathJax" (2 formulas) and "Still unsupported" (2 formulas), replacing the
+  now-inaccurate claim that all 4 fail everywhere.
+- **Verified**: Node-level prototype and browser-level behavior produce
+  identical pass/fail results for all 5 test formulas; the true pre-fallback
+  transient state (checked at the DOM immediately after the synchronous call
+  returns, before any async resolution) shows the full Phase 1 diagnostic set
+  exactly as before, settling down after fallback resolves — never worse than
+  Phase 1 was, only better; DOMPurify's `svg`/`svgFilters` profile confirmed
+  necessary and sufficient to preserve real glyph path data through
+  sanitization (checked path counts and viewBox survived intact); inline vs.
+  display wrapper element (`span` vs `div`) confirmed correct for both cases;
+  full regression pass across every existing demo file — zero false
+  positives, zero unintended fallback attempts on documents with no real
+  KaTeX gaps; zh-TW translation and plural forms confirmed; `npm audit`
+  clean; zero console errors throughout.
 
 ## Multi-backend rendering, Phase 2 (partial) — registry, Safe Rewrite, capability analysis (2026-07-18)
 

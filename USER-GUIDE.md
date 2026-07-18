@@ -47,8 +47,12 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
   the failure disappearing silently. Some formulas that look unsupported are
   actually just a syntax KaTeX doesn't recognize by name (e.g. `split`,
   which means the same thing as `aligned`) — those get quietly rewritten
-  before rendering, with a small note instead of an error. See
-  `examples/math-corpus.md` for examples of all three cases.
+  before rendering, with a small note instead of an error. Whatever's left
+  gets one more try through MathJax (loaded only when needed) — real gaps
+  like `multline` or chemistry notation (`\ce{...}`) end up rendering
+  correctly a moment later instead of staying broken; a rescued formula gets
+  a faint dashed outline (hover to see why). See `examples/math-corpus.md`
+  for examples of all four cases.
 - **Callouts** — `::: note {title="..."} ... :::` (also `warning`, `definition`,
   `theorem`, `lemma`, `proof`).
 - **Frontmatter** — a `---` block at the top with `type` / `status` / `tags`. Click

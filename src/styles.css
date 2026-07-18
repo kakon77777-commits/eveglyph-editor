@@ -847,6 +847,13 @@ pre.diff span { display:block; padding:0 2px; }
    gets its own quiet style rather than reusing .diag-error/.diag-warning. */
 .math-rewrite-note { font-size: 11px; color: var(--t2); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed var(--bdr); }
 
+/* A formula KaTeX couldn't render, rescued via MathJax fallback (Phase 2b) —
+   a faint dashed outline marks it as "not the primary renderer" without
+   being alarming (it worked, just via the fallback path); title attribute
+   carries the explanation on hover. */
+.math-mathjax-fallback { display: inline-block; outline: 1px dashed var(--bdr-s); outline-offset: 3px; border-radius: 2px; }
+.math-mathjax-fallback svg { max-width: 100%; }
+
 /* unreachable-state flag on a state-machine node (smview.js) */
 .sm-node-unreachable rect { stroke: #e8c547; stroke-dasharray: 4 3; }
 .sm-node-unreachable text { fill: #e8c547; }

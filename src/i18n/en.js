@@ -458,6 +458,9 @@ export default {
     formulaFailed: 'Formula `{source}` failed to render — {detail}',
     unsupportedCommand: 'Formula `{source}` rendered with an unsupported command (`{token}`) — the rest of the formula still rendered, but that token didn\'t',
     autoNormalized: '1 formula auto-normalized (e.g. `split` → `aligned`) so it renders correctly.',
-    autoNormalizedPlural: '{count} formulas auto-normalized (e.g. `split` → `aligned`) so they render correctly.'
+    autoNormalizedPlural: '{count} formulas auto-normalized (e.g. `split` → `aligned`) so they render correctly.',
+    renderedViaMathJax: '1 formula rendered via MathJax after KaTeX couldn\'t.',
+    renderedViaMathJaxPlural: '{count} formulas rendered via MathJax after KaTeX couldn\'t.',
+    renderedViaMathJaxTitle: 'KaTeX could not render this formula — rendered via MathJax instead.'
   }
 }

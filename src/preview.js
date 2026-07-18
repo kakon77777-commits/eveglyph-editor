@@ -9,7 +9,7 @@ import { monitor }            from './monitor.js'
 import { renderWorldIrProjection } from './viewregistry.js'
 import { wireEntityFormInteractions } from './entityview.js'
 import { wireStateMachineInteractions } from './smview.js'
-import { mathDiagnosticsReset, mathDiagnosticsScan, mathDiagnosticsHtml, mathRewriteRecord, mathRewriteHtml } from './mathdiagnostics.js'
+import { mathDiagnosticsReset, mathDiagnosticsScan, mathDiagnosticsRenderPanels, mathDiagnosticsAttemptFallback, mathRewriteRecord } from './mathdiagnostics.js'
 import { prepareFormula } from './math/capability.js'
 
 export function previewUpdate() {
@@ -40,7 +40,8 @@ export function previewUpdate() {
   el.innerHTML    = DOMPurify.sanitize(rawHtml)
 
   if (renderMathInElement) {
-    mathDiagnosticsReset()
+    const myGeneration = mathDiagnosticsReset()
+    const formulaAttempts = []
     try {
       renderMathInElement(el, {
         delimiters: [
@@ -53,18 +54,30 @@ export function previewUpdate() {
         // (KaTeX has never supported it — Typst's converter already rewrites
         // it to `aligned` before compiling, see typstconvert.js) renders
         // correctly here too instead of just being diagnosed by Phase 1.
-        preProcess: (tex) => {
+        // Regular function, not arrow — auto-render invokes this as
+        // `options.preProcess(tex)`, a method call, so `this` is bound to
+        // its own shared options object, which carries `displayMode` for
+        // the formula currently being processed (verified empirically:
+        // logged `this.displayMode` across mixed inline/display formulas
+        // and confirmed it flips correctly per-call, undocumented but
+        // real). Needed to know which mode to retry in if MathJax fallback
+        // kicks in below.
+        preProcess: function (tex) {
           const { tex: rewritten, appliedRewrites } = prepareFormula(tex)
           mathRewriteRecord(appliedRewrites)
+          formulaAttempts.push({ tex: rewritten, display: !!this?.displayMode })
           return rewritten
         }
       })
     } catch(_) {}
-    mathDiagnosticsScan(el)
-    const rewriteHtml = mathRewriteHtml()
-    if (rewriteHtml) el.insertAdjacentHTML('afterbegin', rewriteHtml)
-    const diagHtml = mathDiagnosticsHtml()
-    if (diagHtml) el.insertAdjacentHTML('afterbegin', diagHtml)
+    mathDiagnosticsScan(el, formulaAttempts)
+    mathDiagnosticsRenderPanels(el)
+    // Phase 2b: whatever still failed gets one more try through MathJax
+    // (lazy-loaded — only fetched when there's an actual failure to retry).
+    // Fire-and-forget: patches the specific DOM nodes and re-renders the
+    // panels in place once results land, guarded against a superseded
+    // render via myGeneration.
+    mathDiagnosticsAttemptFallback(el, myGeneration)
   }
 }
 
