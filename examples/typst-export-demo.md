@@ -25,14 +25,16 @@ $$\frac{d}{dx}\left(x^2\right) = 2x$$
 
 $$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$
 
-`split` 環境（跟 `aligned` 語意相同，測試 Typst 匯出那邊的別名正規化 — PDF
-匯出會把它改寫成 `aligned` 再編譯，這是刻意保留的行為）。KaTeX 本身不支援
-`split`，所以這裡故意留著它，順便當「數學診斷面板」（roadmap Phase 1）的一
-個真實案例 — 上面應該會看到一則診斷訊息，而不是原始文字被吞掉：
+`split` 環境（跟 `aligned` 語意相同）。KaTeX 本身從來不支援 `split` —
+Typst 匯出那邊很早就發現這點，把它改寫成 `aligned` 再編譯；但預覽面板這邊
+在 roadmap Phase 1 之前完全沒發現，一直靜默失敗到被診斷面板抓到為止。
+Phase 2 的 Safe Rewrite 現在把同一個修法搬進了預覽面板本身（`src/math/
+rewrite.js`），所以下面這條式子現在**應該會正常渲染**，上方只會出現一則
+低調的「已自動正規化」提示，不再是診斷面板的錯誤/警告：
 
 $$\begin{split} a &= b + c \\ &= d + e \end{split}$$
 
-同樣的式子換成 `aligned`，KaTeX 這邊也能正常渲染：
+同樣的式子直接寫 `aligned`，效果完全一樣（沒有需要正規化，不會觸發提示）：
 
 $$\begin{aligned} a &= b + c \\ &= d + e \end{aligned}$$
 

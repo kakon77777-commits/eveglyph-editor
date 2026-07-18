@@ -9,7 +9,8 @@ import { monitor }            from './monitor.js'
 import { renderWorldIrProjection } from './viewregistry.js'
 import { wireEntityFormInteractions } from './entityview.js'
 import { wireStateMachineInteractions } from './smview.js'
-import { mathDiagnosticsReset, mathDiagnosticsScan, mathDiagnosticsHtml } from './mathdiagnostics.js'
+import { mathDiagnosticsReset, mathDiagnosticsScan, mathDiagnosticsHtml, mathRewriteRecord, mathRewriteHtml } from './mathdiagnostics.js'
+import { prepareFormula } from './math/capability.js'
 
 export function previewUpdate() {
   const el  = document.getElementById('preview-body')
@@ -46,10 +47,22 @@ export function previewUpdate() {
           { left:'$$', right:'$$', display:true },
           { left:'$',  right:'$',  display:false }
         ],
-        throwOnError: false
+        throwOnError: false,
+        // Multi-backend rendering roadmap Phase 2 (Safe Rewrite): applied per
+        // formula, before katex ever sees it, so a formula like `\begin{split}`
+        // (KaTeX has never supported it — Typst's converter already rewrites
+        // it to `aligned` before compiling, see typstconvert.js) renders
+        // correctly here too instead of just being diagnosed by Phase 1.
+        preProcess: (tex) => {
+          const { tex: rewritten, appliedRewrites } = prepareFormula(tex)
+          mathRewriteRecord(appliedRewrites)
+          return rewritten
+        }
       })
     } catch(_) {}
     mathDiagnosticsScan(el)
+    const rewriteHtml = mathRewriteHtml()
+    if (rewriteHtml) el.insertAdjacentHTML('afterbegin', rewriteHtml)
     const diagHtml = mathDiagnosticsHtml()
     if (diagHtml) el.insertAdjacentHTML('afterbegin', diagHtml)
   }

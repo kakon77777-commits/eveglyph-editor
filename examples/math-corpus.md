@@ -11,6 +11,10 @@ failures used to vanish silently (the raw `$...$` text just sat there,
 unrendered, with no explanation). Now a failure shows up as a diagnostics
 panel at the top of this preview, and is logged to the Monitor tab
 (`math:render:error` events) — nothing should disappear without a trace.
+Phase 2 adds Safe Rewrite: some of what looks like a KaTeX gap is really
+just a syntactic alias KaTeX doesn't recognize by name — those get quietly
+fixed before rendering instead of being diagnosed. See the "Auto-normalized"
+section below.
 
 Every formula below was actually run through this app's exact KaTeX version
 (0.16.47, `katex/contrib/auto-render`, no extension packages loaded) before
@@ -55,6 +59,16 @@ KaTeX's coverage is wider than it gets credit for — `\upharpoonright` renders
 fine despite being an obscure restriction operator:
 
 $$a \upharpoonright b$$
+
+## Auto-normalized (Phase 2 Safe Rewrite)
+
+`split` is semantically identical to `aligned`, but KaTeX has never
+implemented the `split` name itself — this used to land in the "Unsupported"
+section below. Now `src/math/rewrite.js` rewrites it before KaTeX ever sees
+it, so this renders cleanly and only a quiet note appears above (not an
+error):
+
+$$\begin{split} a &= b + c \\ &= d + e \end{split}$$
 
 ## Unsupported (expected to fail — this is the point of this section)
 

@@ -44,8 +44,11 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
   KaTeX doesn't support every LaTeX command or environment — if a formula
   fails (or partially fails, e.g. one unsupported command inside an otherwise
   valid formula), a diagnostics panel appears above the preview instead of
-  the failure disappearing silently. See `examples/math-corpus.md` for
-  examples of both working and intentionally-unsupported formulas.
+  the failure disappearing silently. Some formulas that look unsupported are
+  actually just a syntax KaTeX doesn't recognize by name (e.g. `split`,
+  which means the same thing as `aligned`) — those get quietly rewritten
+  before rendering, with a small note instead of an error. See
+  `examples/math-corpus.md` for examples of all three cases.
 - **Callouts** — `::: note {title="..."} ... :::` (also `warning`, `definition`,
   `theorem`, `lemma`, `proof`).
 - **Frontmatter** — a `---` block at the top with `type` / `status` / `tags`. Click

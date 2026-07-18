@@ -843,6 +843,10 @@ pre.diff span { display:block; padding:0 2px; }
 .math-diag-label { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; color: var(--t2); }
 .math-diag-wrap .diag-block { margin-top: 0; padding-top: 0; border-top: none; }
 
+/* Safe Rewrite note (Phase 2) — informational, not an error/warning, so it
+   gets its own quiet style rather than reusing .diag-error/.diag-warning. */
+.math-rewrite-note { font-size: 11px; color: var(--t2); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed var(--bdr); }
+
 /* unreachable-state flag on a state-machine node (smview.js) */
 .sm-node-unreachable rect { stroke: #e8c547; stroke-dasharray: 4 3; }
 .sm-node-unreachable text { fill: #e8c547; }

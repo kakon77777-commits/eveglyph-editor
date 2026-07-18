@@ -14,14 +14,35 @@
 // failures read the same as every other kind of diagnostic in this app.
 import { monitor } from './monitor.js'
 import { renderDiagnosticsBlock } from './diagnostics.js'
-import { t } from './i18n/index.js'
+import { t, tPlural } from './i18n/index.js'
 
 const SOURCE_MAX_CHARS = 80
 
 let currentIssues = []
+let rewriteCount = 0
 
 export function mathDiagnosticsReset() {
   currentIssues = []
+  rewriteCount = 0
+}
+
+// Called by preview.js's renderMathInElement `preProcess` hook whenever
+// capability.js's prepareFormula() actually changed a formula's source
+// (multi-backend rendering roadmap, Phase 2 — Safe Rewrite / Renderer Badge).
+// Kept as a plain counter rather than per-formula DOM badges: preProcess only
+// gets the raw TeX string, not a handle to the DOM node katex builds from it,
+// so a precise inline badge would need forking renderMathInElement's own DOM
+// walk. A coarse "N formulas auto-normalized" note is the honest MVP version.
+export function mathRewriteRecord(ruleIds) {
+  if (!ruleIds.length) return
+  rewriteCount += 1
+  monitor('math:render:rewritten', { rules: ruleIds })
+}
+
+export function mathRewriteHtml() {
+  if (!rewriteCount) return ''
+  const label = tPlural('mathDiagnostics.autoNormalized', 'mathDiagnostics.autoNormalizedPlural', rewriteCount, { count: rewriteCount })
+  return `<div class="math-rewrite-note">${label}</div>`
 }
 
 // Call after renderMathInElement() has finished mutating `el`. Empirically,

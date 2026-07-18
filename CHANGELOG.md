@@ -6,11 +6,16 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Math auto-normalization (Safe Rewrite)** — some formulas that look like a
+  KaTeX gap are really just a syntax alias KaTeX doesn't recognize by name
+  (e.g. `split`, which means the same as `aligned`). Those now get quietly
+  rewritten before rendering instead of failing — a small note appears above
+  the preview when this happens, logged to the Monitor tab.
 - **Math diagnostics panel** — a formula that fails to render (or partially
   degrades — an unsupported command inside an otherwise-valid formula) used to
   disappear silently. Now it shows up as a diagnostics panel above the
   preview, and is logged to the Monitor tab. See `examples/math-corpus.md`
-  for a demo of both passing and intentionally-failing formulas.
+  for a demo of passing, auto-normalized, and intentionally-failing formulas.
 - **Resizable panes + full-width panel tabs** — the sidebar and right panel
   can now be drag-resized (a splitter between each pane and its neighbor),
   and the panel-tab row (Preview/Runtime/World/Studio/AI/Search/Monitor/

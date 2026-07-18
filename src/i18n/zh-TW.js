@@ -454,6 +454,8 @@ export default {
   mathDiagnostics: {
     panelLabel: '數學公式診斷',
     formulaFailed: '公式 `{source}` 渲染失敗 — {detail}',
-    unsupportedCommand: '公式 `{source}` 含有不支援的指令（`{token}`）— 其餘部分仍正常渲染，只有這個指令沒有'
+    unsupportedCommand: '公式 `{source}` 含有不支援的指令（`{token}`）— 其餘部分仍正常渲染，只有這個指令沒有',
+    autoNormalized: '1 條公式已自動正規化（例如 `split` → `aligned`）以正常渲染。',
+    autoNormalizedPlural: '{count} 條公式已自動正規化（例如 `split` → `aligned`）以正常渲染。'
   }
 }

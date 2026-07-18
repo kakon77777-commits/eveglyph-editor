@@ -456,6 +456,8 @@ export default {
   mathDiagnostics: {
     panelLabel: 'Math diagnostics',
     formulaFailed: 'Formula `{source}` failed to render — {detail}',
-    unsupportedCommand: 'Formula `{source}` rendered with an unsupported command (`{token}`) — the rest of the formula still rendered, but that token didn\'t'
+    unsupportedCommand: 'Formula `{source}` rendered with an unsupported command (`{token}`) — the rest of the formula still rendered, but that token didn\'t',
+    autoNormalized: '1 formula auto-normalized (e.g. `split` → `aligned`) so it renders correctly.',
+    autoNormalizedPlural: '{count} formulas auto-normalized (e.g. `split` → `aligned`) so they render correctly.'
   }
 }

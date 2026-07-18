@@ -2,7 +2,79 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-07-18
-> (multi-backend rendering roadmap Phase 1 — math diagnostics layer).
+> (multi-backend rendering roadmap Phase 2, partial — Backend Registry, Safe
+> Rewrite, Capability Analyzer, Renderer Badge; MathJax deferred as its own
+> follow-up, see below).
+
+## Multi-backend rendering, Phase 2 (partial) — registry, Safe Rewrite, capability analysis (2026-07-18)
+
+Second phase of the roadmap (`EveGlyph-Editor-Roadmap-v0.6.md`, internal repo
+only). Full Phase 2 scope per that roadmap: KaTeX update, MathJax lazy-load,
+Backend Registry, Capability Analyzer, Safe Rewrite, automatic fallback,
+Renderer Badge. Shipped everything except MathJax itself — see below for why,
+and Neo's explicit call on how to sequence it.
+
+- **MathJax prototyped, then deliberately deferred.** Installed `mathjax@4.1.3`
+  to check real integration cost before committing architecture around it.
+  Its ready-made browser bundle (`tex-svg.js`) is a 1.85MB minified IIFE built
+  for a `<script>` tag + a `window.MathJax` global — not an ESM export like
+  katex's. Getting a clean ESM integration would mean working against
+  `mathjax-full`'s lower-level, far-less-documented component API (compose a
+  TeX input processor + SVG output processor + a browser DOM adaptor by
+  hand), which doesn't fit this app's existing lazy-load pattern (dynamic
+  `import()`, same as the Typst WASM work) without real exploration time.
+  Asked Neo before picking a direction rather than guessing; his call: ship
+  the rest of Phase 2 now, MathJax becomes its own follow-up rather than a
+  sub-item here. Uninstalled the package again rather than leave an unused
+  20MB dependency sitting in package.json half-wired.
+- **New `src/math/registry.js`** — declares what each backend actually
+  supports. katex's `knownUnsupported` list is the same four cases Phase 1
+  empirically confirmed (`multline`, `tikzcd`, `\ce`, undefined macros — see
+  `examples/math-corpus.md`), not copied from docs. `mathjax` has an entry
+  marked `status: 'planned'` so the future slot is documented honestly
+  instead of pretended into existence.
+- **New `src/math/rewrite.js`** — Safe Rewrite rules (whitepaper §4.2's
+  "safe" tier only — provably equivalent, not just "usually works"). One
+  rule so far: `split` → `aligned`, the exact fix already applied ad-hoc on
+  the Typst export side (`typstconvert.js`, 2026-07-15) and, as of
+  yesterday's Phase 1 work, known to be silently broken in the KaTeX preview
+  too. This is where that gets actually fixed, not just diagnosed.
+- **New `src/math/capability.js`** — `prepareFormula(tex)` applies Safe
+  Rewrite rules before a formula is handed to the active backend. Scoped
+  honestly: with only one active backend, there's no cross-backend routing
+  decision to make yet (whitepaper §3.3's full `Compatible(m,b)` requirement-
+  matching needs a second backend to compare against) — this is the real,
+  currently-useful subset of "Capability Analysis," not the full vision.
+- **Renderer Badge, MVP-scoped.** `renderMathInElement`'s `preProcess` hook
+  gives access to each formula's raw TeX text but not the DOM node katex
+  eventually builds from it — a precise per-formula inline badge would need
+  forking `auto-render`'s own DOM walk. Shipped a coarser, honest version
+  instead: a quiet note above the preview ("N formulas auto-normalized")
+  when any rewrite fired, logged to Monitor (`math:render:rewritten`) the
+  same way Phase 1's failures are.
+- `examples/typst-export-demo.md`'s `split` case (kept intentionally after
+  Phase 1, at the time as a diagnostics-panel example) now actually renders
+  correctly instead of showing a diagnostic — prose updated to match, since
+  leaving Phase 1's wording would have been actively wrong now.
+  `examples/math-corpus.md` gained an "Auto-normalized" section demonstrating
+  the same fix in place, distinct from the still-real "Unsupported" section.
+- **Also fixed in passing, unrelated to Phase 2 itself**: `npm audit` (run
+  automatically when installing MathJax to prototype it) surfaced a
+  pre-existing moderate severity advisory on `dompurify` itself — the
+  library this whole app leans on to sanitize every piece of untrusted
+  content (agent output, imported DOCX, document content). Not introduced by
+  MathJax; the installed `3.4.10` was already vulnerable, just never
+  surfaced before nothing had triggered a fresh audit. Bumped to `3.4.12`
+  (patch-level, the fix release) — `npm audit` now reports zero
+  vulnerabilities.
+- **Verified**: `typst-export-demo.md`'s `split` formula renders with zero
+  `.katex-error`/degraded nodes now (previously 1 error); `math-corpus.md`
+  still shows exactly the same 2 errors + 2 warnings as Phase 1 (rewrite
+  layer doesn't touch genuinely-unsupported cases) plus the new rewrite
+  note; plural rewrite-count wording and zh-TW translation both confirmed;
+  Monitor logs a `math:render:rewritten` entry with the rule id for every
+  fired rewrite; full regression pass across every other demo file — zero
+  false positives, zero false rewrite notes. Zero console errors throughout.
 
 ## Multi-backend rendering, Phase 1 — math diagnostics layer (2026-07-18)
 
