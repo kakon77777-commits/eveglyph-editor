@@ -6,6 +6,13 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **AIMD-C computable document blocks** — replaces the earlier `::: aimd :::`
+  `Logic_Node`/`Coupling Node` syntax with typed values, pure functions, a
+  real dependency graph, assertions, and computed results that re-evaluate
+  live as you type. Reference any block's result from anywhere in the
+  document (`@id.field`), or inline in prose (`{{ id.field }}`). Wrong types
+  and circular references are caught and reported honestly, not silently
+  ignored. See `examples/aimd-demo.md` for a full worked walkthrough.
 - **Automatic MathJax fallback** — a formula KaTeX can't render gets one more
   try through MathJax before being reported as failed. Not everything KaTeX
   can't do, MathJax can — but real gaps like the `multline` environment or

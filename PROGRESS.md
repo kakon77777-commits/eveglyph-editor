@@ -2,8 +2,116 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-07-18
-> (multi-backend rendering roadmap Phase 2 — MathJax fallback landed as its
-> own follow-up, same day; Phase 2 now fully complete).
+> (roadmap Phase 3 — AIMD-C v0.1 computable-document core, replacing the old
+> Logic_Node/Coupling Node syntax entirely).
+
+## AIMD-C v0.1 — computable document core (roadmap Phase 3, 2026-07-18)
+
+Third phase of the roadmap (`EveGlyph-Editor-Roadmap-v0.6.md`, internal repo
+only). Replaces the whitepaper v0.5 §4 `::: aimd ::: ` / `Logic_Node` /
+`Coupling Node` syntax entirely (Decision 1, roadmap v0.6, confirmed by Neo)
+with typed values, pure functions, a real dependency graph, assertions, and
+a computation ledger. New `src/aimdc/` module tree: `types.js`,
+`evaluator.js`, `parser.js`, `graph.js`, `ledger.js`, `render.js`.
+
+- **The shipped Tier 1 formula evaluator (`vite-agent-bridge.js`) is the
+  seed this grew from, not a rewrite** (Decision 2, roadmap v0.6) — same
+  hand-rolled tokenizer/recursive-descent core (no `eval`, no `Function`,
+  closed grammar), moved client-side (AIMD-C needs to re-evaluate live as
+  the document is typed, not wait on a server round-trip per click) and
+  extended with named-variable resolution and a `name := expr` assignment
+  form. `vite-agent-bridge.js`'s own Tier 1 endpoint is untouched — it's
+  still there, now just unused by anything the live preview generates,
+  since new documents use AIMD-C blocks instead of the old `expr=`/▶-button
+  syntax. Its Tier 2 stub (`lean4`/`coq`/`python`, still honestly "not
+  wired yet") stays put too — the roadmap's own sequencing makes it AIMD-C
+  v0.4's eventual home, not something to touch in v0.1.
+- **Six block kinds**: `aimd-value` (typed literal), `aimd-function` (typed
+  pure function, `input:`/`output:`/`expression:`), `aimd-compute` (binds
+  values to a function via `name := @ref` lines), `aimd-assert` (checked
+  boolean expression), `aimd-table` (self-contained inline data), `aimd-view`
+  (projects a result as typeset math, a formatted number, or a table).
+  Cross-block references use `@id`/`@id.field`; `{{ id.field }}` in ordinary
+  prose gets replaced with the live computed value, re-evaluated on every
+  render — no separate "run" step, matching how the rest of this app's
+  preview already re-renders on every keystroke.
+- **Type checking is dynamic, not static inference** — a real, honest
+  scope call, not a shortcut taken silently: checked at bind time against
+  actual runtime values (`TypeError: circle-area.r expected Number, received
+  Boolean` — same message shape the whitepaper's own §5.3 example uses), not
+  full static analysis over the expression grammar. A static checker for
+  this expression language would be a materially bigger undertaking than
+  this phase's scope; the dynamic version still satisfies the whitepaper's
+  actual requirement (reject before running, don't silently coerce).
+- **Dependency graph**: topological evaluation, real cycle detection
+  (`circular reference: a → b → a`, every member of the cycle flagged, not
+  just the one where the DFS happened to detect the back-edge — an actual
+  bug caught and fixed during testing, see below). Full re-evaluation on
+  every render, no incremental diffing — a document's AIMD-C block count is
+  small enough that a real incremental-recompute engine would be solving a
+  problem that doesn't exist yet, matching this app's existing
+  "re-render everything, it's cheap enough" pattern elsewhere.
+- **Computation ledger**: per-block source/input/output hash record (djb2,
+  not cryptographic — this answers "did the input change," a local,
+  non-adversarial question, not one needing Web Crypto's async digest()
+  inside an otherwise-synchronous render pipeline).
+- **Rendering integration**: blocks are parsed (not rendered) during markdown
+  preprocessing and swapped for a placeholder token, because correctly
+  rendering any ONE of them needs the WHOLE document's graph evaluated
+  first (a compute block's result can be referenced from anywhere in the
+  document, not just after it — whitepaper §15.1). After the placeholder
+  pass, the graph evaluates once, then block placeholders AND `{{ }}` inline
+  refs both get substituted, re-sanitized (DOMPurify, same discipline as
+  everything else in this app), and only THEN does KaTeX/MathJax math
+  rendering run — so an `aimd-view{renderer="formula"}` block's generated
+  `$$...$$` source gets picked up and properly typeset by the existing math
+  pipeline, not just left as literal text.
+- **Three real bugs found and fixed during testing, all via the actual
+  worked examples, not synthetic edge cases:**
+  1. `splitSections()`'s multi-line `input:`/`output:` YAML sections lost
+     only the FIRST line's indentation via a bare `.trim()` (which strips
+     the whole string's edges, not each line) — the second-and-later lines
+     kept their original indent, producing invalid YAML ("bad indentation
+     of a mapping entry") the moment a function had more than one input.
+     Fixed with a proper dedent (strip the shared minimum leading
+     whitespace from every line, not just trim the joined string).
+  2. Cycle detection only flagged the ONE block where the DFS detected the
+     back-edge, not every block actually in the cycle — the other member(s)
+     fell through to a confusing secondary "hasn't run yet" error instead
+     of the real cause. Fixed to mark every node in the detected cycle.
+  3. **The reference tokenizer didn't allow hyphens in `@id` paths** — so
+     `@circle-area` or `@revenue-this-year` (ordinary kebab-case ids,
+     including the whitepaper's own `circle-area`/`yoy-growth` examples)
+     silently mis-tokenized into a ref stopping at the first hyphen
+     followed by bogus subtraction operations on undefined identifiers.
+     Function `id`s and `use="..."` attribute values were never affected
+     (those come from a separate attribute-string regex, not the expression
+     tokenizer) — only bare `@ref` expressions inside compute bindings and
+     assertions hit this, which is exactly why it wasn't caught until the
+     demo file used more realistic ids instead of single-word ones.
+- `examples/aimd-demo.md` fully migrated — every block kind exercised
+  (including two deliberately-failing cases: a false assertion, and a
+  type-mismatch compute block), plus an explicit "what's not here yet" note
+  (`map`/`filter`/`reduce`, List/Table-valued expressions, L2+ sandboxed
+  compute, L3/L4 workspace/agent layers).
+- **Also fixed the same `\w+`-vs-`[\w-]+` block-type regex bug in
+  `typstconvert.js`** (the PDF export converter has its own, separate copy
+  of the block-splitting regex) — without this, `aimd-value` etc. would
+  mis-split into `type="aimd"` + garbled rest in PDF export too. AIMD-C
+  blocks don't have real Typst rendering yet (fall through to a plain
+  labeled callout box with the raw content, honestly visible, not silently
+  mangled) — a real Typst renderer for them, reusing `src/aimdc/parser.js` +
+  `graph.js` (both pure logic, no DOM dependency), is a known, explicit
+  follow-up, not attempted in this pass.
+- **Verified**: both of the whitepaper's own worked examples (circle-area,
+  yoy-growth) run correctly end-to-end including `{{ }}` inline substitution
+  and `aimd-view` formula/number rendering; type-mismatch and circular-
+  reference cases both produce clear, honest diagnostics instead of silent
+  wrong answers or infinite loops; zh-TW translation confirmed; full
+  regression pass across every other demo file (ordinary `::: note :::`
+  callouts, World IR YAML, the whole Phase 1/2/2b math pipeline) — zero
+  regressions, zero AIMD-C errors leaking into files that don't use it;
+  zero console errors throughout.
 
 ## Multi-backend rendering, Phase 2b — MathJax automatic fallback (2026-07-18)
 

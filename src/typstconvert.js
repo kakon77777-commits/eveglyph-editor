@@ -273,7 +273,21 @@ function convertAimdBlock(inner) {
 }
 
 // ─── Top-level split: ::: blocks vs. plain Markdown ────────────────────
-const CALLOUT_RE = /^:::[ \t]+(\w+)([^\n]*)\r?\n([\s\S]*?)^:::[ \t]*$/gm
+// Type token allows hyphens ([\w-]+, not \w+) so AIMD-C block kinds
+// (aimd-value, aimd-function, ...) get captured whole instead of being
+// mis-split into type="aimd" + a garbled "-value {...}" rest string — same
+// bug, same fix, as preview.js's own block regex (roadmap Phase 3).
+const CALLOUT_RE = /^:::[ \t]+([\w-]+)([^\n]*)\r?\n([\s\S]*?)^:::[ \t]*$/gm
+
+// AIMD-C blocks (aimd-value/function/compute/assert/table/view) don't have
+// their own Typst rendering yet — they fall through to a plain labeled
+// callout box showing the raw block body, honestly visible rather than
+// silently mangled, but not specially typeset like the old Logic_Node
+// syntax was. A real Typst renderer (reusing src/aimdc/parser.js + graph.js,
+// both pure logic with no DOM dependency) is a known follow-up, not done here.
+function isAimdcType(type) {
+  return /^aimd-(value|function|compute|assert|table|view)$/.test(type.toLowerCase())
+}
 
 function convertBody(md) {
   CALLOUT_RE.lastIndex = 0
@@ -285,6 +299,8 @@ function convertBody(md) {
     const [, type, rest, inner] = m
     if (type.toLowerCase() === 'aimd') {
       out += convertAimdBlock(inner)
+    } else if (isAimdcType(type)) {
+      out += calloutBox(type, '', convertMarkdownFragment(inner))
     } else {
       const tm = rest.match(/title="([^"]*)"/)
       out += calloutBox(type, tm ? tm[1] : '', convertMarkdownFragment(inner))

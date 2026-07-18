@@ -126,8 +126,9 @@ export function renderEntityForm(src) {
 
 // Delegated on the stable #preview-body element so it survives
 // previewUpdate() replacing #preview-body's innerHTML on every render --
-// same pattern preview.js already uses for wireAimdInteractions. Wire once
-// per app lifetime, guarded by evFormWired, not once per render.
+// same delegated-listener pattern used by wireStateMachineInteractions
+// (smview.js). Wire once per app lifetime, guarded by evFormWired, not once
+// per render.
 let evFormWired = false
 export function wireEntityFormInteractions(el) {
   if (evFormWired || !el) return

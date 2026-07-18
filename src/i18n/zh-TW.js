@@ -460,5 +460,20 @@ export default {
     renderedViaMathJax: '1 條公式在 KaTeX 無法渲染後，改用 MathJax 渲染成功。',
     renderedViaMathJaxPlural: '{count} 條公式在 KaTeX 無法渲染後，改用 MathJax 渲染成功。',
     renderedViaMathJaxTitle: 'KaTeX 無法渲染這條公式 — 已改用 MathJax 渲染。'
+  },
+  aimdc: {
+    value: '值',
+    function: '函數',
+    compute: '計算',
+    assert: '斷言',
+    pure: '純函數',
+    emptyTable: '沒有資料列。',
+    state: {
+      completed: '已完成',
+      failed: '失敗',
+      verified: '已驗證',
+      blocked: '阻塞中',
+      invalid: '無效'
+    }
   }
 }

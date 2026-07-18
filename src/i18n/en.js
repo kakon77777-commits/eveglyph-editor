@@ -462,5 +462,20 @@ export default {
     renderedViaMathJax: '1 formula rendered via MathJax after KaTeX couldn\'t.',
     renderedViaMathJaxPlural: '{count} formulas rendered via MathJax after KaTeX couldn\'t.',
     renderedViaMathJaxTitle: 'KaTeX could not render this formula — rendered via MathJax instead.'
+  },
+  aimdc: {
+    value: 'Value',
+    function: 'Function',
+    compute: 'Compute',
+    assert: 'Assert',
+    pure: 'pure',
+    emptyTable: 'No rows.',
+    state: {
+      completed: 'Completed',
+      failed: 'Failed',
+      verified: 'Verified',
+      blocked: 'Blocked',
+      invalid: 'Invalid'
+    }
   }
 }

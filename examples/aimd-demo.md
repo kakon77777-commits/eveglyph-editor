@@ -1,64 +1,146 @@
 ---
 type: note
 status: draft
-tags: [aimd, cogni-flow, computable-math, phase-2]
+tags: [aimd-c, computable-document, phase-3]
 ---
 
-# AIMD / Cogni-Flow Protocol — Phase 1 + 2 demo
+# AIMD-C — computable document demo
 
-This is the new block type from **whitepaper v0.5 §4**: `::: aimd … :::`. Two compute
-tiers, by design (see the note at the bottom):
+This replaces the earlier `::: aimd … :::` / `Logic_Node` / `Coupling Node`
+syntax entirely (roadmap v0.6, Decision 1) with **AIMD-C v0.1**: typed
+values, pure functions, a dependency graph, assertions, and a computation
+ledger — not just static blocks that look like they compute something.
 
-- **Tier 1 — `formula`**: a spreadsheet-style expression grammar, Excel-familiar
-  function names, safe by construction (no `eval`, no shell-out). Available to
-  every permission tier.
-- **Tier 2 — `lean4` / `coq` / `python`**: real formal verification. Gated behind
-  the **Trusted** permission tier server-side, and — even at Trusted — still
-  honestly reports "not wired yet": the actual sandboxing policy for shelling out
-  to an external interpreter is Neo's call, not something to slip in silently.
+Everything below only ever uses **L1 (pure functions)** — arithmetic,
+comparisons, `IF`/`AND`/`OR`/`NOT`. No file/network/agent access, no
+external effects; that's intentionally the entire scope of this phase (see
+the roadmap's five-level execution model, L0–L4). The Tier 1 formula
+evaluator this app already had (`vite-agent-bridge.js`) is the seed this
+grew from — arithmetic core unchanged, extended with named variables, a
+`name := expr` form, and a real dependency graph on top.
 
-::: aimd
-@BaseSpace: 符號即時運算驗證系統_v0.1
-@State: Dynamic_Flow
+## A value, a function, a computation
 
-> [D_G=1, λ=0.95] 任務：解耦邏輯驗證與 DOM 渲染，實作動態視口。
+A named input:
 
-[Logic_Node: 0xD442 | expr="2*(3+4) = 14"] 狀態: ? | 相干度: ? | 驗證器: formula
-
-[Logic_Node: 0xD443 | expr="SUM(1,2,3,4) = 10"] 狀態: ? | 相干度: ? | 驗證器: formula
-
-[Logic_Node: 0xD444 | expr="IF(AVERAGE(4,8,12) > 5, 1, 0) = 1"] 狀態: ? | 相干度: ? | 驗證器: formula
-
-[Logic_Node: 0xD445 | expr="AND(3 > 2, 10 = SUM(3,3,4))"] 狀態: ? | 相干度: ? | 驗證器: formula
-
-[Logic_Node: 0xE001 | expr="∇·E = ρ/ε₀"] 狀態: ? | 相干度: ? | 驗證器: lean4
-
-<Coupling Node: ⋈>
-Target: LBRAT.Phenomenal_Weight <---> UI.Rendering_Resolution
-Action: 將 ρ 與 q 分離，實作前端模糊實在狀態。
-</Coupling>
+::: aimd-value {id="radius" type="Number"}
+2
 :::
 
-The trunk line (`D_G=1`) always renders — that's the "lightweight state projection"
-the whitepaper describes. The `Coupling Node` block starts **collapsed**; click it to
-expand in place (plain `<details>`, purely client-side, no fetch).
+A pure function — typed input, typed output, one expression:
 
-Every `Logic_Node` above carries `expr="..."` and a **▶ button** — click one to
-actually POST to `/api/compute`.
+::: aimd-function {id="circle-area" pure="true"}
+input:
+  r: Number
 
-- The four `驗證器: formula` nodes hit the Tier 1 safe evaluator: `SUM`, `AVERAGE`,
-  `IF`, `AND`/`OR`/`NOT`, comparisons (`=`/`<>`/`>`/`<`/`>=`/`<=`), plus the earlier
-  arithmetic/trig set. Try editing one to something false (e.g. `1 + 1 = 3`) to see a
-  **Failed** state, or something the grammar can't parse to see an honest
-  **Unsupported** — it never pretends to verify math it can't check.
-- The last node (`驗證器: lean4`) is Tier 2. At the default **Standard** permission it
-  should come back "requires Trusted permission tier." Switch **Settings ⚙ → Agent
-  permission → Trusted** and click again — it'll still say "not wired yet," but now
-  for the honest reason (sandboxing policy still pending), not a permission block.
+output:
+  area: Number
 
-::: note {title="Where this fits"}
-`::: aimd … :::` reuses the same `::: type … :::` mechanism as the `note` / `warning`
-callouts above — it's not a new top-level syntax, so it can't collide with ordinary
-prose elsewhere in a document. See `src/preview.js` (`renderAimdBlock`,
-`runAimdCompute`) and `vite-agent-bridge.js` (`/api/compute`, `aimdCompute`).
+expression:
+  area := pi * r^2
+:::
+
+Binding the value to the function:
+
+::: aimd-compute {id="result" use="circle-area"}
+r := @radius
+:::
+
+The block above shows its own state and result inline, but the same value
+can also be referenced directly in prose: the computed area is
+**{{ result.area }}**. Edit `radius`'s value above and this number updates
+on the next render — no page reload, no separate "run" step.
+
+An assertion — checked, not assumed:
+
+::: aimd-assert {id="area-positive"}
+@result.area > 0
+:::
+
+The same result, projected as a typeset equation instead of a status chip
+(this is real KaTeX — the `renderer="formula"` view emits actual `$$...$$`
+math source, rendered by the same pipeline as every other formula in this
+app):
+
+::: aimd-view {source="@result.area" renderer="formula"}
+area
+:::
+
+## A second function — year-over-year growth
+
+::: aimd-function {id="yoy-growth" pure="true"}
+input:
+  current: Number
+  previous: Number
+
+output:
+  growth: Number
+
+expression:
+  growth := (current - previous) / previous
+:::
+
+::: aimd-value {id="revenue-this-year" type="Number"}
+120
+:::
+
+::: aimd-value {id="revenue-last-year" type="Number"}
+100
+:::
+
+::: aimd-compute {id="growth" use="yoy-growth"}
+current := @revenue-this-year
+previous := @revenue-last-year
+:::
+
+Growth came out to {{ growth.growth }} (0.2 = 20%), formatted as a
+percentage-style number view:
+
+::: aimd-view {source="@growth.growth" renderer="number"}
+format: "0.00"
+:::
+
+## A table
+
+`aimd-table` holds self-contained inline data (no `source=` yet — that's a
+later increment, once there's a real List/Table-valued expression story):
+
+::: aimd-table {id="scores"}
+- name: Alice
+  score: 92
+- name: Bob
+  score: 78
+:::
+
+## What an honest failure looks like
+
+This assertion is written to fail on purpose — AIMD-C doesn't hide a wrong
+answer, it reports it:
+
+::: aimd-assert {id="deliberately-false"}
+@result.area > 1000
+:::
+
+And this compute block binds a value of the wrong type — a real
+`TypeError`, checked before evaluation ever runs, not a silent wrong
+answer:
+
+::: aimd-value {id="not-a-number" type="Boolean"}
+true
+:::
+
+::: aimd-compute {id="type-mismatch" use="circle-area"}
+r := @not-a-number
+:::
+
+::: note {title="What's not here yet"}
+This is v0.1 — L1 only. Not yet built: `map`/`filter`/`reduce` or any
+List/Table-valued *expression* (values can hold a List/Table, like the
+table above, but a function body can't operate on one yet); L2's
+document-attached sandboxed compute (WASM/Pyodide); L3/L4's workspace and
+agent layers (those already exist for the rest of this app — Diff Review,
+permission tiers — AIMD-C's later versions are meant to plug into that
+infrastructure, not rebuild it). Real formal verification (Lean4/Coq) is
+still the honest "not wired yet" stub in `vite-agent-bridge.js`'s
+`/api/compute` — its future home is AIMD-C v0.4, per the roadmap.
 :::

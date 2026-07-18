@@ -29,12 +29,12 @@ see [SECURITY.md](SECURITY.md).
   [Typst](https://typst.app) — different from Print's browser Save-as-PDF, this is
   an actual typesetting engine (proper math layout, real page breaks), running
   entirely in your browser as WebAssembly. Nothing is uploaded anywhere. Callouts
-  render as colored boxes (matching the preview's colors) and AIMD blocks render
-  as a static print snapshot — the last-known state as written, no compute buttons
-  or folded Coupling Nodes (there's nothing to click or fold on paper, so a
-  Coupling Node's content just prints inline). First use in a session downloads
-  ~51MB (compiler + fonts, including Traditional Chinese coverage via Noto Serif
-  TC) — same-origin, cached after. Works on Markdown (`.md`) files.
+  render as colored boxes (matching the preview's colors). AIMD-C blocks print as
+  a plain labeled box with their raw content for now — proper typeset rendering
+  (matching what the live preview shows) is a known follow-up, not built yet.
+  First use in a session downloads ~51MB (compiler + fonts, including Traditional
+  Chinese coverage via Noto Serif TC) — same-origin, cached after. Works on
+  Markdown (`.md`) files.
 
 ## Writing: EveGlyph-MD
 
@@ -59,18 +59,34 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
   the chip in the status bar to change a document's class; the preview shows it as
   badges. This is a classification layer only — it's never sent to an agent as an
   instruction, only as labeled data.
-- **AIMD blocks** — `::: aimd ... :::` for computable content:
-  - `> [D_G=1, λ=0.95] some text` — a main-line note, always shown.
-  - `[Logic_Node: ID | expr="SUM(1,2,3) = 6"] 狀態: ? | 相干度: ? | 驗證器: formula`
-    — click the **▶** button that appears to actually evaluate `expr`. The
-    built-in `formula` verifier understands arithmetic, comparisons, and Excel-
-    style functions (`SUM`, `AVERAGE`, `MIN`, `MAX`, `COUNT`, `IF`, `AND`, `OR`,
-    `NOT`, trig/log/sqrt/etc.) — safely, with no code execution. A result that
-    resolves to true/false shows as Verified/Failed; a plain calculation shows as
-    Computed.
-  - `<Coupling Node: label> ... </Coupling>` — a collapsible block. It only
-    materializes its content when you open it, and releases it again when you
-    close it — useful for keeping long documents light.
+- **AIMD-C blocks** — computable content with real types, a dependency
+  graph, and assertions, re-evaluated live as you edit (see
+  `examples/aimd-demo.md` for a full worked example):
+  - `::: aimd-value {id="radius" type="Number"} ... :::` — a named input.
+    Types: `Number`, `Boolean`, `String`, `List<T>`, `Table`.
+  - `::: aimd-function {id="circle-area" pure="true"} ... :::` — a typed,
+    pure function (`input:`/`output:` type declarations, one `name := expr`
+    expression). Arithmetic, comparisons, `IF`/`AND`/`OR`/`NOT` — the same
+    safe grammar the app has always used for computable content, no `eval`,
+    no code execution.
+  - `::: aimd-compute {id="result" use="circle-area"} r := @radius :::` —
+    binds values to a function's inputs. Reference another block's result
+    from anywhere in the document with `@id` or `@id.field`; a `{{
+    result.area }}` in ordinary prose gets replaced with the live computed
+    value. Wrong types are caught before evaluation, as a real error
+    ("expected Number, received Boolean"), not a silent bad answer. A
+    circular reference (`@a` depends on `@b` depends on `@a`) is rejected,
+    not silently looped.
+  - `::: aimd-assert {id="check"} @result.area > 0 :::` — checked, shown as
+    Verified or Failed.
+  - `::: aimd-view {source="@result.area" renderer="formula"} area :::` —
+    projects a result as typeset math (`renderer="formula"`), a formatted
+    number (`renderer="number"`, optional `format: "0.00"`), or a table.
+  - `::: aimd-table {id="scores"} - name: Alice\n  score: 92 :::` — a
+    self-contained data table.
+  - Only pure computation is supported so far (no file/network/agent access
+    from inside a block) — see `examples/aimd-demo.md`'s closing note for
+    what's deliberately not built yet.
 
 ## World IR mode (CompilableWorld)
 
