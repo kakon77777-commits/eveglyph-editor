@@ -1,8 +1,69 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-17
-> (resizable panes + panel-tabs moved to a full-width row).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-18
+> (multi-backend rendering roadmap Phase 1 — math diagnostics layer).
+
+## Multi-backend rendering, Phase 1 — math diagnostics layer (2026-07-18)
+
+First phase of the roadmap reconciling Neo's two new whitepapers (multi-backend
+semantic rendering + AIMD-C — see the internal repo's
+`EveGlyph-Editor-Roadmap-v0.6.md`, not public). Scope, per that roadmap: stop
+silently swallowing KaTeX formula failures, show which formula and command
+failed, build a diagnostics panel, log to the existing Monitor ledger, build an
+initial Math Corpus. Nothing about backend routing/MathJax/Typst-theme-compiler
+yet — that's Phase 2+.
+
+- **Two distinct silent-failure shapes found empirically** (not assumed from
+  docs — tested directly against this app's exact katex 0.16.47 build before
+  writing any detection code): (1) a formula that fails to parse entirely gets
+  replaced by katex's own `.katex-error` span (full message in its `title`
+  attribute, never nested inside a normal `.katex` element); (2) a single
+  unsupported command *inside* an otherwise-valid formula gets rendered as
+  plain colored text (`errorColor`, default `#cc0000`) via katex's
+  `formatUnsupportedCmd()`, with the rest of the formula still rendering
+  normally — no class, no title, nothing to grep for. The second shape is the
+  more dangerous one: nothing about it visually screams "broken" the way a red
+  parse-error box does. `renderMathInElement`'s own `errorCallback` option,
+  which looked like the obvious hook going in, turns out to fire essentially
+  never with `throwOnError:false` — both failure shapes are absorbed inside
+  katex's own render path before an error ever reaches that callback.
+- New `src/mathdiagnostics.js`: `mathDiagnosticsScan(el)` runs after
+  `renderMathInElement()` and scans for both shapes; each hit becomes a Monitor
+  ledger entry (`math:render:error` / `math:render:degraded` — the project's
+  existing PHOSPHOR diagnostic stream, not a new persistence mechanism) and an
+  entry in a diagnostics panel rendered via `renderDiagnosticsBlock()`
+  (`diagnostics.js`, already used for World IR validation — same visual
+  language, not a bespoke math-only look). The panel only appears when there's
+  something to show; a clean document renders no panel at all.
+- `preview.js`: `mathDiagnosticsReset()` before each render, `mathDiagnosticsScan(el)`
+  after, panel HTML prepended to `#preview-body` via `insertAdjacentHTML('afterbegin', …)`.
+- New `examples/math-corpus.md` — every formula in it was actually run through
+  this exact katex build before being written down (basic/calculus/linear-
+  algebra/logic/set-theory/category-theory/physics/statistics/rare-symbols, all
+  confirmed passing; `multline`/`mhchem`/undefined-macro/`tikzcd`, all confirmed
+  failing, one of each failure shape).
+- **Found a real, pre-existing bug while regression-testing existing demo
+  files** (per the roadmap's own instruction to check regression scope before
+  each phase): `examples/typst-export-demo.md` has used `\begin{split}` since
+  the Typst PDF export work — Typst's own converter already rewrites
+  `split→aligned` before compiling (a fix from 2026-07-15), but nobody had
+  ever checked whether `split` renders in the *preview* pane, and it doesn't —
+  KaTeX has never supported it. This sat silently broken in a shipped public
+  demo file this whole time; the new diagnostics panel caught it immediately.
+  Fixed the demo file directly (kept the `split` case on purpose now as a live
+  diagnostics-panel example, added a working `aligned` companion) — the
+  underlying multi-engine `split`/`aligned` alias-normalization problem itself
+  is explicitly Phase 2 scope (`multi-backend rendering whitepaper §4.1`,
+  "Safe Rewrite"), not fixed here.
+- **Verified**: 4 synthetic failure cases (2 of each shape) all correctly
+  detected with the right message and Monitor entry; a clean two-formula
+  document produces zero false positives; `examples/math-corpus.md` itself
+  renders exactly as documented (2 errors, 2 warnings); regression pass across
+  `welcome.md`/`aimd-demo.md`/`the-eveglyph-loop.md` — zero false positives;
+  `typst-export-demo.md` — exactly the one expected/intentional diagnostic
+  after the fix. zh-TW translation round-trips correctly (new `mathDiagnostics`
+  i18n namespace, 2 keys). Zero console errors throughout.
 
 ## Resizable panes + panel-tabs relocated (2026-07-17)
 

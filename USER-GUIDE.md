@@ -41,6 +41,11 @@ see [SECURITY.md](SECURITY.md).
 EveGlyph-MD is plain Markdown plus a small set of additions:
 
 - **Math** — inline `$e^{i\pi}+1=0$` or display `$$...$$`, rendered via KaTeX.
+  KaTeX doesn't support every LaTeX command or environment — if a formula
+  fails (or partially fails, e.g. one unsupported command inside an otherwise
+  valid formula), a diagnostics panel appears above the preview instead of
+  the failure disappearing silently. See `examples/math-corpus.md` for
+  examples of both working and intentionally-unsupported formulas.
 - **Callouts** — `::: note {title="..."} ... :::` (also `warning`, `definition`,
   `theorem`, `lemma`, `proof`).
 - **Frontmatter** — a `---` block at the top with `type` / `status` / `tags`. Click

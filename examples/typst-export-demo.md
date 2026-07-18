@@ -25,9 +25,16 @@ $$\frac{d}{dx}\left(x^2\right) = 2x$$
 
 $$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$
 
-`split` 環境（跟 `aligned` 語意相同，測試別名正規化）：
+`split` 環境（跟 `aligned` 語意相同，測試 Typst 匯出那邊的別名正規化 — PDF
+匯出會把它改寫成 `aligned` 再編譯，這是刻意保留的行為）。KaTeX 本身不支援
+`split`，所以這裡故意留著它，順便當「數學診斷面板」（roadmap Phase 1）的一
+個真實案例 — 上面應該會看到一則診斷訊息，而不是原始文字被吞掉：
 
 $$\begin{split} a &= b + c \\ &= d + e \end{split}$$
+
+同樣的式子換成 `aligned`，KaTeX 這邊也能正常渲染：
+
+$$\begin{aligned} a &= b + c \\ &= d + e \end{aligned}$$
 
 ## 清單
 

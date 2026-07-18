@@ -450,5 +450,10 @@ export default {
     openMdFirstAlert: '請先開啟一個 Markdown（.md）檔案 — PDF 匯出只支援 EveGlyph-MD 文件。',
     compiling: '編譯中…',
     exportFailedAlert: 'PDF 匯出失敗：{message}\n\n透過 Typst（WASM）編譯，完全在你的瀏覽器裡執行，第一次執行會下載約 51MB — 之後有快取。詳情請查看 Monitor 分頁。'
+  },
+  mathDiagnostics: {
+    panelLabel: '數學公式診斷',
+    formulaFailed: '公式 `{source}` 渲染失敗 — {detail}',
+    unsupportedCommand: '公式 `{source}` 含有不支援的指令（`{token}`）— 其餘部分仍正常渲染，只有這個指令沒有'
   }
 }

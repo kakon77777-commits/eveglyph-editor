@@ -6,6 +6,11 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Math diagnostics panel** — a formula that fails to render (or partially
+  degrades — an unsupported command inside an otherwise-valid formula) used to
+  disappear silently. Now it shows up as a diagnostics panel above the
+  preview, and is logged to the Monitor tab. See `examples/math-corpus.md`
+  for a demo of both passing and intentionally-failing formulas.
 - **Resizable panes + full-width panel tabs** — the sidebar and right panel
   can now be drag-resized (a splitter between each pane and its neighbor),
   and the panel-tab row (Preview/Runtime/World/Studio/AI/Search/Monitor/
@@ -88,6 +93,10 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
   search stays a plain, predictable, non-AI tool.
 
 ### Fixed
+- `examples/typst-export-demo.md`'s `split`-environment math formula has
+  silently failed to render in the preview (not the PDF export) since it was
+  added — KaTeX has never supported `\begin{split}`. Kept as a deliberate
+  diagnostics-panel example now, with a working `aligned` companion added.
 - A `::: note` / `::: warning` callout whose body was a single paragraph used to
   render a stray, visible `</div>` code block underneath it. Fixed.
 

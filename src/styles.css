@@ -834,6 +834,15 @@ pre.diff span { display:block; padding:0 2px; }
 .diag-list .diag-warning { color: #e8c547; }
 .diag-icon { flex: 0 0 auto; }
 
+/* Math diagnostics panel (multi-backend rendering roadmap, Phase 1) — sits
+   above the rendered content in #preview-body when one or more formulas
+   failed to parse. Reuses .diag-block's list/count styling (diagnostics.js),
+   but that block assumes TRAILING placement (border-top + margin-top); here
+   it's always the first thing in the preview, so flip to a bottom rule. */
+.math-diag-wrap { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px dashed var(--bdr); }
+.math-diag-label { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; color: var(--t2); }
+.math-diag-wrap .diag-block { margin-top: 0; padding-top: 0; border-top: none; }
+
 /* unreachable-state flag on a state-machine node (smview.js) */
 .sm-node-unreachable rect { stroke: #e8c547; stroke-dasharray: 4 3; }
 .sm-node-unreachable text { fill: #e8c547; }

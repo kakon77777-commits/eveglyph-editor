@@ -9,6 +9,7 @@ import { monitor }            from './monitor.js'
 import { renderWorldIrProjection } from './viewregistry.js'
 import { wireEntityFormInteractions } from './entityview.js'
 import { wireStateMachineInteractions } from './smview.js'
+import { mathDiagnosticsReset, mathDiagnosticsScan, mathDiagnosticsHtml } from './mathdiagnostics.js'
 
 export function previewUpdate() {
   const el  = document.getElementById('preview-body')
@@ -38,6 +39,7 @@ export function previewUpdate() {
   el.innerHTML    = DOMPurify.sanitize(rawHtml)
 
   if (renderMathInElement) {
+    mathDiagnosticsReset()
     try {
       renderMathInElement(el, {
         delimiters: [
@@ -47,6 +49,9 @@ export function previewUpdate() {
         throwOnError: false
       })
     } catch(_) {}
+    mathDiagnosticsScan(el)
+    const diagHtml = mathDiagnosticsHtml()
+    if (diagHtml) el.insertAdjacentHTML('afterbegin', diagHtml)
   }
 }
 

@@ -452,5 +452,10 @@ export default {
     openMdFirstAlert: 'Open a Markdown (.md) file first — PDF export works on EveGlyph-MD documents.',
     compiling: 'Compiling…',
     exportFailedAlert: 'PDF export failed: {message}\n\nCompiles via Typst (WASM, entirely in your browser, first run downloads ~51MB — cached after). Check the Monitor tab for details.'
+  },
+  mathDiagnostics: {
+    panelLabel: 'Math diagnostics',
+    formulaFailed: 'Formula `{source}` failed to render — {detail}',
+    unsupportedCommand: 'Formula `{source}` rendered with an unsupported command (`{token}`) — the rest of the formula still rendered, but that token didn\'t'
   }
 }
