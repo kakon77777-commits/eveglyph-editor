@@ -6,6 +6,19 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **PDF theme & layout** — PDF export now supports named themes
+  (`typst_theme:` in frontmatter — `evemiss-serif-light`, the default, or
+  `evemiss-classic-light`) and layout profiles (`typst_layout:` —
+  `technical-whitepaper`, the default, `academic-paper`, or
+  `long-form-book`), controlling font, scale, colors, page size/margins, and
+  whether equations get numbered. Leave both unset and export is unchanged
+  from before. Theorem/Lemma/Definition callouts in exported PDFs are now
+  sequentially numbered (Theorem 1, Theorem 2, ...).
+- **AIMD-C blocks now export to PDF as real typeset output** — values,
+  functions, compute results, assertions, tables, and formula/number/table
+  views all render properly in PDF export (previously a plain placeholder
+  box). `{{ id.field }}` inline references resolve in PDF export too, same
+  as in the live preview.
 - **AIMD-C computable document blocks** — replaces the earlier `::: aimd :::`
   `Logic_Node`/`Coupling Node` syntax with typed values, pure functions, a
   real dependency graph, assertions, and computed results that re-evaluate

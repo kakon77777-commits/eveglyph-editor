@@ -29,9 +29,18 @@ see [SECURITY.md](SECURITY.md).
   [Typst](https://typst.app) — different from Print's browser Save-as-PDF, this is
   an actual typesetting engine (proper math layout, real page breaks), running
   entirely in your browser as WebAssembly. Nothing is uploaded anywhere. Callouts
-  render as colored boxes (matching the preview's colors). AIMD-C blocks print as
-  a plain labeled box with their raw content for now — proper typeset rendering
-  (matching what the live preview shows) is a known follow-up, not built yet.
+  render as colored boxes (matching the preview's colors); Theorem/Lemma/
+  Definition callouts are numbered sequentially. AIMD-C blocks render as real
+  typeset output (values, functions, compute results, assertions, tables, and
+  formula/number/table views), matching what the live preview shows —
+  including live `{{ id.field }}` substitution. Set `typst_theme:` and/or
+  `typst_layout:` in frontmatter to change the look:
+  - Themes (font, scale, colors): `evemiss-serif-light` (default),
+    `evemiss-classic-light`.
+  - Layouts (page size/margins, paragraph style, equation numbering):
+    `technical-whitepaper` (default), `academic-paper` (numbered equations),
+    `long-form-book`.
+  Leave both unset and export looks exactly as it always has.
   First use in a session downloads ~51MB (compiler + fonts, including Traditional
   Chinese coverage via Noto Serif TC) — same-origin, cached after. Works on
   Markdown (`.md`) files.

@@ -18,6 +18,9 @@
 import { marked } from 'marked'
 import { tex2typst } from 'tex2typst'
 import { parseFrontmatter } from './frontmatter.js'
+import { buildPreamble } from './typst/preamble.js'
+import { isAimdcType, parseAimdcBlock } from './aimdc/parser.js'
+import { evaluateDocument, resolveRef } from './aimdc/graph.js'
 
 // Private-use-area code point built at runtime (never typed literally) — an
 // inert placeholder delimiter that survives marked's tokenizer as plain text.
@@ -178,14 +181,29 @@ const CALLOUT_COLORS = {
   warning: '#ef4444'
 }
 
+// Roadmap Phase 4 (semantic components + numbering): theorem/lemma/
+// definition get their own sequential counter each (standard academic
+// convention — a THEOREM and a LEMMA number independently, not off one
+// shared sequence). `proof`/`note`/`warning` stay unnumbered — a proof
+// refers back to its theorem by proximity, not a number of its own; note/
+// warning are call-outs, not citable claims. Typst's `#context` is
+// required to read a counter's live value inside markup (0.12+).
+const NUMBERED_TYPES = new Set(['theorem', 'lemma', 'definition'])
+
 function calloutBox(type, title, innerTypst) {
   const key = type.toLowerCase()
   const color = CALLOUT_COLORS[key] || '#6b7280'
-  const label = title ? `${type.toUpperCase()}: ${title}` : type.toUpperCase()
   const italic = key === 'proof' ? ', style: "italic"' : ', weight: "bold"'
+  const titleSuffix = title ? `: ${esc(title)}` : ''
+
+  const labelBlock = NUMBERED_TYPES.has(key)
+    ? `#counter("eg-${key}").step()\n` +
+      `#text(fill: rgb("${color}"), size: 9pt${italic})[${type.toUpperCase()} #context counter("eg-${key}").display()${titleSuffix}]`
+    : `#text(fill: rgb("${color}"), size: 9pt${italic})[${type.toUpperCase()}${titleSuffix}]`
+
   return `#block(fill: rgb("${color}").lighten(90%), stroke: (left: 2.5pt + rgb("${color}")), ` +
     `inset: 10pt, radius: 3pt, width: 100%, breakable: true)[\n` +
-    `#text(fill: rgb("${color}"), size: 9pt${italic})[${esc(label)}]\n#v(4pt)\n${innerTypst}]\n\n`
+    `${labelBlock}\n#v(4pt)\n${innerTypst}]\n\n`
 }
 
 // ─── AIMD blocks ────────────────────────────────────────────────────────
@@ -272,22 +290,126 @@ function convertAimdBlock(inner) {
   return `#block(fill: rgb("#00000005"), inset: 10pt, radius: 3pt, width: 100%, breakable: true)[\n${metaTypst}${parts.join('')}]\n\n`
 }
 
+// ─── AIMD-C blocks → Typst (roadmap Phase 4: AIMD-C Projection meets the
+// Backend Router) ────────────────────────────────────────────────────────
+// Reuses src/aimdc/parser.js + graph.js verbatim — both pure logic, no DOM
+// dependency — so the SAME parsing/evaluation runs for the live preview and
+// PDF export. One source of truth for what a document's AIMD-C blocks
+// compute, not two implementations that could silently drift apart. Blocks
+// are collected (not rendered) while walking the document, because
+// rendering any ONE of them correctly needs the WHOLE document's dependency
+// graph evaluated first — same two-pass shape as preview.js, just with a
+// text-placeholder substitution instead of a DOM one.
+let pendingAimdcBlocks = []
+
+function fmtAimdcValue(v) {
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v * 10000) / 10000)
+  if (typeof v === 'boolean') return v ? 'true' : 'false'
+  if (Array.isArray(v)) return `[${v.map(fmtAimdcValue).join(', ')}]`
+  if (v && typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
+function formatAimdcNumber(value, fmt) {
+  const m = /^0\.(0+)$/.exec(String(fmt || ''))
+  if (m && typeof value === 'number') return value.toFixed(m[1].length)
+  return fmtAimdcValue(value)
+}
+
+function issueFor(id, doc) {
+  return doc.issues.find(i => i.id === id)?.message
+}
+
+const AIMDC_COLORS = { value: '#60a5fa', function: '#a78bfa', compute: '#4ade80', assert: '#fbbf24', error: '#ef4444' }
+
+function aimdcBadge(kind, color) {
+  return `#text(fill: rgb("${color}"), size: 8pt, weight: "bold")[${kind.toUpperCase()}]`
+}
+
+function aimdcBox(color, inner) {
+  return `#block(fill: rgb("#00000005"), stroke: (left: 2pt + rgb("${color}")), inset: 8pt, radius: 3pt, width: 100%, breakable: true)[\n${inner}\n]\n\n`
+}
+
+function renderAimdcTableTypst(rows) {
+  if (!Array.isArray(rows) || !rows.length || typeof rows[0] !== 'object') {
+    return aimdcBox('#6b7280', 'No rows.')
+  }
+  const cols = [...new Set(rows.flatMap(r => Object.keys(r || {})))]
+  let out = `#table(\n  columns: ${cols.length},\n  stroke: 0.5pt + rgb("#d0d0d0"),\n  fill: (_, row) => if row == 0 { rgb("#00000008") },\n  `
+  out += cols.map(c => `[*${esc(c)}*]`).join(', ') + ',\n'
+  for (const row of rows) out += '  ' + cols.map(c => `[${esc(fmtAimdcValue(row[c] ?? ''))}]`).join(', ') + ',\n'
+  return out + ')\n\n'
+}
+
+function renderAimdcBlockTypst(block, doc) {
+  switch (block.kind) {
+    case 'value':
+      return aimdcBox(AIMDC_COLORS.value,
+        `${aimdcBadge('value', AIMDC_COLORS.value)} #text(weight: "bold")[${esc(block.id)}] ` +
+        (block.type ? `#text(size: 8pt, fill: rgb("#888888"))[${esc(block.type)}] ` : '') +
+        `= ${esc(fmtAimdcValue(block.value))}`)
+    case 'function': {
+      const inSig = Object.entries(block.input).map(([k, v]) => `${k}: ${v}`).join(', ')
+      const outSig = Object.entries(block.output).map(([k, v]) => `${k}: ${v}`).join(', ')
+      return aimdcBox(AIMDC_COLORS.function,
+        `${aimdcBadge('function', AIMDC_COLORS.function)} #text(weight: "bold")[${esc(block.id)}] ` +
+        `#raw("(${inSig}) -> (${outSig})")`)
+    }
+    case 'compute': {
+      const result = doc.results.get(block.id)
+      const failed = !result || result.error
+      const color = failed ? AIMDC_COLORS.error : AIMDC_COLORS.compute
+      const state = !result ? 'blocked' : result.error ? 'failed' : 'completed'
+      const detail = result?.outputs
+        ? Object.entries(result.outputs).map(([k, v]) => `${k} = ${fmtAimdcValue(v)}`).join(', ')
+        : (result?.error || issueFor(block.id, doc) || '')
+      return aimdcBox(color,
+        `${aimdcBadge('compute', color)} #text(weight: "bold")[${esc(block.id)}] ` +
+        `#text(fill: rgb("${color}"))[${state}] ${esc(detail)}`)
+    }
+    case 'assert': {
+      const result = doc.results.get(block.id)
+      const passed = result && !result.error && result.passed
+      const color = passed ? AIMDC_COLORS.compute : AIMDC_COLORS.error
+      const state = !result ? 'blocked' : result.error ? 'failed' : result.passed ? 'verified' : 'failed'
+      return aimdcBox(color, `${aimdcBadge('assert', color)} #raw("${block.raw.replace(/"/g, '\\"')}") #text(fill: rgb("${color}"))[${state}]`)
+    }
+    case 'table':
+      return renderAimdcTableTypst(block.rows)
+    case 'view': {
+      let value
+      try { value = resolveRef(block.source, doc.byId, doc.results) }
+      catch (e) { return aimdcBox(AIMDC_COLORS.error, `${aimdcBadge('view', AIMDC_COLORS.error)} ${esc(e.message)}`) }
+      if (block.renderer === 'table' && Array.isArray(value)) return renderAimdcTableTypst(value)
+      if (block.renderer === 'number') {
+        const text = block.config.format ? formatAimdcNumber(value, block.config.format) : fmtAimdcValue(value)
+        return `#text(size: 14pt, weight: "bold")[${esc(text)}]\n\n`
+      }
+      // 'formula' (default) — real Typst math, not a picture of it. The
+      // label is NOT run through esc() (that's markup-mode escaping, wrong
+      // rule set for math mode) — instead it's wrapped in a quoted string
+      // literal, which is Typst math mode's own way to render a bare word
+      // as upright text instead of trying to evaluate it as a variable
+      // reference (confirmed empirically: `$ area = 1 $` throws "unknown
+      // variable: area" — Typst math mode never treats a bare multi-letter
+      // word as literal text on its own).
+      const label = block.label || block.source.split('.').pop()
+      return `$ "${label.replace(/"/g, '\\"')}" = ${fmtAimdcValue(value)} $\n\n`
+    }
+    case 'error':
+      return aimdcBox(AIMDC_COLORS.error,
+        `${aimdcBadge('invalid', AIMDC_COLORS.error)} ${block.id ? `#text(weight: "bold")[${esc(block.id)}] ` : ''}${esc(block.message)}`)
+    default:
+      return ''
+  }
+}
+
 // ─── Top-level split: ::: blocks vs. plain Markdown ────────────────────
 // Type token allows hyphens ([\w-]+, not \w+) so AIMD-C block kinds
 // (aimd-value, aimd-function, ...) get captured whole instead of being
 // mis-split into type="aimd" + a garbled "-value {...}" rest string — same
 // bug, same fix, as preview.js's own block regex (roadmap Phase 3).
 const CALLOUT_RE = /^:::[ \t]+([\w-]+)([^\n]*)\r?\n([\s\S]*?)^:::[ \t]*$/gm
-
-// AIMD-C blocks (aimd-value/function/compute/assert/table/view) don't have
-// their own Typst rendering yet — they fall through to a plain labeled
-// callout box showing the raw block body, honestly visible rather than
-// silently mangled, but not specially typeset like the old Logic_Node
-// syntax was. A real Typst renderer (reusing src/aimdc/parser.js + graph.js,
-// both pure logic with no DOM dependency) is a known follow-up, not done here.
-function isAimdcType(type) {
-  return /^aimd-(value|function|compute|assert|table|view)$/.test(type.toLowerCase())
-}
 
 function convertBody(md) {
   CALLOUT_RE.lastIndex = 0
@@ -300,7 +422,9 @@ function convertBody(md) {
     if (type.toLowerCase() === 'aimd') {
       out += convertAimdBlock(inner)
     } else if (isAimdcType(type)) {
-      out += calloutBox(type, '', convertMarkdownFragment(inner))
+      const block = parseAimdcBlock(type, rest, inner)
+      const idx = pendingAimdcBlocks.push(block) - 1
+      out += `AIMDC_TYPST_PLACEHOLDER_${idx}\n\n`
     } else {
       const tm = rest.match(/title="([^"]*)"/)
       out += calloutBox(type, tm ? tm[1] : '', convertMarkdownFragment(inner))
@@ -312,29 +436,28 @@ function convertBody(md) {
 }
 
 // ─── Document-level typesetting ─────────────────────────────────────────
-// Tested standalone (page/text/heading/raw/link rules) before wiring in —
-// Libertinus Serif first, falling back to Noto Serif TC per-glyph for CJK
-// (both already loaded by typstexport.js), rather than leaving font choice
-// to the compiler's own implicit fallback search.
-const PREAMBLE = `#set page(paper: "a4", margin: (x: 2.2cm, y: 2.5cm))
-#set text(font: ("Libertinus Serif", "Noto Serif TC"), size: 10.5pt)
-#set par(justify: true, leading: 0.65em)
-#set heading(numbering: none)
-#show heading: it => {
-  set text(weight: "bold")
-  set text(size: (17pt, 13.5pt, 11.5pt, 10.5pt).at(calc.min(it.level - 1, 3)))
-  v(0.5em, weak: true)
-  it.body
-  v(0.35em, weak: true)
-}
-#show raw.where(block: true): it => block(fill: rgb("#f4f4f5"), inset: 8pt, radius: 3pt, width: 100%, it)
-#show raw.where(block: false): it => box(fill: rgb("#f0f0f0"), inset: (x: 3pt, y: 0pt), outset: (y: 2pt), radius: 2pt, it)
-#show link: it => text(fill: rgb("#2563eb"), it)
-
-`
-
-// Converts EveGlyph-MD (frontmatter stripped) source to Typst markup.
+// Theme + layout selection (roadmap Phase 4: Typst Theme Compiler) — an
+// optional `typst_theme` / `typst_layout` frontmatter key picks a
+// TYPST_THEMES / TYPST_LAYOUTS id (src/typst/theme.js, layout.js); anything
+// unset or unrecognized falls back to the defaults, which are built to
+// match the pre-Phase-4 hardcoded preamble exactly — a document with no
+// opinion on this renders the same PDF as before this phase, not a
+// surprise change.
 export function markdownToTypst(source) {
-  const { body } = parseFrontmatter(source)
-  return PREAMBLE + convertBody(body)
+  const { data, body } = parseFrontmatter(source)
+  const preamble = buildPreamble(data.typst_theme, data.typst_layout)
+  pendingAimdcBlocks = []
+  let typst = convertBody(body)
+  if (pendingAimdcBlocks.length) {
+    const aimdcDoc = evaluateDocument(pendingAimdcBlocks)
+    typst = typst.replace(/AIMDC_TYPST_PLACEHOLDER_(\d+)/g, (_, i) => renderAimdcBlockTypst(pendingAimdcBlocks[Number(i)], aimdcDoc))
+    // {{ id.field }} inline references — resolved from the SAME evaluated
+    // graph as the block rendering above, so a PDF export shows identical
+    // computed values to the live preview, not a second guess at them.
+    typst = typst.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, path) => {
+      try { return esc(fmtAimdcValue(resolveRef(path, aimdcDoc.byId, aimdcDoc.results))) }
+      catch (e) { return `#text(fill: rgb("#ef4444"))[{{ ${esc(path)}: ${esc(e.message)} }}]` }
+    })
+  }
+  return preamble + typst
 }

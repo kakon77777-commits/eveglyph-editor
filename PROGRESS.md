@@ -1,9 +1,107 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-18
-> (roadmap Phase 3 — AIMD-C v0.1 computable-document core, replacing the old
-> Logic_Node/Coupling Node syntax entirely).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-21
+> (roadmap Phase 4 — Typst Theme Compiler + AIMD-C Projection connection).
+
+## Typst Theme Compiler + AIMD-C Projection (roadmap Phase 4, 2026-07-21)
+
+Fourth phase of the roadmap (`EveGlyph-Editor-Roadmap-v0.6.md`, internal repo
+only): "多後端渲染 Phase 3 — Typst Theme Compiler ＋ AIMD-C 的 Projection 銜接".
+Two deliverables, both from the Multi-Backend Semantic Rendering whitepaper's
+§5.1 ("Theme Token + Layout Profile + Publication Rules → Typst Program") and
+§8.1 (Backend Registry spanning every rendering domain, not just math).
+
+- **Theme Token + Layout Profile system** — new `src/typst/theme.js` (2
+  themes: `evemiss-serif-light`, the default, and `evemiss-classic-light`;
+  each declares typography, scale, colors, spacing) and `src/typst/layout.js`
+  (3 layouts: `academic-paper`, `technical-whitepaper` — the default —, and
+  `long-form-book`; each declares page size/margins, paragraph rules, and
+  whether equations get numbered). `src/typst/preamble.js`'s `buildPreamble()`
+  combines a theme + layout into real Typst `#set`/`#show` rules, replacing
+  `typstconvert.js`'s previously-hardcoded `PREAMBLE` string outright. A
+  document opts in via frontmatter (`typst_theme:` / `typst_layout:`); with
+  neither set, output is byte-for-byte the same PDF as before this phase — an
+  explicit backward-compatibility goal, not an accident. Caught and fixed
+  twice during testing: the default theme's font scale (`19pt/15pt/13.5pt`)
+  didn't match the original hardcoded values (`17pt/13.5pt/11.5pt`), and the
+  default layout shipped with `numbering.equations: true` when the original
+  preamble never numbered equations — both would have silently changed
+  default output for documents that never opted into anything new. Fixed to
+  match exactly.
+- **Semantic component numbering** — Theorem/Lemma/Definition callouts now
+  get real sequential numbers (`Theorem 1`, `Theorem 2`, ...) via Typst's
+  `#counter("eg-theorem").step()` + `#context counter(...).display()`
+  mechanism (Typst 0.12+ requires `#context` to read a live counter value —
+  confirmed via an isolated test before wiring into `calloutBox()` for real).
+  Equation numbering (`#set math.equation(numbering: "(1)")`) is wired the
+  same way, gated by the layout profile's `numbering.equations` flag —
+  off by default (see above), on for `academic-paper`.
+- **AIMD-C → Typst Projection** — the actual "Projection meets Backend
+  Router" deliverable: AIMD-C blocks (`aimd-value`/`function`/`compute`/
+  `assert`/`table`/`view`) now render as real typeset Typst output in PDF
+  export, not the placeholder callout box they fell back to since Phase 3.
+  `typstconvert.js` imports `aimdc/parser.js` and `aimdc/graph.js` directly
+  (both pure logic, no DOM dependency, confirmed reusable as-is) and runs a
+  parallel Typst renderer (`renderAimdcBlockTypst`, `renderAimdcTableTypst`,
+  ...) mirroring `render.js`'s HTML renderer block-for-block, using the same
+  two-pass placeholder-then-substitute pattern `preview.js` already uses for
+  HTML — placeholders emitted during body conversion, then replaced once the
+  whole document's dependency graph has evaluated (a block's result can be
+  referenced from anywhere in the document, same reasoning as Phase 3's HTML
+  path), then `{{ id.field }}` inline refs resolved from that same evaluated
+  graph. One real bug found and fixed: the `aimd-view{renderer="formula"}`
+  case generated Typst math source like `$ area = 12.57 
+  
+ — Typst math
+  mode treats bare multi-letter words as variable references, not literal
+  text, so this failed to compile with "unknown variable: area". Fixed by
+  quoting the label as a string literal (`$ "area" = 12.57 
+  
+`).
+- **World IR registered in the Backend Registry, by name only** — per Neo's
+  confirmed decision going into this phase (World IR stays exactly as-is, no
+  internal refactor to `viewregistry.js`/`validate.js`). New
+  `src/visual/registry.js` is a deliberately thin stub: one entry
+  (`world-renderer`) so the Backend Registry concept has an honest presence
+  for the visual domain instead of silently omitting the one backend type
+  that was explicitly discussed. It is not yet wired into any render path —
+  full Visual IR (chart/diagram/function-plot projections, capability
+  negotiation, safe rewrite, mirroring what Phase 1–2b built for math) is
+  roadmap Phase 5, not this one.
+- **Verified**: `examples/aimd-demo.md` (all 14 blocks, including the 2
+  deliberately-failing cases) compiles end-to-end to a 65,161-byte PDF with
+  zero unfilled placeholders. Regression pass across `welcome.md`,
+  `the-eveglyph-loop.md`, `typst-export-demo.md` — all compile successfully,
+  no change in output for documents that don't opt into a theme/layout. All
+  touched files pass `node --check`; the new `src/typst/*.js` and
+  `src/visual/registry.js` modules confirmed loading cleanly over Vite's dev
+  server in the real browser (200 OK, zero console errors) — full drag-through
+  UI verification of the PDF export path itself uses the same isolated
+  Node-harness method established in Phase 1–3 (the app's File System Access
+  API requires a real native folder picker automation can't drive; the
+  Node harness imports and exercises the exact same conversion functions the
+  browser calls, which is the reliable way to test this specific pipeline).
+- **Found, not fixed — pre-existing, out-of-scope bug**: regression testing
+  turned up that `examples/math-corpus.md` fails to compile to PDF, with
+  "unknown variable: ce" (from `\ce{H2O}`, mhchem chemistry notation) and
+  "unknown variable: notarealcommand" (the deliberately-undefined-macro test
+  case). Isolated testing narrowed this precisely: `multline`, `tikzcd`, and
+  `split` cases all still compile fine — only unsupported/undefined LaTeX
+  *commands* fail, not unsupported *environments*. The existing safety net in
+  `restoreMath()` (`/\\(begin|end)\{/` test) only catches the environment
+  case, honestly falling back to literal text; it has no equivalent for a
+  command that `tex2typst` silently converts into a bare (and therefore
+  unknown) Typst identifier reference instead of erroring. Confirmed via
+  code-path tracing that this predates Phase 4 entirely — none of this
+  phase's edits touch `extractMath`/`restoreMath`/`tex2typst`. Not fixed in
+  this pass: `restoreMath()` is currently synchronous (a plain regex
+  `.replace()` callback), and a proper fix (validating each generated Typst
+  formula snippet compiles before embedding it, falling back to text if not)
+  needs an actual Typst compile call, which is async — that would cascade
+  `restoreMath` → `convertMarkdownFragment` → `block`/`list`/`convertBody` →
+  `markdownToTypst` all needing to become async, a materially bigger change
+  than this phase's stated scope. Left as a known, precisely-scoped follow-up.
 
 ## AIMD-C v0.1 — computable document core (roadmap Phase 3, 2026-07-18)
 
