@@ -1,8 +1,95 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-21
-> (roadmap Phase 4 — Typst Theme Compiler + AIMD-C Projection connection).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-22
+> (MCP server v1, local stdio).
+
+## MCP server v1 — local stdio (2026-07-22)
+
+Not a roadmap-v0.6 phase — a separate, ad hoc request: "我未來可能不一定會在本地端處理而已...
+要是有MCP的話，AI就可以直接用這個處理了" (Neo — I might not always be working locally in the
+future; with MCP, AI could work with this directly). Surfaced a genuine architecture fork
+before writing anything (local stdio vs. local+tunnel vs. fully hosted/remote — very
+different security models and effort) via AskUserQuestion; Neo's call: start with local
+stdio, remote reachability is an explicit later decision, not bundled in now.
+
+New `mcp-server.js` at the repo root (parallel to `vite-agent-bridge.js`, not inside
+`src/` — same top-level placement, same reasoning: it's a standalone Node entry point, not
+a browser module). Built on the official `@modelcontextprotocol/sdk` (`registerTool` API,
+verified against the installed package's own `.d.ts` rather than assumed from memory,
+since I hadn't used this exact SDK version before) over `StdioServerTransport` — no HTTP,
+no port, communicates over stdin/stdout with whatever MCP client spawns it.
+
+**Deliberately a standalone implementation, not an import of `vite-agent-bridge.js`** —
+that file is a Vite dev-server plugin; importing it would run its whole module-scope setup
+(Vite plugin object construction, monitor-file path resolution, etc.) as a side effect for
+no benefit. Instead this duplicates the ~5 small, genuinely pure helpers it needs
+(`resolveInside` path-escape guard, `isTextFile`/`listFiles`, `detectFileEncoding`/
+`decodeFileBuffer` via the already-installed `jschardet`/`iconv-lite`) — same pattern
+already used elsewhere in this project when DOM/Vite-coupling would otherwise force an
+awkward import (e.g. the `[\w-]+` block-regex fix that had to land in both `preview.js`
+and `typstconvert.js` separately, not shared).
+
+**Five tools**: `list_files` (workspace file tree, text files only), `read_file` /
+`write_file` (encoding-aware read, UTF-8 write, both workspace-confined), `evaluate_aimdc`
+(imports `src/aimdc/parser.js` + `graph.js` directly — both confirmed DOM-independent back
+in Phase 3, paying off a second time this session — parses `::: aimd-* :::` blocks from
+raw content and runs the real dependency-graph evaluator, same engine the live preview and
+Phase 4's Typst export use), `validate_world_ir` (imports `src/validate.js` directly, also
+confirmed pure; the tiny `kind:` sniffer regexes were duplicated rather than importing
+`smview.js`/`entityview.js`, which pull in CodeMirror/editor.js DOM-coupled modules a
+stdio Node process can't load).
+
+**Workspace confinement mirrors the bridge's model but is supplied differently**: the
+bridge pins a workspace via a UI "open folder" step; this server has no UI, so the
+workspace root is a required startup argument (`node mcp-server.js <path>` — refuses to
+start without one, no implicit cwd fallback) and every file op resolves against it with
+the same escape-rejection logic as `resolveInside`.
+
+**No diff-review layer of its own, decided deliberately not by omission**: `write_file`
+writes immediately, no git-snapshot/Accept-Reject step. Local-agent mode needs that layer
+because a CLI agent runs autonomously with no human watching each edit; an MCP host
+(Claude Desktop, Claude Code, etc.) already shows the human a per-tool-call approval
+prompt before anything runs, which fills the same role. If Neo wants git-diff-based
+review specifically for MCP writes too, that's a real, separate follow-up, not assumed
+needed here.
+
+**Verified end-to-end with a real MCP client** (not just reading the code): wrote a
+throwaway test script using the SDK's own `Client` + `StdioClientTransport` against a
+scratch workspace, spawning the real server as a subprocess. Confirmed: `list_files`
+returns the right file set; `read_file` round-trips UTF-8 content with correct encoding
+detection; `evaluate_aimdc` against a real circle-area fixture computes the correct
+result (78.53975) with a proper ledger entry; `write_file` creates nested directories and
+the new file appears in a follow-up `list_files`; `validate_world_ir` returns zero issues
+for a valid state machine and the correct `initial_state_undefined` error (with the
+existing zh-Hant message) for a broken one; a `read_file` path-escape attempt
+(`../../../../windows/win.ini`) is correctly rejected with "path escapes workspace"; a
+missing-file read returns a clear `ENOENT` tool error instead of crashing the server.
+Test client and fixtures deleted after use (throwaway, not committed — same "prototype in
+isolation, discard after" pattern used for AIMD-C's `_aimdc-test.mjs` in Phase 3).
+
+**One real gap found while writing the first test fixture (not a server bug)**: my
+hand-written `aimd-function` block used `input:`/`output:` immediately followed by the
+expression, which doesn't match the real syntax (needs an explicit `expression:` label and
+blank-line separation between sections, confirmed against `examples/aimd-demo.md`) —
+caught this by testing against a real worked example instead of trusting a hand-rolled
+fixture, same discipline as every AIMD-C bug-hunt earlier in this project.
+
+`npm audit` (run automatically by the fresh `npm install @modelcontextprotocol/sdk zod`)
+flagged a moderate path-traversal advisory in `@hono/node-server`, a transitive dependency
+of the SDK's *optional* HTTP-transport code. This server only imports the stdio transport,
+never Hono, so the vulnerable code path is never loaded — noted honestly in `SECURITY.md`
+rather than silently ignored or panic-fixed with a breaking downgrade, same posture as the
+`dompurify` advisory caught incidentally back in roadmap Phase 2.
+
+Documented in `README.md` (new "MCP server" section + a Claude Desktop config example),
+`SECURITY.md` (new section covering the different trust model — no diff-review layer,
+relies on the MCP host's own approval UI, stdio-only so no LAN-exposure story to get
+wrong), and `USER-GUIDE.md`. New `npm run mcp -- <path>` convenience script.
+
+NEXT = Neo's call — remote/tunnel reachability (explicitly deferred, not decided against),
+or whichever other open item he picks (roadmap Phase 5 Visual IR, internal-only SymPy
+reconnection).
 
 ## Typst Theme Compiler + AIMD-C Projection (roadmap Phase 4, 2026-07-21)
 

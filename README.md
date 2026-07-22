@@ -20,6 +20,7 @@ It is the editor half of **EveGlyph-MD**, a semantic-first Markdown format/proto
 - **EveGlyph-MD frontmatter** — a lightweight `type` / `status` / `tags` classification with a status-bar chip and preview badges; the active document's class is handed to the agent as sanitized, non-instruction metadata.
 - **World Studio draft generation** — the **Studio** tab asks the configured cloud AI for a bounded state-machine draft containing states, variables, optional controlled random ranges, events, language instructions, responses, and transitions. The result is parsed and validated locally before it can be applied to the editor; **Check with Runtime** can send it to the Runtime's read-only World IR importer, edit the returned mapping draft, and validate it again. It never writes Runtime State or saves a file automatically.
 - **Workspace memory (`.eveglyph/`)** — per-workspace `rules.md` / `glossary.md` / `memory/*` injected into every agent run; a back-stage **Monitor** tab reads the diagnostic stream.
+- **MCP server** (`mcp-server.js`) — a standalone stdio [MCP](https://modelcontextprotocol.io) server so any MCP-capable client (Claude Desktop, Claude Code, etc.) can read/write a workspace and run AIMD-C/World-IR logic directly, no browser needed. See [below](#mcp-server-for-ai-clients).
 
 ## Quick start
 
@@ -55,6 +56,37 @@ Then open <http://localhost:5173>.
 ```
 browser frontend  ⇄  vite-agent-bridge (/api)  ⇄  filesystem · git · CLI agent
 ```
+
+## MCP server (for AI clients)
+
+`mcp-server.js` is a separate, standalone [MCP](https://modelcontextprotocol.io) server — a stdio process any MCP-capable client (Claude Desktop, Claude Code, or any other MCP host) can connect to directly, without a browser tab or `npm run dev` running. It operates on a workspace folder you point it at and exposes:
+
+- `list_files` — every text file in the workspace
+- `read_file` / `write_file` — read/write a file by relative path (encoding-aware on read)
+- `evaluate_aimdc` — parse and evaluate a document's AIMD-C blocks (same engine as the live preview / PDF export)
+- `validate_world_ir` — validate a World IR YAML document (state machine / entity / entity list)
+
+Run it directly:
+
+```sh
+node mcp-server.js /absolute/path/to/your/workspace
+# or: npm run mcp -- /absolute/path/to/your/workspace
+```
+
+Point an MCP client at it — for example, in Claude Desktop's `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "eveglyph-editor": {
+      "command": "node",
+      "args": ["/absolute/path/to/eveglyph-editor/mcp-server.js", "/absolute/path/to/your/workspace"]
+    }
+  }
+}
+```
+
+This is v1, deliberately scoped to **local stdio only** — no remote/tunnel-based reachability yet, that's a separate future decision. See [SECURITY.md](SECURITY.md) for its trust model, which differs from the bridge's (no diff-review layer of its own — it relies on the MCP host's own per-call approval).
 
 ## Security
 

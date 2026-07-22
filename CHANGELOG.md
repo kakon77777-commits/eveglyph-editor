@@ -6,6 +6,13 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **MCP server** (`mcp-server.js`) — a standalone, local stdio [MCP](https://modelcontextprotocol.io)
+  server, so any MCP-capable client (Claude Desktop, Claude Code, etc.) can work with an
+  EveGlyph workspace directly, no browser tab required. Five tools: `list_files`,
+  `read_file`, `write_file`, `evaluate_aimdc` (same engine the live preview/PDF export
+  use), and `validate_world_ir` (same validator the World IR views use). Run with
+  `npm run mcp -- /path/to/workspace`. v1 is deliberately local-only — no remote/tunnel
+  reachability yet, that's a separate future decision.
 - **PDF theme & layout** — PDF export now supports named themes
   (`typst_theme:` in frontmatter — `evemiss-serif-light`, the default, or
   `evemiss-classic-light`) and layout profiles (`typst_layout:` —

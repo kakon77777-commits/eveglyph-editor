@@ -32,6 +32,16 @@ When the provider is **Local Agent (CLI)**:
 
 If the workspace contains a `.eveglyph/rules.md`, EveGlyph Editor injects it **verbatim, with elevated authority** ("follow these before anything else") into the agent's prompt on *every* run — plus `.eveglyph/glossary.md` if present. Treat these as **trusted but attacker-controllable configuration**: when you open an unfamiliar workspace, review `.eveglyph/rules.md` before running an agent. This does not widen the core risk (the agent already has auto-approve over the same files), but the rules are auto-loaded without re-prompting, so a malicious one could steer the agent silently.
 
+## The MCP server (`mcp-server.js`)
+
+A separate trust model from the bridge above — read this before pointing an MCP client at it.
+
+- **stdio only, no network exposure.** The server communicates over stdin/stdout with whatever process spawned it (your MCP client) — it never opens a TCP port, so there is no localhost-gating story to get right or wrong, and no LAN-exposure risk analogous to the bridge's `--host` caveat. This is deliberately the v1 scope (Neo's call, 2026-07-22): local stdio only, no remote/tunnel reachability — that would need its own, separate security design (real authentication, not just "the process is local") before being built.
+- **Workspace root is explicit and required.** The server refuses to start without a workspace-root argument (`node mcp-server.js <path>`) — there is no implicit "confine to cwd" fallback. Every file operation resolves the target path against that root and rejects anything that would escape it (mirrors the bridge's `resolveInside`), verified with an explicit `../../..` escape-attempt test during development.
+- **No diff-review layer of its own.** Unlike local-agent mode, `write_file` here does not snapshot/diff/require an Accept step — it writes immediately. This is intentional, not an oversight: an MCP host (Claude Desktop, Claude Code, etc.) already gates each tool call through its own human-approval UI before it runs, which fills the same "a human sees this before it happens" role the bridge's Accept/Reject view fills for an autonomous CLI agent. If the workspace is a git repo, your normal `git diff`/`git log` still works exactly as before — nothing about this server changes how git sees the files.
+- **`evaluate_aimdc` runs on untrusted expression text**, same as the in-app preview — it uses the same closed-grammar, no-`eval`/`Function` evaluator (`src/aimdc/evaluator.js`), so a malformed or adversarial AIMD-C block can only produce a parse/type error, never arbitrary code execution.
+- **Known, not-applicable advisory**: `npm audit` flags a moderate path-traversal issue in `@hono/node-server` (a transitive dependency of `@modelcontextprotocol/sdk`'s optional HTTP-transport code, `GHSA-frvp-7c67-39w9`). This server only ever imports the SDK's stdio transport, never Hono or any HTTP transport, so this advisory's actual code path is never loaded — noted here rather than silently ignored, not treated as urgent.
+
 ## API keys
 
 - Cloud-provider API keys are stored in the browser's **`localStorage`, in plaintext** (key `eveglyph_cfg`). This is convenient for local dev but is **not** secure storage. Don't use it on a shared or untrusted machine. A future desktop build would move keys to the OS keychain.

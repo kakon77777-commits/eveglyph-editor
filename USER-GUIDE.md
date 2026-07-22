@@ -249,6 +249,23 @@ EveGlyph never writes Runtime State through this panel.
 Edit `functions.json` in the normal editor or through a reviewed agent diff,
 compile the package, then reload the catalog to preview the validated package.
 
+## MCP server (for external AI clients)
+
+Everything above runs inside the app itself. There's a separate way in: `mcp-server.js`,
+a standalone [MCP](https://modelcontextprotocol.io) server any MCP-capable client (Claude
+Desktop, Claude Code, ChatGPT with MCP support, etc.) can connect to directly — no browser
+tab, no `npm run dev` needed. Useful when you want to work on a workspace from a client
+that isn't this app.
+
+Run `node mcp-server.js /path/to/workspace` (or `npm run mcp -- /path/to/workspace`), or
+point your MCP client's config at it directly (see [README.md](README.md) for a Claude
+Desktop config example). It exposes five tools: `list_files`, `read_file`, `write_file`,
+`evaluate_aimdc` (runs the same AIMD-C engine the live preview uses), and
+`validate_world_ir` (same validator the World IR views use). Every file operation is
+confined to the workspace folder you pointed it at, same as the in-app bridge — but unlike
+local-agent mode, there's no built-in diff-review step here; your MCP client's own
+per-call approval fills that role instead. See [SECURITY.md](SECURITY.md) for the details.
+
 ## Settings reference
 
 | Setting | What it does |
