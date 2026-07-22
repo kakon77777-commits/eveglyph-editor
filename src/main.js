@@ -34,7 +34,10 @@ import {
   useBridgeCwd,
   connectAgent,
   disconnectAgent,
-  setMsg
+  setMsg,
+  mcpToggle,
+  mcpGenerateToken,
+  mcpRefreshLocalCmd
 } from './settings.js'
 import { statusUpdate }            from './status.js'
 import { monitor }                 from './monitor.js'
@@ -200,7 +203,23 @@ function bindAll() {
   document.getElementById('btn-agent-connect').onclick  = () => { monitor('click', { target: 'agent-connect' }); connectAgent() }
   document.getElementById('btn-agent-disconnect').onclick = () => { monitor('click', { target: 'agent-disconnect' }); disconnectAgent() }
   document.getElementById('s-agent').onchange = () => { monitor('settings:agent', { agent: document.getElementById('s-agent').value }); connectAgent() }
-  document.getElementById('s-workspace').onchange = () => { monitor('settings:workspace', { workspace: document.getElementById('s-workspace').value }); connectAgent() }
+  document.getElementById('s-workspace').onchange = () => {
+    monitor('settings:workspace', { workspace: document.getElementById('s-workspace').value })
+    connectAgent()
+    mcpRefreshLocalCmd()
+  }
+  document.getElementById('s-mcp-enabled').onchange = e => { monitor('click', { target: 'mcp-toggle' }); mcpToggle(e.target.checked) }
+  document.getElementById('btn-mcp-token-gen').onclick = () => { monitor('click', { target: 'mcp-token-gen' }); mcpGenerateToken() }
+  document.getElementById('btn-mcp-token-copy').onclick = () => {
+    monitor('click', { target: 'mcp-token-copy' })
+    const el = document.getElementById('s-mcp-token')
+    if (el.value) navigator.clipboard?.writeText(el.value).then(() => setMsg('Token copied', 'ok')).catch(() => {})
+  }
+  document.getElementById('btn-mcp-local-copy').onclick = () => {
+    monitor('click', { target: 'mcp-local-copy' })
+    const el = document.getElementById('s-mcp-local-cmd')
+    if (el.value) navigator.clipboard?.writeText(el.value).then(() => setMsg('Command copied', 'ok')).catch(() => {})
+  }
   document.getElementById('s-agentcmd').onchange = () => { monitor('settings:agentcmd', { hasOverride: Boolean(document.getElementById('s-agentcmd').value.trim()) }); connectAgent() }
   document.getElementById('s-theme').onchange = (e) => {
     S.cfg.theme = e.target.value

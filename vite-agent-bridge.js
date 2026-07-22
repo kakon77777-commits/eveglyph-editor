@@ -3,8 +3,15 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import { TextDecoder } from 'node:util'
+import { fileURLToPath } from 'node:url'
 import iconv from 'iconv-lite'
 import jschardet from 'jschardet'
+
+// This file's own directory — NOT process.cwd(), which is wherever the dev
+// server happened to be launched from (can be anywhere, e.g. a parent
+// folder), not necessarily this project's root. mcp-server-remote.js lives
+// right next to this file on disk, so resolve against that instead.
+const BRIDGE_DIR = path.dirname(fileURLToPath(import.meta.url))
 
 // Bump when the agent-resolution logic changes — surfaced in /api/agents._debug
 // so we can tell at a glance whether a running server has the latest bridge.
@@ -76,6 +83,14 @@ let monitorSeq = 0
 let monitorRotating = false
 const activeAgents = new Map()
 
+// The MCP remote server (mcp-server-remote.js), started/stopped from Settings
+// → MCP. Unlike activeAgents' one-shot streamed runs, this is one long-lived
+// background process with no attached HTTP request to hang a lifecycle off
+// of — tracked in a single slot (not a Map) since only the one opened
+// workspace can ever be exposed at a time, mirroring confirmedWorkspace
+// itself being a single slot, not a set.
+let mcpRemoteProcess = null   // { child, cwd, port, startedAt } | null
+
 // The single workspace the user has opened — pinned by /api/workspace. Every cwd-taking
 // endpoint (file I/O, git snapshot/diff/accept/reject, agent spawn) validates against it,
 // so a crafted /api request can't aim a destructive `git reset --hard`/`clean -fd` or an
@@ -91,6 +106,13 @@ function assertWorkspace(cwd) {
     throw new Error('cwd is outside the opened workspace')
   }
   return abs
+}
+
+function killMcpRemote(reason) {
+  if (!mcpRemoteProcess) return
+  emitMonitor('mcp:stop', { cwd: mcpRemoteProcess.cwd, port: mcpRemoteProcess.port, reason })
+  try { mcpRemoteProcess.child.kill() } catch { /* already gone */ }
+  mcpRemoteProcess = null
 }
 
 // ── AIMD Phase 2 — two-tier compute (whitepaper v0.5 §4.6) ──
@@ -734,6 +756,13 @@ export function agentBridge() {
     name: 'eveglyph-agent-bridge',
     apply: 'serve',
     configureServer(server) {
+      // Kill a running MCP remote server when the dev server itself stops —
+      // otherwise it's an orphaned background process the next `npm run dev`
+      // start won't know about (the exact "orphaned python server.py"
+      // problem this project already hit once with Tier 2a's verifier
+      // server, worth not repeating here).
+      server.httpServer?.on('close', () => killMcpRemote('dev-server-close'))
+
       // Gate every /api endpoint to local requests only (runs before the handlers).
       server.middlewares.use('/api', (req, res, next) => {
         if (!isLocalRequest(req)) {
@@ -1111,6 +1140,92 @@ export function agentBridge() {
           try { item.child.kill() } catch {}
         }
         json(res, 200, { ok: true, stopped })
+      })
+
+      // ── MCP remote server lifecycle (Settings → MCP toggle) ──
+      // Spawns/tracks mcp-server-remote.js as a background child process
+      // bound to the currently opened workspace. Off by default, nothing
+      // runs until the frontend explicitly asks — same "nothing runs until
+      // you opt in" posture as local-agent mode.
+      server.middlewares.use('/api/mcp/start', async (req, res, next) => {
+        if (req.method !== 'POST') return next()
+        let body
+        try { body = await readJsonBody(req) }
+        catch { res.statusCode = 400; return res.end('bad request body') }
+
+        const cwd = body.cwd || process.cwd()
+        try { assertWorkspace(cwd) }
+        catch (e) { res.statusCode = 400; return res.end(String(e?.message || e)) }
+
+        const port = Math.min(Math.max(parseInt(body.port, 10) || 8787, 1024), 65535)
+        const token = String(body.token || '')
+        if (token.length < 16) { res.statusCode = 400; return res.end('token must be at least 16 characters') }
+
+        if (mcpRemoteProcess) {
+          json(res, 200, { ok: true, running: true, alreadyRunning: true, cwd: mcpRemoteProcess.cwd, port: mcpRemoteProcess.port })
+          return
+        }
+
+        const scriptPath = path.join(BRIDGE_DIR, 'mcp-server-remote.js')
+        let child
+        try {
+          child = spawn(process.execPath, [scriptPath, cwd], {
+            env: { ...process.env, EVEGLYPH_MCP_TOKEN: token, EVEGLYPH_MCP_PORT: String(port) },
+          })
+        } catch (e) {
+          emitMonitor('mcp:error', { cwd, port, error: String(e?.message || e) })
+          res.statusCode = 500; return res.end(String(e?.message || e))
+        }
+
+        // Wait briefly for the child to confirm it's actually listening (or
+        // fail fast on a startup error, e.g. the port already being in use)
+        // before answering the request — same "spawn, then confirm" shape
+        // as elsewhere in this file, just without agent's NDJSON streaming
+        // since this is a background service, not a one-shot run.
+        const startResult = await new Promise((resolve) => {
+          let settled = false
+          const done = (payload) => { if (!settled) { settled = true; resolve(payload) } }
+          const errDec = new TextDecoder('utf-8')
+          child.stderr.on('data', d => {
+            const text = errDec.decode(d, { stream: true })
+            if (text) emitMonitor('mcp:stderr', { cwd, port, sample: text.slice(0, 500) })
+            if (text.includes('listening on')) done({ ok: true })
+          })
+          child.stdout.on('data', d => emitMonitor('mcp:stdout', { cwd, port, sample: d.toString('utf8').slice(0, 500) }))
+          child.on('error', e => done({ ok: false, error: String(e?.message || e) }))
+          child.on('exit', code => done({ ok: false, error: `process exited immediately (code ${code}) — check the Monitor tab for details` }))
+          setTimeout(() => done({ ok: true, timedOut: true }), 2000)
+        })
+
+        if (!startResult.ok) {
+          try { child.kill() } catch {}
+          emitMonitor('mcp:error', { cwd, port, error: startResult.error })
+          res.statusCode = 500; return res.end(startResult.error)
+        }
+
+        mcpRemoteProcess = { child, cwd, port, startedAt: Date.now() }
+        child.on('exit', code => {
+          if (mcpRemoteProcess?.child === child) {
+            emitMonitor('mcp:exit', { cwd, port, code })
+            mcpRemoteProcess = null
+          }
+        })
+        emitMonitor('mcp:start', { cwd, port })
+        json(res, 200, { ok: true, running: true, cwd, port })
+      })
+
+      server.middlewares.use('/api/mcp/stop', async (req, res, next) => {
+        if (req.method !== 'POST') return next()
+        const was = Boolean(mcpRemoteProcess)
+        killMcpRemote('user')
+        json(res, 200, { ok: true, stopped: was })
+      })
+
+      server.middlewares.use('/api/mcp/status', async (req, res, next) => {
+        if (req.method !== 'GET') return next()
+        json(res, 200, mcpRemoteProcess
+          ? { running: true, cwd: mcpRemoteProcess.cwd, port: mcpRemoteProcess.port, startedAt: mcpRemoteProcess.startedAt }
+          : { running: false })
       })
     }
   }

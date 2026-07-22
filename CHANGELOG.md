@@ -6,6 +6,12 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **MCP toggle in Settings** — Settings ⚙ → **Enable remote MCP server** starts/stops
+  `mcp-server-remote.js` for you (bridge-managed, no terminal needed), with a token
+  generator/copy button and a live running/stopped status. Also shows a ready-to-copy
+  **Local MCP (stdio)** command using your current workspace path. Off by default; the
+  checkbox always reflects whether the process is actually running, never a stored
+  preference.
 - **Remote MCP server** (`mcp-server-remote.js`) — the same MCP tool set as
   `mcp-server.js`, over HTTP + a required bearer token instead of stdio, so a client that
   isn't on this machine can reach it too (tunnel it with something like `cloudflared` to

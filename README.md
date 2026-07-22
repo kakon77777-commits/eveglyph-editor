@@ -104,6 +104,10 @@ cloudflared tunnel --url http://127.0.0.1:8787
 
 Then point a remote MCP client at the tunnel's `https://.../mcp` URL with header `Authorization: Bearer <your token>`. Keep the token secret — anyone who has it can read/write the workspace you pointed the server at. See [SECURITY.md](SECURITY.md) for the full trust model (no diff-review layer here either, and what a leaked token means).
 
+### Or just flip the switch in Settings
+
+Settings ⚙ → **Enable remote MCP server** does the same `mcp-server-remote.js` start/stop for you — the app's own bridge spawns and kills the process, generates a token (with a copy button), and shows the local URL once it's running. You still need to tunnel it yourself for real remote reachability; Settings also shows the ready-to-copy **Local MCP (stdio)** command for the current workspace, for an MCP client on this same machine. Off by default, and the checkbox always reflects whether the process is actually running — not a remembered preference, so a page reload never lies about it.
+
 ## Security
 
 Local-agent mode runs a CLI **with auto-approve** and lets it read, create, edit, and delete files in the workspace folder. Every file, git, and agent operation is confined server-side to the one folder you opened. You stay in control through a per-workspace confirmation and a git-snapshot **diff review** (Accept / Reject).

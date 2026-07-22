@@ -368,6 +368,53 @@
           </div>
         </div>
 
+        <!-- MCP server — separate from AI Provider above; this is how an EXTERNAL
+             AI client (not this app's own AI panel) reaches the workspace. -->
+        <div id="s-mcp-wrap" style="display:flex; flex-direction:column; gap:12px">
+          <div class="sg">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="s-mcp-enabled"> <span data-i18n="settings.mcpEnable">Enable remote MCP server</span>
+            </label>
+            <span style="font-size:10px; color:var(--t3)" data-i18n="settings.mcpEnableHint">Lets an external MCP client reach this workspace over HTTP (tunnel it yourself to go beyond this machine). Off by default.</span>
+          </div>
+
+          <div id="s-mcp-fields" style="display:none; flex-direction:column; gap:12px">
+            <div class="sg">
+              <label data-i18n="settings.mcpPort">Port</label>
+              <input type="number" id="s-mcp-port" min="1024" max="65535" placeholder="8787">
+            </div>
+            <div class="sg">
+              <label data-i18n="settings.mcpToken">Access token</label>
+              <div class="agent-row">
+                <input type="text" id="s-mcp-token" readonly data-i18n-placeholder="settings.mcpTokenPlaceholder" placeholder="(generate one)">
+                <button class="btn-s icon-btn" id="btn-mcp-token-gen" data-i18n-title="settings.mcpTokenGenTitle" title="Generate a new token">↻</button>
+                <button class="btn-s icon-btn" id="btn-mcp-token-copy" data-i18n-title="settings.mcpTokenCopyTitle" title="Copy token">⧉</button>
+              </div>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t2);margin-top:4px">
+                <input type="checkbox" id="s-mcp-token-persist"> <span data-i18n="settings.rememberDevice">Remember on this device</span> <span style="color:var(--t3)" data-i18n="settings.rememberDeviceHint">(plaintext in localStorage — see SECURITY.md)</span>
+              </label>
+            </div>
+            <div class="sg">
+              <span id="s-mcp-status" style="font-size:11px; color:var(--t3)"></span>
+            </div>
+            <div class="cfp-block cfp-warning" style="margin:0">
+              <div class="cfp-label" data-i18n="settings.mcpRemoteWarning">⚠ Remote MCP server</div>
+              <div style="font-size:11px; color:var(--t1); line-height:1.5" data-i18n="settings.mcpRemoteWarningBody">
+                Binds to 127.0.0.1 only — not reachable from outside this machine unless you tunnel it yourself (e.g. cloudflared). Once tunneled, anyone with the token can read/write this workspace, with no review step of its own. See SECURITY.md.
+              </div>
+            </div>
+          </div>
+
+          <div class="sg">
+            <label data-i18n="settings.mcpLocalLabel">Local MCP (stdio)</label>
+            <span style="font-size:10px; color:var(--t3)" data-i18n="settings.mcpLocalHint">For an MCP client on this same machine (e.g. Claude Desktop) — no server to start here, point its config at this command.</span>
+            <div class="agent-row">
+              <input type="text" id="s-mcp-local-cmd" readonly>
+              <button class="btn-s icon-btn" id="btn-mcp-local-copy" data-i18n-title="settings.mcpTokenCopyTitle" title="Copy">⧉</button>
+            </div>
+          </div>
+        </div>
+
         <div class="sg">
           <label><span data-i18n="settings.defaultEncoding">Default encoding</span> <span style="color:var(--t3)" data-i18n="settings.defaultEncodingHint">(fallback &amp; new files)</span></label>
           <select id="s-default-encoding"></select>

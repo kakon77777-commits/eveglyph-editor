@@ -225,6 +225,15 @@ export function cfgLoad() {
   const nSt = $('s-eveglyph-stamp');   if (nSt) nSt.checked = nm.stampNewFiles !== false
   const nIn = $('s-eveglyph-inject');  if (nIn) nIn.checked = nm.injectIntoContext !== false
 
+  const mcpPortEl = $('s-mcp-port')
+  if (mcpPortEl) mcpPortEl.value = S.cfg.mcpPort || 8787
+  const mcpTokenEl = $('s-mcp-token')
+  if (mcpTokenEl) mcpTokenEl.value = S.cfg.mcpToken || ''
+  const mcpPersistEl = $('s-mcp-token-persist')
+  if (mcpPersistEl) mcpPersistEl.checked = Boolean(S.cfg.mcpTokenPersist)
+  mcpRefreshLocalCmd()
+  mcpRefreshStatus()
+
   toggleProviderFields(S.cfg.provider)
   populateModels()   // seed the model picker (and auto-fetch if a key is already saved)
   if (S.cfg.provider === 'local-agent') {
@@ -275,13 +284,18 @@ export function cfgSave(showMessage = true) {
       injectIntoContext: $('s-eveglyph-inject')  ? $('s-eveglyph-inject').checked  : (S.cfg.eveglyphMd?.injectIntoContext !== false),
       defaultType:       $('s-eveglyph-type')?.value   || S.cfg.eveglyphMd?.defaultType   || CONFIG.eveglyphMd.defaultType,
       defaultStatus:     $('s-eveglyph-status')?.value || S.cfg.eveglyphMd?.defaultStatus || CONFIG.eveglyphMd.defaultStatus,
-    }
+    },
+    mcpPort: parseInt($('s-mcp-port')?.value, 10) || S.cfg.mcpPort || 8787,
+    mcpToken: $('s-mcp-token')?.value || S.cfg.mcpToken || '',
+    mcpTokenPersist: $('s-mcp-token-persist') ? $('s-mcp-token-persist').checked : Boolean(S.cfg.mcpTokenPersist),
   }
 
-  // S.cfg.key keeps the real value in memory for this session either way (so the
-  // provider works immediately); only the persisted copy drops it when the user
-  // opted out of "Remember on this device."
-  const toPersist = S.cfg.keyPersist === false ? { ...S.cfg, key: '' } : S.cfg
+  // S.cfg.key/mcpToken keep their real values in memory for this session either
+  // way (so the provider/MCP toggle both work immediately); only the persisted
+  // copy drops them when the user opted out of "Remember on this device."
+  const toPersist = { ...S.cfg }
+  if (S.cfg.keyPersist === false) toPersist.key = ''
+  if (!S.cfg.mcpTokenPersist) toPersist.mcpToken = ''
   localStorage.setItem(CFG_KEY, JSON.stringify(toPersist))
   if (showMessage) {
     setMsg('Saved', 'ok')
@@ -366,6 +380,110 @@ export function disconnectAgent() {
   S.agentConnected = false
   setMsg('Agent disconnected')
   statusUpdate()
+}
+
+// ── MCP server (Settings → MCP) ──────────────────────────────────────────
+// The remote MCP server is bridge-managed background state, not a Settings
+// preference — the checkbox always reflects a live GET /api/mcp/status
+// check, never a stored "was it on last time" flag, so a page reload can't
+// make the UI lie about whether a process is actually running (same
+// "confirmation lives in the session, not persisted" posture local-agent
+// mode already uses, extended to a literal running/stopped process here).
+function mcpWorkspaceCwd() {
+  return S.cfg.workspace || S.agentBridge?.cwd || ''
+}
+
+function mcpGenToken() {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+}
+
+export function mcpGenerateToken() {
+  const el = $('s-mcp-token')
+  if (!el) return
+  el.value = mcpGenToken()
+  S.cfg.mcpToken = el.value
+  if ($('s-mcp-token-persist')?.checked) cfgSave(false)
+  monitor('mcp:token:generate', {})
+}
+
+export function mcpRefreshLocalCmd() {
+  const el = $('s-mcp-local-cmd')
+  if (!el) return
+  const cwd = mcpWorkspaceCwd()
+  el.value = cwd ? `node mcp-server.js "${cwd}"` : ''
+  el.placeholder = cwd ? '' : 'set a workspace path above first'
+}
+
+export async function mcpRefreshStatus() {
+  const chk = $('s-mcp-enabled')
+  const fields = $('s-mcp-fields')
+  const statusEl = $('s-mcp-status')
+  try {
+    const r = await fetch('/api/mcp/status')
+    const info = await r.json()
+    if (chk) chk.checked = Boolean(info.running)
+    if (fields) fields.style.display = info.running ? 'flex' : 'none'
+    if (statusEl) statusEl.textContent = info.running ? `Running — http://127.0.0.1:${info.port}/mcp` : ''
+    return info
+  } catch {
+    if (chk) chk.checked = false
+    if (fields) fields.style.display = 'none'
+    return { running: false }
+  }
+}
+
+export async function mcpToggle(enabled) {
+  const fields = $('s-mcp-fields')
+  const statusEl = $('s-mcp-status')
+  const chk = $('s-mcp-enabled')
+
+  if (!enabled) {
+    if (fields) fields.style.display = 'none'
+    if (statusEl) statusEl.textContent = ''
+    try { await fetch('/api/mcp/stop', { method: 'POST' }) } catch { /* bridge already offline */ }
+    monitor('mcp:toggle', { enabled: false })
+    return
+  }
+
+  if (fields) fields.style.display = 'flex'
+  const cwd = mcpWorkspaceCwd()
+  if (!cwd) {
+    if (chk) chk.checked = false
+    if (fields) fields.style.display = 'none'
+    setMsg('Set a workspace path first (Local Agent workspace field above, or Open Folder)', 'err')
+    return
+  }
+
+  let token = $('s-mcp-token')?.value
+  if (!token) { mcpGenerateToken(); token = $('s-mcp-token').value }
+  const port = parseInt($('s-mcp-port')?.value, 10) || 8787
+
+  if (statusEl) statusEl.textContent = 'Starting…'
+  try {
+    const r = await fetch('/api/mcp/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cwd, port, token }),
+    })
+    if (!r.ok) {
+      const text = await r.text()
+      if (chk) chk.checked = false
+      if (fields) fields.style.display = 'none'
+      setMsg(`MCP server failed to start: ${text}`, 'err')
+      monitor('mcp:toggle:error', { error: text })
+      return
+    }
+    const info = await r.json()
+    if (statusEl) statusEl.textContent = `Running — http://127.0.0.1:${info.port}/mcp`
+    monitor('mcp:toggle', { enabled: true, port: info.port })
+  } catch (e) {
+    if (chk) chk.checked = false
+    if (fields) fields.style.display = 'none'
+    setMsg('Bridge offline — cannot start MCP server', 'err')
+    monitor('mcp:toggle:error', { error: String(e?.message || e) })
+  }
 }
 
 export async function cfgTest() {

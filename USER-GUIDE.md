@@ -272,6 +272,12 @@ reach it from anywhere. Full setup in [README.md](README.md#remote-access-over-a
 its trust model is meaningfully different from the local version (a leaked token means
 direct remote access, no second gate) — read [SECURITY.md](SECURITY.md) before exposing it.
 
+Or skip the terminal: **Settings ⚙ → Enable remote MCP server** starts/stops the same
+remote server for you — the app generates a token (copy button included) and shows the
+running URL. You still need your own tunnel to reach it from outside this machine.
+Settings also shows a ready-to-copy **Local MCP (stdio)** command using your current
+workspace path, for the stdio version above.
+
 ## Settings reference
 
 | Setting | What it does |
@@ -282,6 +288,7 @@ direct remote access, no second gate) — read [SECURITY.md](SECURITY.md) before
 | AI Provider | Anthropic / OpenAI-compatible / Local Agent |
 | Default encoding | Fallback when a file's encoding can't be confidently detected, and the encoding used for new files |
 | `.eveglyph/` memory toggles | Which pieces of workspace memory get sent to the agent |
+| Enable remote MCP server | Starts/stops `mcp-server-remote.js` for the current workspace, bridge-managed. Off by default; always reflects whether the process is actually running, not a remembered setting. See [MCP server](#mcp-server-for-external-ai-clients) above. |
 | EveGlyph-MD frontmatter | Whether new files get stamped, and the default `type`/`status` |
 
 Per-file encoding (Big5 / GBK / Shift-JIS / UTF-8 / …) is detected automatically

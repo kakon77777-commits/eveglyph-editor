@@ -2,7 +2,58 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-07-22
-> (MCP server — remote/tunnel reachability).
+> (MCP Settings toggle).
+
+## MCP server — Settings toggle (2026-07-22, same day as remote reachability)
+
+Neo: "先把MCP功能設成開關功能跟在設置那邊可調" (make MCP a toggle, adjustable in
+Settings). Since `mcp-server.js` (stdio) has no runtime state the app could meaningfully
+toggle — an MCP host spawns it on its own schedule, the app never does — this landed as
+two different things depending on which server actually has an on/off state:
+
+- **Remote server**: real bridge-managed lifecycle. New `vite-agent-bridge.js` endpoints
+  `/api/mcp/start`/`/api/mcp/stop`/`/api/mcp/status`, gated by the same `isLocalRequest` +
+  `assertWorkspace` checks every other bridge endpoint uses. `mcpRemoteProcess` is a single
+  tracked slot (not a Map, mirroring `confirmedWorkspace` itself being one slot) — spawns
+  `mcp-server-remote.js` as a child process, waits briefly for it to confirm it's actually
+  listening (or fail fast, e.g. port already in use) before answering the start request,
+  and registers a `server.httpServer.on('close', ...)` cleanup so a dev-server restart
+  can't leave it orphaned (the exact "orphaned python server.py" class of problem this
+  project already hit once during Tier 2a's SymPy verifier work).
+- **Local (stdio) server**: no process to start/stop from the app, so instead Settings
+  shows a ready-to-copy `node mcp-server.js "<workspace>"` command, auto-filled from
+  whatever workspace path is already configured (the same `S.cfg.workspace` field local-
+  agent mode already collects — no new input asked for).
+
+**Settings UI**: checkbox (`s-mcp-enabled`) always reflects a live `GET /api/mcp/status`
+check, not a stored preference — a page reload can never show the toggle in a state that
+doesn't match reality (the exact "confirmation lives in the session, not persisted"
+posture local-agent mode already uses for its own connection state, extended here to an
+actual OS process). Token generated client-side (`crypto.getRandomValues`), shown with
+copy/regenerate controls, persisted to `S.cfg` only if a "Remember on this device"
+checkbox is opted in — same pattern the API-key field already established (`keyPersist` →
+`mcpTokenPersist`).
+
+**One real bug found and fixed during verification, not before shipping**: the bridge
+resolved `mcp-server-remote.js`'s path via `path.resolve(process.cwd(), 'mcp-server-remote.js')`
+— `process.cwd()` is wherever the dev-server process happened to be launched from, which is
+NOT reliably this project's root (it resolved to a *parent* directory in testing), so the
+spawn failed with `Cannot find module`. Fixed by resolving the bridge file's own directory
+via `fileURLToPath(import.meta.url)` instead and joining from there — a directory a Node
+ES module can always find regardless of the process's launch-time working directory.
+**General lesson, not just for this file: never use `process.cwd()` to locate a sibling
+file on disk relative to the CURRENT MODULE — it answers "where was this process started
+from," not "where does this file live."**
+
+**Verified end-to-end in a real browser** (not just reading the code): switched AI
+Provider to Local Agent, typed the workspace path into the existing field, confirmed the
+Local MCP command box auto-filled correctly; clicked the Settings checkbox and confirmed
+(via a real `StreamableHTTPClientTransport` client connecting to the bridge-started
+process) that `list_files` returns the real workspace contents; toggled off and confirmed
+via `curl` that the port is genuinely closed, not just hidden in the UI; confirmed the
+status text clears when disabled; confirmed zh-TW translations render correctly for every
+new string (11 new i18n keys, checked present in both `en.js` and `zh-TW.js` — zero gaps);
+zero console errors throughout.
 
 ## MCP server — remote/tunnel reachability (2026-07-22, same day as v1)
 
