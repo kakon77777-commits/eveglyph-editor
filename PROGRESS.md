@@ -2,7 +2,72 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-07-22
-> (MCP server v1, local stdio).
+> (MCP server — remote/tunnel reachability).
+
+## MCP server — remote/tunnel reachability (2026-07-22, same day as v1)
+
+Follow-up to the local-stdio v1 below, same day: "遠端連線要做的。我們把這一塊補完了吧。"
+(Neo — remote connectivity needs to be built, let's complete this piece). This is exactly
+the option deferred by name in v1's own AskUserQuestion ("本機 MCP + Tunnel 對外連線").
+
+**Refactor first**: extracted the actual tool set (`list_files`/`read_file`/`write_file`/
+`evaluate_aimdc`/`validate_world_ir` + all their helpers) out of `mcp-server.js` into a new
+shared `mcp-tools.js` (`createMcpServer(workspaceRoot)`), so the new remote entry point
+reuses the exact same tool implementations instead of a second copy that could quietly
+drift from the first. `mcp-server.js` itself is now a thin ~15-line stdio wrapper around
+that factory — re-verified the stdio path still works identically after the refactor
+(regression-tested with a real client, not just "the diff looks equivalent").
+
+**New `mcp-server-remote.js`** — same tools, over HTTP instead of stdio, using the MCP
+SDK's `StreamableHTTPServerTransport` in **stateless mode** (`sessionIdGenerator:
+undefined`, mirroring the SDK's own `simpleStatelessStreamableHttp` example rather than
+guessed — a fresh `McpServer`+transport per request, no session map, appropriate for a
+single-tunnel personal deployment). Built on raw Node `http`, not Express — this project
+has never added a web framework dependency (the bridge itself is hand-rolled Vite
+middleware), and the transport's `handleRequest(req, res, body)` takes plain Node
+`IncomingMessage`/`ServerResponse` directly, so there was no real need for one here either.
+
+**Security is the real substance of this piece, treated as such, not glossed over**:
+- **Loopback-only bind** (`http.createServer(...).listen(PORT, '127.0.0.1', ...)`) — this
+  process is never itself internet-facing; reachability comes from the operator (Neo)
+  running a tunnel (`cloudflared tunnel --url http://127.0.0.1:8787`) pointed at it. Same
+  "don't bind 0.0.0.0" discipline `SECURITY.md` already documents for the bridge's
+  `--host` caveat.
+- **Mandatory bearer-token auth**, checked with `crypto.timingSafeEqual` (constant-time,
+  so a wrong guess can't be timed to narrow down the real token byte-by-byte) — the
+  process refuses to start without `EVEGLYPH_MCP_TOKEN` set (16+ chars enforced). A
+  deliberately-scoped choice: full OAuth would be real added complexity for a server with
+  exactly one intended caller (personal, single-user deployment), not the right bar here.
+- **Named the real trade-off explicitly rather than silently inheriting stdio's reasoning**:
+  stdio mode's "no diff-review layer, the MCP host's own approval UI covers it" argument
+  relied on an *implicit second gate* — someone already has to be running code on Neo's own
+  machine to reach it. Tunneled HTTP mode doesn't have that implicit gate; once tunneled,
+  the token is the *only* thing standing between "an MCP client Neo configured" and "anyone
+  on the internet who has the URL and the token." Documented plainly in `SECURITY.md` as a
+  real consequence of a leaked token, not hedged around.
+- Re-checked the `@hono/node-server` `npm audit` advisory now that the HTTP transport is
+  actually exercised (it wasn't, in v1) — read the SDK's own source to confirm
+  `StreamableHTTPServerTransport` only imports `getRequestListener` (a plain Node↔Web-
+  standard adapter), never Hono's vulnerable `serve-static` middleware, so the advisory
+  still doesn't apply even now that this code path is live. Verified, not re-assumed from
+  the earlier not-yet-applicable note.
+
+**Verified end-to-end with real clients** (extended the same throwaway-test-script method
+from v1): regression-tested the refactored stdio server first (same 5 tools, `list_files`
+still correct); started the remote server as a real child process; confirmed a request with
+no `Authorization` header gets 401, a request with a wrong token gets 401, and a request
+with the correct token via a real `StreamableHTTPClientTransport` client succeeds — full
+tool list, `evaluate_aimdc` computing the correct result over HTTP, `write_file` creating a
+new file, and the same `../../../../windows/win.ini` path-escape attempt correctly
+rejected over the network path too, not just stdio. Test script and scratch workspace
+deleted after use; confirmed no orphaned process left listening on the test port afterward.
+
+New `npm run mcp:remote -- <path>` script. Documented in `README.md` (new "Remote access
+(over a tunnel)" section with a `cloudflared` example), `SECURITY.md` (new section — the
+different trust model, spelled out plainly), `USER-GUIDE.md`, `CHANGELOG.md`.
+
+NEXT = Neo's call — push both repos for this (standing gate), or whichever other open item
+he picks (roadmap Phase 5 Visual IR, internal-only SymPy reconnection).
 
 ## MCP server v1 — local stdio (2026-07-22)
 

@@ -266,6 +266,12 @@ confined to the workspace folder you pointed it at, same as the in-app bridge �
 local-agent mode, there's no built-in diff-review step here; your MCP client's own
 per-call approval fills that role instead. See [SECURITY.md](SECURITY.md) for the details.
 
+Not at your own machine? `npm run mcp:remote -- /path/to/workspace` runs the same tools
+over HTTP + a required bearer token instead of stdio — tunnel it (e.g. `cloudflared`) to
+reach it from anywhere. Full setup in [README.md](README.md#remote-access-over-a-tunnel);
+its trust model is meaningfully different from the local version (a leaked token means
+direct remote access, no second gate) — read [SECURITY.md](SECURITY.md) before exposing it.
+
 ## Settings reference
 
 | Setting | What it does |

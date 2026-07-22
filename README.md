@@ -86,7 +86,23 @@ Point an MCP client at it — for example, in Claude Desktop's `claude_desktop_c
 }
 ```
 
-This is v1, deliberately scoped to **local stdio only** — no remote/tunnel-based reachability yet, that's a separate future decision. See [SECURITY.md](SECURITY.md) for its trust model, which differs from the bridge's (no diff-review layer of its own — it relies on the MCP host's own per-call approval).
+### Remote access (over a tunnel)
+
+`mcp-server-remote.js` is the same tool set over HTTP + bearer-token auth, for a client that isn't on this machine (e.g. a remote MCP connector, or a chat client you're using away from your desk):
+
+```sh
+export EVEGLYPH_MCP_TOKEN=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+npm run mcp:remote -- /absolute/path/to/your/workspace
+# listens on http://127.0.0.1:8787/mcp — set EVEGLYPH_MCP_PORT to change the port
+```
+
+It only ever binds to `127.0.0.1` — reach it from outside by tunneling a public hostname to that port yourself, e.g. with [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
+
+```sh
+cloudflared tunnel --url http://127.0.0.1:8787
+```
+
+Then point a remote MCP client at the tunnel's `https://.../mcp` URL with header `Authorization: Bearer <your token>`. Keep the token secret — anyone who has it can read/write the workspace you pointed the server at. See [SECURITY.md](SECURITY.md) for the full trust model (no diff-review layer here either, and what a leaked token means).
 
 ## Security
 
