@@ -6,6 +6,12 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Chart & function-plot blocks (Visual IR)** — `::: chart {type="bar|line|pie"}
+  ... :::` for self-contained data, `::: plot {domain="[a, b]"} fn-body :::` for a
+  function's curve, both rendered as hand-rolled SVG. `aimd-view
+  {renderer="chart"}` can also visualize a computed AIMD-C value (a table's rows).
+  See `examples/visual-ir-demo.md`. Diagram IR and PDF export for these are a
+  separate follow-up, not built yet.
 - **MCP toggle in Settings** — Settings ⚙ → **Enable remote MCP server** starts/stops
   `mcp-server-remote.js` for you (bridge-managed, no terminal needed), with a token
   generator/copy button and a live running/stopped status. Also shows a ready-to-copy

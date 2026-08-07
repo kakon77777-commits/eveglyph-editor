@@ -96,6 +96,23 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
   - Only pure computation is supported so far (no file/network/agent access
     from inside a block) — see `examples/aimd-demo.md`'s closing note for
     what's deliberately not built yet.
+- **Chart & function-plot blocks** — hand-rolled SVG, no external library. See
+  `examples/visual-ir-demo.md` for a full walkthrough.
+  - `::: chart {id="q" type="bar" title="..."} - label: Q1\n  value: 120 :::` —
+    self-contained data, same shape as `aimd-table`. `type` is `bar` (default),
+    `line`, or `pie`. Any two keys work, not fixed `label`/`value` names — the
+    first text field becomes the label, the first number field the value.
+  - `::: plot {id="f" domain="[-10, 10]" title="..."} sin(x) :::` — the function
+    expression goes in the block body, evaluated with the same grammar AIMD-C
+    functions use (arithmetic, trig, log — no `eval`). The curve breaks at a
+    point that doesn't evaluate (e.g. `1/x` at `x=0`) instead of drawing a
+    straight line across the gap.
+  - `::: aimd-view {source="@scores" renderer="chart"} type: bar :::` —
+    visualizes a computed AIMD-C value (an `aimd-table`'s rows) with the exact
+    same chart renderer as the standalone block above.
+  - Single-series charts and HTML/SVG preview only for now — multi-series
+    charts, flowchart/diagram blocks, and PDF export for these are deliberately
+    not built yet.
 
 ## World IR mode (CompilableWorld)
 

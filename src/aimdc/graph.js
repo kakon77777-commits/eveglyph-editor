@@ -27,6 +27,16 @@ function resolveRef(path, byId, results) {
   const block = byId.get(id)
   if (!block) throw new Error(`unresolved reference "@${path}" — no block with id "${id}"`)
   if (block.kind === 'value') return block.value
+  // roadmap Phase 5 (Visual IR): a table block's rows are its "value" — no
+  // .field indexing (a table is already a list of rows, not a single
+  // scalar with named outputs like a compute block). Found while wiring
+  // aimd-view {renderer="chart"} up to an aimd-table: tables were never
+  // referenceable via @id at all before this — a real, pre-existing gap in
+  // resolveRef, not something new added around it.
+  if (block.kind === 'table') {
+    if (field) throw new Error(`"@${path}" — "${id}" is a table (a list of rows), not a single value with a "${field}" field; reference "@${id}" alone`)
+    return block.rows
+  }
   if (block.kind === 'compute') {
     const r = results.get(id)
     if (!r) throw new Error(`"@${path}" depends on "${id}", which hasn't run yet`)

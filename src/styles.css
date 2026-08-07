@@ -339,6 +339,22 @@ body.resizing #editor-container, body.resizing .cm-editor { pointer-events: none
 .aimdc-table-el th { background:var(--bg-2); padding:4px 7px; text-align:left; border:1px solid var(--bdr); }
 .aimdc-table-el td { padding:4px 7px; border:1px solid var(--bdr); color:var(--t1); }
 
+/* Visual IR (roadmap Phase 5) — chart / function-plot blocks. */
+.visual-block {
+  border:1px solid var(--bdr); border-radius:var(--r); padding:8px;
+  margin-bottom:8px; background:var(--bg-1);
+}
+.visual-empty { color:var(--t3); font-size:11.5px; font-family:var(--fm); padding:16px; text-align:center; }
+.visual-svg { width:100%; height:auto; display:block; }
+.visual-title { fill:var(--t0); font-size:12px; font-weight:600; }
+.visual-label { fill:var(--t3); font-size:9.5px; }
+.visual-val { fill:var(--t2); font-size:9.5px; }
+.visual-axis { stroke:var(--bdr); stroke-width:1; }
+.visual-axis-zero { stroke:var(--bdr); stroke-width:1; stroke-dasharray:3,3; }
+.visual-legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:8px; justify-content:center; font-size:10.5px; color:var(--t2); }
+.visual-legend-item { display:flex; align-items:center; gap:5px; }
+.visual-legend-swatch { width:9px; height:9px; border-radius:2px; display:inline-block; }
+
 .fm-display {
   background:var(--bg-0); border:1px solid var(--bdr);
   border-radius:var(--r); padding:8px 12px; margin-bottom:14px;

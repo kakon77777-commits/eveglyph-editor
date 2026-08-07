@@ -1,8 +1,74 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-07-22
-> (MCP Settings toggle).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-08-07
+> (roadmap Phase 5 — Visual IR: Chart + Function Plot).
+
+## Roadmap Phase 5 — Visual IR: Chart + Function Plot (2026-08-07)
+
+Fifth phase of the roadmap (`EveGlyph-Editor-Roadmap-v0.6.md`, internal repo only).
+Scoped explicitly before writing any code, matching how AIMD-C v0.1 shipped compute
+before its own Typst projection followed in Phase 4: **this pass is Chart IR +
+Function Plot IR, HTML/SVG preview only.** Diagram IR (flowchart/graph auto-layout —
+the most algorithmically open-ended of the three Visual IR types the roadmap lists)
+and Typst PDF projection for chart/plot are both deliberately deferred, not
+forgotten. World Projection (the third §4 item) was already resolved in Phase 4 —
+World IR stays exactly as-is, registered by name only — and isn't revisited here.
+
+- **Hand-rolled SVG, no charting library** — new `src/visual/chart.js` (single-series
+  bar/line/pie) and `src/visual/plot.js` (single-variable function plots), matching
+  this project's standing "no framework" convention (the math evaluator, i18n, and
+  Typst converter are the same choice for the same reason). Multi-series charts
+  (legend, per-series color, shared axis scaling) are a real, deferred extension —
+  a single-series v1 doesn't need that complexity yet.
+- **Function plots reuse AIMD-C's own expression evaluator unmodified** —
+  `src/aimdc/evaluator.js`'s `evaluate(node, env)` already resolves a bare identifier
+  via plain `env` property lookup, so `evaluate(ast, {x: 1.5})` needed zero new
+  evaluator code, just a new caller (`renderFunctionPlot` in `plot.js`). Same
+  closed-grammar, no-`eval` safety this app already relies on everywhere else. A
+  point that fails to evaluate (e.g. `1/x` at `x=0`) breaks the curve there instead
+  of drawing a straight line across the gap or failing the whole plot.
+- **Two block types**: `::: chart {id="..." type="bar|line|pie" title="..."} ... :::`
+  (self-contained YAML rows, same "own inline data" scope `aimd-table` already has —
+  any two keys work, not fixed `label`/`value` names) and
+  `::: plot {id="..." domain="[a, b]" title="..."} fn-body :::` (the function
+  expression lives in the block body, not an attribute, avoiding quote-escaping
+  issues for expressions with parens). Both render synchronously in `cfpPreprocess`
+  — unlike AIMD-C blocks, a standalone chart/plot has no cross-block dependency
+  graph to wait for, so there's no placeholder/deferred pass needed for these.
+- **AIMD-C data really can feed into Visual IR**: `aimd-view {renderer="chart"}`
+  reuses the exact same `renderChartFromRows` a standalone chart block uses, so
+  "visualize this computed data" and "visualize this literal data" share one
+  rendering path, not two. Found and fixed a real, pre-existing gap while wiring
+  this up: `resolveRef` (`src/aimdc/graph.js`) never handled the `table` block
+  kind — `aimd-table` has been referenceable-in-name only since Phase 3 shipped;
+  nothing had ever actually tried resolving one via `@id` until this phase's own
+  demo did. Fixed by teaching `resolveRef` to return `block.rows` for a table
+  block (with a clear error if someone tries `.field` on it — a table is a list of
+  rows, not a single value with named outputs like a compute block).
+  `renderer="plot"` sourced from `aimd-view` is deliberately NOT built — it would
+  mean referencing a function's own definition, not a resolved value, which
+  doesn't fit the current `source=` model without a bigger change.
+- `src/visual/registry.js` (Phase 4's thin `world-renderer`-only stub) gained two
+  real entries: `chart-renderer`, `function-plot-renderer`.
+- New `examples/visual-ir-demo.md`: 3 chart types (bar/line/pie), 3 function plots
+  (including `1/x`, specifically to exercise the discontinuity-break behavior), and
+  an AIMD-C table fed into a chart via `aimd-view`.
+- **Verified in the real browser, not just by reading the code**: opened the demo
+  file, confirmed all 7 Visual IR blocks render real SVG content (none fall into
+  the empty/error state); confirmed bar heights are proportional to their values;
+  confirmed the pie chart's 3 slice percentages sum to 100%; confirmed the `1/x`
+  plot's SVG path has 2 `M` (moveto) segments — the curve genuinely breaks at the
+  discontinuity, not a straight line across it; confirmed the `aimd-table`→chart
+  path works after the `resolveRef` fix; regression-checked `examples/aimd-demo.md`
+  (all 14 existing blocks, zero new errors) and `welcome.md`; zero unexpected
+  console errors. Screenshot compositing was unavailable in this session's Browser
+  pane again (a recurring environment issue this whole project has hit before) —
+  used direct DOM/attribute inspection instead, same workaround used in earlier
+  phases.
+
+Deliberately deferred, precisely scoped, not silently dropped: Diagram IR, Typst
+projection for chart/plot, multi-series charts, `aimd-view {renderer="plot"}`.
 
 ## MCP server — Settings toggle (2026-07-22, same day as remote reachability)
 

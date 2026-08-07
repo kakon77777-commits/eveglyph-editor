@@ -14,6 +14,8 @@ import { prepareFormula } from './math/capability.js'
 import { isAimdcType, parseAimdcBlock } from './aimdc/parser.js'
 import { evaluateDocument } from './aimdc/graph.js'
 import { renderBlock as renderAimdcBlockHtml, substituteInlineRefs } from './aimdc/render.js'
+import { renderChartBlock } from './visual/chart.js'
+import { renderPlotBlock } from './visual/plot.js'
 
 export function previewUpdate() {
   const el  = document.getElementById('preview-body')
@@ -156,6 +158,13 @@ function cfpPreprocess(src) {
       const idx = pendingAimdcBlocks.push(block) - 1
       return `AIMDC_BLOCK_PLACEHOLDER_${idx}`
     }
+    // Visual IR (roadmap Phase 5): chart/plot blocks are self-contained —
+    // own inline data or a bare function expression, no cross-block
+    // dependency graph to wait for (unlike AIMD-C blocks above) — so they
+    // render straight to SVG here, synchronously, same tick as everything
+    // else cfpPreprocess already renders inline.
+    if (type.toLowerCase() === 'chart') return renderChartBlock(rest, inner)
+    if (type.toLowerCase() === 'plot') return renderPlotBlock(rest, inner)
     const tm = rest.match(/title="([^"]*)"/)
     const title = tm ? tm[1] : ''
     const label = `${type.toUpperCase()}${title ? ': ' + title : ''}`

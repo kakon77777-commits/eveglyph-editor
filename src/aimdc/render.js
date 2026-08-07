@@ -8,6 +8,7 @@
 // same-tick evaluation can actually produce are used.
 import { t } from '../i18n/index.js'
 import { resolveRef } from './graph.js'
+import { renderChartFromRows, parseChartAttrs } from '../visual/chart.js'
 
 const esc = (s) => String(s).replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
@@ -119,6 +120,17 @@ function renderView(block, doc) {
     return `<div class="aimdc-block aimdc-view aimdc-state-failed"><span class="aimdc-error-msg">${esc(e.message)}</span></div>`
   }
   if (block.renderer === 'table' && Array.isArray(value)) return renderRowsAsTable(value)
+  // roadmap Phase 5 (Visual IR): plot an AIMD-C-computed table as a chart —
+  // reuses the exact same renderer a standalone ::: chart ::: block uses
+  // (chart.js), so "visualize this computed data" and "visualize this
+  // literal data" go through one rendering path, not two. `renderer="plot"`
+  // (function curves) is deliberately standalone-block-only for now — it
+  // needs an expression to sample, not a resolved value, which doesn't fit
+  // aimd-view's "resolve @source to a value" model without a bigger change
+  // (referencing an aimd-function's own definition, not its result).
+  if (block.renderer === 'chart' && Array.isArray(value)) {
+    return renderChartFromRows(value, parseChartAttrs({ type: block.config.type, title: block.config.title || block.label }))
+  }
   if (block.renderer === 'number') {
     const text = block.config.format ? formatNumber(value, block.config.format) : fmtValue(value)
     return `<div class="aimdc-block aimdc-view aimdc-view-number">${esc(text)}</div>`
