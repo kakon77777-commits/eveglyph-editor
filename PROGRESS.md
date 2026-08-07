@@ -2,17 +2,61 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-08-07
-> (roadmap Phase 5 — Visual IR: Chart + Function Plot).
+> (World Studio: real-file validation fix).
 
-## Product boundary — advanced World Studio visibility (2026-08-07)
+## World Studio — real-file validation fix, found via testing (2026-08-07)
 
-EveGlyph remains outwardly an AI-native Markdown editor/integrator. The World
-State Machine and CompilableWorld Studio surface are advanced authoring
-capabilities, not the default identity of the product. Keep Studio discoverable
-while the basic state-machine workflow is being completed; after that baseline
-is stable, add a Settings-controlled visibility switch for users who need the
-World features. Hiding the surface must never remove the plain YAML authoring
-path, Runtime read-only checks, or the explicit package-compilation boundary.
+Neo asked to keep working on World Studio and test it. Loaded a real, already-shipped
+example (`examples/village-inn/relation.acquaintance_to_friend.yaml` — the app's own
+Preview pane renders it correctly with zero issues) into Studio via **Load current
+editor YAML** and got a hard `missing_states` error blocking Apply — a false positive.
+
+**Root cause**: `studiogenerator.js`'s `validateStudioDraft` requires an explicit
+`states:` array as a hard error, on top of separately calling the real
+`validateStateMachine` (`validate.js`), which has always treated `states` as
+*optional* — inferred from transitions when absent (the same rule the actual World IR
+Preview/`smview.js` has used since that feature shipped). This stricter rule was
+invisible until today: **Load current editor YAML** is the first thing that ever
+routed real, hand-authored content through Studio's validator — every prior use was
+AI-generated drafts, and the Studio prompt template always instructs the AI to
+include an explicit `states:` list, so the gap never surfaced.
+
+**Fix**: downgraded `missing_states` from `error` to `warning` — still a visible nudge
+toward explicitness for freshly AI-generated drafts (the original, still-primary use
+of this validator), but no longer blocks Apply for legitimate real-world files that
+rely on inference, matching what the actual World IR spec has always allowed.
+
+**Real, unrelated behavior surfaced during testing, worth documenting not fixing
+silently**: clicking Apply changes the CodeMirror buffer only ("Save remains manual" —
+Studio's own stated design). But `files.js`'s `openFile()` has a separate, pre-existing,
+intentional rule: switching to a *different* file auto-saves the currently-open file if
+it has unsaved modifications (`if (S.active && S.files.get(S.active)?.modified) await
+saveFile()`). Apply marks the buffer modified; switching files right after therefore
+silently saves the applied draft to disk — re-serialized through the YAML dumper, which
+strips comments and normalizes quoting/formatting. Caught this by accident during
+testing (a real file got silently rewritten, restored via `git checkout` immediately,
+confirmed via `git status`/`git diff` before and after). Not a bug in today's Studio
+work — `openFile()`'s auto-save-on-switch predates this feature entirely — but a real
+interaction between an old, silent-by-design behavior and Studio's new file-loading path
+worth Neo knowing about; not changed here, since altering when the app auto-saves is a
+bigger product decision than this pass's scope.
+
+Verified end-to-end in the real browser: the same real example file now shows "Draft
+valid with 1 warning(s)" and Apply enabled (previously blocked); the warning message
+displays correctly; a non-`state_machine` document (`entity.npc_innkeeper.yaml`) still
+correctly reports `unsupported_draft_kind`; malformed YAML still correctly reports a
+clear parse error, no crash; editing the textarea still correctly invalidates the
+previous review (Apply disabled until Review re-runs) — none of that changed. Zero new
+console errors.
+
+**Product boundary note, carried over from the original editable-draft-review commit**:
+EveGlyph remains outwardly an AI-native Markdown editor/integrator. The World State
+Machine and CompilableWorld Studio surface are advanced authoring capabilities, not the
+default identity of the product. Keep Studio discoverable while the basic state-machine
+workflow is being completed; after that baseline is stable, add a Settings-controlled
+visibility switch for users who need the World features. Hiding the surface must never
+remove the plain YAML authoring path, Runtime read-only checks, or the explicit
+package-compilation boundary.
 
 ## Roadmap Phase 5 — Visual IR: Chart + Function Plot (2026-08-07)
 

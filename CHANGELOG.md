@@ -150,6 +150,10 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
   search stays a plain, predictable, non-AI tool.
 
 ### Fixed
+- **World Studio** wrongly blocked **Apply** for real, valid state-machine files that
+  don't declare an explicit `states:` list (states inferred from transitions — always
+  valid, the same rule the actual Preview pane has used all along). Now a warning, not
+  a hard error.
 - `examples/typst-export-demo.md`'s `split`-environment math formula has
   silently failed to render in the preview (not the PDF export) since it was
   added — KaTeX has never supported `\begin{split}`. Kept as a deliberate

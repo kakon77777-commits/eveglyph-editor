@@ -135,7 +135,18 @@ export function validateStudioDraft(document) {
     issues.push(issue('error', 'missing_id', 'state machine 需要 id', 'id'))
   }
   if (!Array.isArray(document.states)) {
-    issues.push(issue('error', 'missing_states', 'state machine 需要 states 陣列', 'states'))
+    // Warning, not error: validateStateMachine (called below) already treats
+    // states as OPTIONAL — inferred from transitions when absent, the same
+    // rule the actual World IR preview (smview.js) has always used. This was
+    // a hard error until "Load current editor YAML" started routing real,
+    // hand-authored files through this same validator — a file like
+    // examples/village-inn/relation.acquaintance_to_friend.yaml (no explicit
+    // states:, states inferred from transitions, renders correctly in the
+    // Preview pane with zero issues) was wrongly blocked from Apply. Still
+    // surfaced as a warning — explicit states: is still a reasonable nudge
+    // for freshly AI-generated drafts, the original and still-primary use of
+    // this validator — just not something that should block real content.
+    issues.push(issue('warning', 'missing_states', 'state machine 沒有明確的 states 陣列（將從 transitions 推斷）', 'states'))
   } else {
     if (document.states.length > STUDIO_LIMITS.states) {
       issues.push(issue('error', 'state_limit_exceeded', '超過 ' + STUDIO_LIMITS.states + ' 個狀態上限', 'states'))
