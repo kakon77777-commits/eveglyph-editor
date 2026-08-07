@@ -57,6 +57,9 @@ export default {
     noPreviewYet: 'No preview yet.'
   },
   studio: {
+    draftEditorPlaceholder: 'Generate a draft, then edit and review it here before applying.',
+    reviewDraft: 'Review edited draft',
+    loadEditorDraft: 'Load current editor YAML',
     draftLabel: 'World Studio draft',
     help: 'Generate a state machine with bounded variables, optional controlled random ranges, events, language instructions, responses, and transitions. Unknown semantics stay reviewable instead of becoming Runtime rules.',
     requestLabel: 'Generation request',
@@ -366,6 +369,9 @@ export default {
     previewComplete: 'Preview complete · {id}'
   },
   studioDynamic: {
+    draftChangedNeedsReview: 'Draft changed; review it before Apply or Runtime check',
+    reviewingDraft: 'Reviewing edited draft…',
+    editorEmpty: 'The current editor is empty',
     passedChecks: '✓ Draft passed structural checks',
     noSerializableDraft: '(no serializable draft)',
     noRuntimeImport: 'No Runtime import yet.',

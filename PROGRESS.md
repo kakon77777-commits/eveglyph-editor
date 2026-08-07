@@ -4,6 +4,16 @@
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-08-07
 > (roadmap Phase 5 — Visual IR: Chart + Function Plot).
 
+## Product boundary — advanced World Studio visibility (2026-08-07)
+
+EveGlyph remains outwardly an AI-native Markdown editor/integrator. The World
+State Machine and CompilableWorld Studio surface are advanced authoring
+capabilities, not the default identity of the product. Keep Studio discoverable
+while the basic state-machine workflow is being completed; after that baseline
+is stable, add a Settings-controlled visibility switch for users who need the
+World features. Hiding the surface must never remove the plain YAML authoring
+path, Runtime read-only checks, or the explicit package-compilation boundary.
+
 ## Roadmap Phase 5 — Visual IR: Chart + Function Plot (2026-08-07)
 
 Fifth phase of the roadmap (`EveGlyph-Editor-Roadmap-v0.6.md`, internal repo only).

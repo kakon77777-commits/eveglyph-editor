@@ -248,7 +248,8 @@ body.resizing #editor-container, body.resizing .cm-editor { pointer-events: none
 .studio-issue small { display:block; color:var(--t3); font-family:var(--fm); margin-top:2px; word-break:break-all; }
 .studio-ok { color:var(--ok); font-size:11px; }
 .studio-dim { color:var(--t3); font-size:11px; }
-.studio-draft-output { margin:0; min-height:170px; max-height:360px; overflow:auto; white-space:pre-wrap; word-break:break-word; background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t1); font:10.5px/1.5 var(--fm); }
+.studio-draft-output { width:100%; min-height:170px; max-height:360px; resize:vertical; padding:9px; overflow:auto; white-space:pre; tab-size:2; background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t1); font:10.5px/1.5 var(--fm); }
+.studio-draft-output:focus { border-color:var(--ac); outline:none; }
 .studio-runtime-report { margin:0; max-height:240px; overflow:auto; white-space:pre-wrap; word-break:break-word; background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t2); font:10.5px/1.5 var(--fm); }
 .studio-mapping-output { width:100%; min-height:220px; max-height:420px; resize:vertical; padding:9px; background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r); color:var(--t1); font:10.5px/1.5 var(--fm); }
 .studio-mapping-output:focus { border-color:var(--ac); outline:none; }

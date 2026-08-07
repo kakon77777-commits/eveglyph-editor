@@ -76,15 +76,17 @@ function renderRuntimeReport(worldIr) {
   node.textContent = lines.join('\n')
 }
 
-function setDraftResult(result) {
+function setDraftResult(result, source = '') {
   const output = document.getElementById('studio-draft-output')
+  const review = document.getElementById('studio-review')
   const apply = document.getElementById('studio-apply')
   const copy = document.getElementById('studio-copy')
-  if (!output || !apply || !copy) return
-  output.textContent = result.yaml || t('studioDynamic.noSerializableDraft')
+  if (!output || !review || !apply || !copy) return
+  output.value = result.yaml || source || ''
   const summary = summarizeStudioIssues(result.issues)
+  review.disabled = !output.value.trim()
   apply.disabled = !result.yaml || !summary.ok
-  copy.disabled = !result.yaml
+  copy.disabled = !output.value.trim()
   setIssues(result.issues)
   setStatus(
     summary.ok
@@ -106,6 +108,8 @@ export function initStudioView() {
 
   const instruction = document.getElementById('studio-instruction')
   const generate = document.getElementById('studio-generate')
+  const loadEditor = document.getElementById('studio-load-editor')
+  const review = document.getElementById('studio-review')
   const apply = document.getElementById('studio-apply')
   const copy = document.getElementById('studio-copy')
   const runtimeCheck = document.getElementById('studio-runtime-check')
@@ -113,7 +117,15 @@ export function initStudioView() {
   const mappingCopy = document.getElementById('studio-mapping-copy')
   const mappingValidate = document.getElementById('studio-mapping-validate')
   const output = document.getElementById('studio-draft-output')
-  if (!instruction || !generate || !apply || !copy || !runtimeCheck || !mappingOutput || !mappingCopy || !mappingValidate || !output) return
+  if (!instruction || !generate || !loadEditor || !review || !apply || !copy || !runtimeCheck || !mappingOutput || !mappingCopy || !mappingValidate || !output) return
+
+  const clearRuntimeReview = () => {
+    lastRuntimeWorldIr = null
+    mappingOutput.value = ''
+    mappingCopy.disabled = true
+    mappingValidate.disabled = true
+    renderRuntimeReport(null)
+  }
 
   generate.addEventListener('click', async () => {
     if (S.cfg.provider === 'local-agent') {
@@ -127,15 +139,15 @@ export function initStudioView() {
       activePath: S.active || '',
     })
     generate.disabled = true
+    loadEditor.disabled = true
+    review.disabled = true
     apply.disabled = true
     copy.disabled = true
     runtimeCheck.disabled = true
     mappingCopy.disabled = true
     mappingValidate.disabled = true
-    mappingOutput.value = ''
-    lastRuntimeWorldIr = null
-    renderRuntimeReport(null)
-    output.textContent = t('studioDynamic.generating')
+    clearRuntimeReview()
+    output.value = t('studioDynamic.generating')
     setIssues([])
     setStatus(t('studioDynamic.callingProvider'))
     await monitor('studio:generate:start', {
@@ -155,12 +167,70 @@ export function initStudioView() {
       })
     } catch (error) {
       lastDraft = null
-      output.textContent = ''
+      output.value = ''
       setIssues([{ severity: 'error', code: 'ai_call_error', message: error?.message || String(error), path: '' }])
       setStatus(t('studioDynamic.aiGenerationFailed'), 'error')
       await monitor('studio:generate:error', { error: String(error?.message || error) })
     } finally {
       generate.disabled = false
+      loadEditor.disabled = false
+      runtimeCheck.disabled = !lastDraft?.yaml
+    }
+  })
+
+  loadEditor.addEventListener('click', async () => {
+    const source = editorGet().trim()
+    if (!source) {
+      setStatus(t('studioDynamic.editorEmpty'), 'error')
+      return
+    }
+    lastDraft = parseStudioDraft(source)
+    clearRuntimeReview()
+    // Keep the source visible even when it is malformed or is not a
+    // state_machine document, so the user can correct it in this review box.
+    setDraftResult(lastDraft, source)
+    runtimeCheck.disabled = !lastDraft.yaml
+    await monitor('studio:editor-load', {
+      active: S.active || null,
+      ok: summarizeStudioIssues(lastDraft.issues).ok,
+      issueCount: lastDraft.issues.length,
+      sourceChars: source.length,
+    })
+  })
+
+  output.addEventListener('input', () => {
+    // Editing the review artifact invalidates the previous parse and Runtime
+    // report. A second explicit review is required before Apply or Runtime.
+    lastDraft = null
+    clearRuntimeReview()
+    review.disabled = !output.value.trim()
+    apply.disabled = true
+    runtimeCheck.disabled = true
+    copy.disabled = !output.value.trim()
+    setIssues(output.value.trim()
+      ? [{ severity: 'warning', code: 'draft_changed_needs_review', message: t('studioDynamic.draftChangedNeedsReview'), path: '' }]
+      : [])
+    setStatus(output.value.trim() ? t('studioDynamic.draftChangedNeedsReview') : t('studio.reviewOnlyStatus'))
+  })
+
+  review.addEventListener('click', async () => {
+    const source = output.value.trim()
+    if (!source) return
+    review.disabled = true
+    setStatus(t('studioDynamic.reviewingDraft'))
+    try {
+      lastDraft = parseStudioDraft(source)
+      // Preserve malformed text for correction; valid text is normalized to
+      // the canonical YAML emitted by the parser.
+      setDraftResult(lastDraft, source)
+      clearRuntimeReview()
+      await monitor('studio:draft:review', {
+        ok: summarizeStudioIssues(lastDraft.issues).ok,
+        issueCount: lastDraft.issues.length,
+        draftChars: source.length,
+      })
+    } finally {
+      review.disabled = !output.value.trim()
       runtimeCheck.disabled = !lastDraft?.yaml
     }
   })
@@ -173,11 +243,12 @@ export function initStudioView() {
   })
 
   copy.addEventListener('click', async () => {
-    if (!lastDraft?.yaml) return
+    const draftText = output.value.trim()
+    if (!draftText) return
     try {
-      await navigator.clipboard.writeText(lastDraft.yaml)
+      await navigator.clipboard.writeText(draftText)
       setStatus(t('studioDynamic.draftCopied'), 'ok')
-      await monitor('studio:draft:copy', { draftChars: lastDraft.yaml.length })
+      await monitor('studio:draft:copy', { draftChars: draftText.length })
     } catch (error) {
       setStatus(t('studioDynamic.clipboardUnavailable', { message: error?.message || String(error) }), 'error')
     }

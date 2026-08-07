@@ -138,8 +138,10 @@
         </div>
         <div class="ai-sec">
           <label data-i18n="studio.yamlLabel">Generated YAML</label>
-          <pre id="studio-draft-output" class="studio-draft-output"></pre>
+          <textarea id="studio-draft-output" class="studio-draft-output" spellcheck="false" data-i18n-placeholder="studio.draftEditorPlaceholder" placeholder="Generate a draft, then edit and review it here before applying."></textarea>
           <div class="resp-actions">
+            <button class="btn-g" id="studio-load-editor" data-i18n="studio.loadEditorDraft">Load current editor YAML</button>
+            <button class="btn-g" id="studio-review" disabled data-i18n="studio.reviewDraft">Review edited draft</button>
             <button class="btn-g" id="studio-apply" disabled data-i18n="studio.apply">Apply to editor</button>
             <button class="btn-g" id="studio-copy" disabled data-i18n="studio.copyYaml">Copy YAML</button>
             <button class="btn-g" id="studio-runtime-check" disabled data-i18n="studio.checkRuntime">Check with Runtime</button>

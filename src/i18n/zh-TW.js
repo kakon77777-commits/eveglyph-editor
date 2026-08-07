@@ -55,6 +55,9 @@ export default {
     noPreviewYet: '尚無預覽結果。'
   },
   studio: {
+    draftEditorPlaceholder: '產生草稿後，可先在這裡修正並審核，再套用到編輯器。',
+    reviewDraft: '審核已編輯草稿',
+    loadEditorDraft: '載入目前編輯器 YAML',
     draftLabel: 'World Studio 草稿',
     help: '產生一個帶有邊界限制的狀態機，包含變數、可選的受控隨機範圍、事件、語言指示、回應與轉場。未知的語意會保留成可審核的草稿，不會直接變成 Runtime 規則。',
     requestLabel: '產生請求',
@@ -364,6 +367,9 @@ export default {
     previewComplete: '預覽完成 · {id}'
   },
   studioDynamic: {
+    draftChangedNeedsReview: '草稿已變更；請先審核後才能套用或送 Runtime 檢查',
+    reviewingDraft: '正在審核已編輯草稿…',
+    editorEmpty: '目前編輯器是空的',
     passedChecks: '✓ 草稿通過結構檢查',
     noSerializableDraft: '（沒有可序列化的草稿）',
     noRuntimeImport: '尚未進行 Runtime 匯入。',

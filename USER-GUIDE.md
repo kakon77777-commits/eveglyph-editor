@@ -162,14 +162,21 @@ The draft may contain:
 The response is parsed locally and checked against the existing state-machine
 validator plus conservative limits (64 states, 256 transitions, 128 variables,
 256 events, 256 instructions, 512 responses, at most 32 random choices, and
-numeric random ranges no wider than 1,000,000). A draft with errors cannot be
-applied. **Apply to editor** only changes the current CodeMirror document;
-**Save** remains a separate human action. Random data is descriptive draft data
+numeric random ranges no wider than 1,000,000). The generated YAML is an
+editable review artifact: after changing it, press **Review edited draft**
+again. A draft with errors cannot be applied or sent to Runtime. **Apply to
+editor** only changes the current CodeMirror document; **Save** remains a
+separate human action. Random data is descriptive draft data
 until a later runtime contract explicitly consumes it. Unknown room,
 EventIR, guard, and external-runtime semantics stay as reviewable draft data —
 they are not silently compiled or written to Runtime State. Local Agent is not
 used for this structured panel yet because its CLI response is an edit stream,
 not a bounded JSON/YAML draft contract.
+
+**Load current editor YAML** is the bridge for human-authored state machines:
+after using the State Machine visual controls or editing YAML directly, load the
+current editor content into Studio, review it, and then run the same read-only
+Runtime check as an AI-generated draft.
 
 If the CompilableWorld Runtime is running, **Check with Runtime** sends the
 current draft to its read-only `/api/studio/import` endpoint. Runtime performs a
