@@ -155,7 +155,10 @@
           <label><span data-i18n="studio.mappingLabel">Runtime mapping draft</span> <span class="studio-dim" data-i18n="studio.mappingReviewNote">human review</span></label>
           <p class="studio-help" data-i18n="studio.mappingHelp">Edit room, EventIR, and guard decisions here, then validate the mapping. This remains a review artifact until a separate package compilation step.</p>
           <textarea id="studio-mapping-output" class="studio-mapping-output" spellcheck="false" data-i18n-placeholder="studio.mappingPlaceholder" placeholder="Check the draft with Runtime to receive a mapping suggestion."></textarea>
+          <div id="studio-mapping-visual" class="studio-mapping-visual"></div>
           <div class="resp-actions">
+            <button class="btn-g" id="studio-mapping-load-visual" disabled data-i18n="studio.mappingLoadVisual">Load JSON into visual editor</button>
+            <button class="btn-g" id="studio-mapping-sync" disabled data-i18n="studio.mappingSync">Sync visual edits to JSON</button>
             <button class="btn-g" id="studio-mapping-validate" disabled data-i18n="studio.mappingValidate">Validate mapping</button>
             <button class="btn-g" id="studio-mapping-copy" disabled data-i18n="studio.mappingCopy">Copy mapping JSON</button>
           </div>

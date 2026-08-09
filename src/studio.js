@@ -17,6 +17,7 @@ import { t } from './i18n/index.js'
 let wired = false
 let lastDraft = null
 let lastRuntimeWorldIr = null
+let lastMapping = null
 
 const esc = (value) => String(value).replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
@@ -53,6 +54,158 @@ function mappingIssues(report) {
   return Array.isArray(report?.diagnostics?.issues)
     ? report.diagnostics.issues.map(item => ({ ...item, code: 'mapping_' + item.code }))
     : []
+}
+
+const RUNTIME_EVENTS = ['inventory.item_given', 'movement.actor_moved', 'dialogue.responded']
+const GUARD_POLICIES = ['none', 'state_conditions', 'runtime_module', 'external_review', 'drop_with_approval']
+const MAPPING_LIMITS = Object.freeze({
+  requirements: 32,
+  eventMatchFields: 16,
+  priority: 1000000,
+  rewardCurrency: 1000000000,
+})
+const REQUIREMENT_RE = /^(reach:[a-z][a-z0-9_.-]*|deliver:[a-z][a-z0-9_.-]*:[a-z][a-z0-9_.-]*)$/
+const EVENT_MATCH_KEY_RE = /^[A-Za-z_][A-Za-z0-9_.-]*$/
+
+function mappingOption(value, selected, label = value) {
+  return `<option value="${esc(value ?? '')}"${value === selected ? ' selected' : ''}>${esc(label)}</option>`
+}
+
+function mappingOptions(values, selected, { nullable = false, unknownLabel = 'unsupported' } = {}) {
+  const effectiveSelected = selected === undefined && nullable ? null : selected
+  const options = []
+  if (nullable) options.push(mappingOption(null, effectiveSelected, 'unmapped'))
+  if (effectiveSelected != null && !values.includes(effectiveSelected)) {
+    options.push(mappingOption(effectiveSelected, effectiveSelected, `${effectiveSelected} (${unknownLabel})`))
+  }
+  values.forEach(value => options.push(mappingOption(value, effectiveSelected)))
+  return options.join('')
+}
+
+function validMappingEventMatch(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length > MAPPING_LIMITS.eventMatchFields) return false
+  return Object.entries(value).every(([key, item]) => EVENT_MATCH_KEY_RE.test(key) && (
+    item === null || typeof item === 'string' || typeof item === 'boolean' ||
+    (typeof item === 'number' && Number.isFinite(item))
+  ))
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+function renderMappingVisual(mapping) {
+  const node = document.getElementById('studio-mapping-visual')
+  if (!node) return
+  if (!mapping || typeof mapping !== 'object') {
+    node.innerHTML = `<span class="studio-dim">${t('studioDynamic.mappingVisualEmpty')}</span>`
+    return
+  }
+  const entities = mapping.entities && typeof mapping.entities === 'object' ? mapping.entities : {}
+  const machines = mapping.state_machines && typeof mapping.state_machines === 'object' ? mapping.state_machines : {}
+  const eventOptions = (selected) => mappingOptions(RUNTIME_EVENTS, selected, { nullable: true })
+  const policyOptions = (selected) => mappingOptions(GUARD_POLICIES, selected)
+  node.innerHTML = `
+    <div class="studio-map-toolbar"><strong>${t('studioDynamic.mappingVisualTitle')}</strong><span>${t('studioDynamic.mappingVisualHint')}</span></div>
+    <details class="studio-map-section" open>
+      <summary>${t('studioDynamic.mappingEntities')} <span>${Object.keys(entities).length}</span></summary>
+      ${Object.entries(entities).map(([key, binding]) => `
+        <div class="studio-map-row">
+          <code>${esc(key)}</code>
+          <input data-map-scope="entity" data-map-key="${esc(key)}" data-map-field="room" value="${esc(binding?.room ?? '')}" placeholder="room.id">
+          <select data-map-scope="entity" data-map-key="${esc(key)}" data-map-field="target_table">
+            ${mappingOptions(['entities', 'items'], binding?.target_table, { nullable: true })}
+          </select>
+        </div>
+      `).join('') || `<span class="studio-dim">${t('studioDynamic.mappingVisualNoEntities')}</span>`}
+    </details>
+    <details class="studio-map-section" open>
+      <summary>${t('studioDynamic.mappingMachines')} <span>${Object.keys(machines).length}</span></summary>
+      ${Object.entries(machines).map(([machineId, machine]) => {
+        const mappings = machine?.event_mappings && typeof machine.event_mappings === 'object' ? machine.event_mappings : {}
+        return `
+          <div class="studio-map-machine">
+            <div class="studio-map-machine-head"><code>${esc(machineId)}</code>
+              <select data-map-scope="machine" data-map-key="${esc(machineId)}" data-map-field="target">
+                ${mappingOptions(['quest'], machine?.target, { nullable: true })}
+              </select>
+              <select data-map-scope="machine" data-map-key="${esc(machineId)}" data-map-field="guard_policy">${policyOptions(machine?.guard_policy || 'none')}</select>
+            </div>
+            ${Object.entries(mappings).map(([transitionId, transition]) => `
+              <div class="studio-map-transition">
+                <strong>${esc(transitionId)}</strong>
+                <select data-map-scope="transition" data-map-machine="${esc(machineId)}" data-map-key="${esc(transitionId)}" data-map-field="event_type">${eventOptions(transition?.event_type)}</select>
+                <input data-map-scope="transition" data-map-machine="${esc(machineId)}" data-map-key="${esc(transitionId)}" data-map-field="requirements" value="${esc(Array.isArray(transition?.requirements) ? transition.requirements.join(' | ') : '')}" placeholder="requirements">
+                <input data-map-scope="transition" data-map-machine="${esc(machineId)}" data-map-key="${esc(transitionId)}" data-map-field="priority" type="number" min="0" step="1" value="${esc(transition?.priority ?? 0)}" title="priority">
+                <textarea data-map-scope="transition" data-map-machine="${esc(machineId)}" data-map-key="${esc(transitionId)}" data-map-field="event_match" spellcheck="false">${esc(JSON.stringify(transition?.event_match || {}, null, 2))}</textarea>
+                <input data-map-scope="transition" data-map-machine="${esc(machineId)}" data-map-key="${esc(transitionId)}" data-map-field="reward_currency" type="number" min="0" step="1" value="${esc(transition?.reward?.currency ?? '')}" placeholder="reward.currency">
+              </div>
+            `).join('') || `<span class="studio-dim">${t('studioDynamic.mappingVisualNoTransitions')}</span>`}
+          </div>
+        `
+      }).join('') || `<span class="studio-dim">${t('studioDynamic.mappingVisualNoMachines')}</span>`}
+    </details>
+  `
+}
+
+function readMappingVisual() {
+  if (!lastMapping) throw new Error(t('studioDynamic.mappingVisualEmpty'))
+  const mapping = cloneJson(lastMapping)
+  if (!mapping.entities || typeof mapping.entities !== 'object') mapping.entities = {}
+  if (!mapping.state_machines || typeof mapping.state_machines !== 'object') mapping.state_machines = {}
+  document.querySelectorAll('#studio-mapping-visual [data-map-scope]').forEach(input => {
+    const scope = input.dataset.mapScope
+    const field = input.dataset.mapField
+    const key = input.dataset.mapKey
+    if (scope === 'entity') {
+      mapping.entities[key] = mapping.entities[key] || {}
+      if (field === 'target_table' && !input.value) delete mapping.entities[key][field]
+      else mapping.entities[key][field] = input.value
+    } else if (scope === 'machine') {
+      mapping.state_machines[key] = mapping.state_machines[key] || {}
+      mapping.state_machines[key][field] = input.value || null
+    } else if (scope === 'transition') {
+      const machine = input.dataset.mapMachine
+      mapping.state_machines[machine] = mapping.state_machines[machine] || {}
+      mapping.state_machines[machine].event_mappings = mapping.state_machines[machine].event_mappings || {}
+      const transition = mapping.state_machines[machine].event_mappings[key] || {}
+      if (field === 'requirements') {
+        const values = input.value.split('|').map(value => value.trim()).filter(Boolean)
+        if (values.length > MAPPING_LIMITS.requirements || values.some(value => !REQUIREMENT_RE.test(value))) {
+          throw new Error(t('studioDynamic.mappingVisualInvalid'))
+        }
+        if (values.length) transition.requirements = values
+        else delete transition.requirements
+      } else if (field === 'priority') {
+        const value = Number(input.value)
+        if (!Number.isInteger(value) || value < 0 || value > MAPPING_LIMITS.priority) throw new Error(t('studioDynamic.mappingVisualInvalid'))
+        transition.priority = value
+      } else if (field === 'event_match') {
+        try { transition.event_match = JSON.parse(input.value || '{}') } catch (_) { throw new Error(t('studioDynamic.mappingVisualInvalid')) }
+        if (!validMappingEventMatch(transition.event_match)) throw new Error(t('studioDynamic.mappingVisualInvalid'))
+      } else if (field === 'reward_currency') {
+        if (input.value.trim() === '') delete transition.reward
+        else {
+          const value = Number(input.value)
+          if (!Number.isInteger(value) || value < 0 || value > MAPPING_LIMITS.rewardCurrency) throw new Error(t('studioDynamic.mappingVisualInvalid'))
+          transition.reward = { ...(transition.reward || {}), currency: value }
+        }
+      } else {
+        transition[field] = input.value || null
+      }
+      mapping.state_machines[machine].event_mappings[key] = transition
+    }
+  })
+  return mapping
+}
+
+function syncMappingOutput() {
+  const output = document.getElementById('studio-mapping-output')
+  if (!output) return null
+  const mapping = readMappingVisual()
+  lastMapping = mapping
+  output.value = JSON.stringify(mapping, null, 2)
+  return mapping
 }
 
 function renderRuntimeReport(worldIr) {
@@ -114,14 +267,21 @@ export function initStudioView() {
   const copy = document.getElementById('studio-copy')
   const runtimeCheck = document.getElementById('studio-runtime-check')
   const mappingOutput = document.getElementById('studio-mapping-output')
+  const mappingVisual = document.getElementById('studio-mapping-visual')
+  const mappingLoadVisual = document.getElementById('studio-mapping-load-visual')
+  const mappingSync = document.getElementById('studio-mapping-sync')
   const mappingCopy = document.getElementById('studio-mapping-copy')
   const mappingValidate = document.getElementById('studio-mapping-validate')
   const output = document.getElementById('studio-draft-output')
-  if (!instruction || !generate || !loadEditor || !review || !apply || !copy || !runtimeCheck || !mappingOutput || !mappingCopy || !mappingValidate || !output) return
+  if (!instruction || !generate || !loadEditor || !review || !apply || !copy || !runtimeCheck || !mappingOutput || !mappingVisual || !mappingLoadVisual || !mappingSync || !mappingCopy || !mappingValidate || !output) return
 
   const clearRuntimeReview = () => {
     lastRuntimeWorldIr = null
+    lastMapping = null
     mappingOutput.value = ''
+    renderMappingVisual(null)
+    mappingLoadVisual.disabled = true
+    mappingSync.disabled = true
     mappingCopy.disabled = true
     mappingValidate.disabled = true
     renderRuntimeReport(null)
@@ -266,6 +426,10 @@ export function initStudioView() {
       setIssues([...localIssues, ...issues])
       lastRuntimeWorldIr = result.world_ir
       mappingOutput.value = JSON.stringify(result.mapping_suggestion || {}, null, 2)
+      lastMapping = result.mapping_suggestion ? cloneJson(result.mapping_suggestion) : null
+      renderMappingVisual(lastMapping)
+      mappingLoadVisual.disabled = !lastMapping
+      mappingSync.disabled = !lastMapping
       mappingCopy.disabled = !result.mapping_suggestion
       mappingValidate.disabled = !result.mapping_suggestion
       renderRuntimeReport(result.world_ir)
@@ -290,6 +454,35 @@ export function initStudioView() {
     }
   })
 
+  mappingOutput.addEventListener('input', () => {
+    mappingSync.disabled = true
+    mappingLoadVisual.disabled = !mappingOutput.value.trim()
+  })
+
+  mappingLoadVisual.addEventListener('click', () => {
+    try {
+      const mapping = JSON.parse(mappingOutput.value)
+      if (!mapping || typeof mapping !== 'object') throw new Error('mapping must be an object')
+      lastMapping = cloneJson(mapping)
+      renderMappingVisual(lastMapping)
+      mappingSync.disabled = false
+      setStatus(t('studioDynamic.mappingVisualLoaded'), 'ok')
+    } catch (error) {
+      setStatus(t('studioDynamic.mappingInvalid', { message: error?.message || String(error) }), 'error')
+    }
+  })
+
+  mappingSync.addEventListener('click', () => {
+    try {
+      syncMappingOutput()
+      mappingCopy.disabled = false
+      mappingValidate.disabled = false
+      setStatus(t('studioDynamic.mappingVisualSynced'), 'ok')
+    } catch (error) {
+      setStatus(t('studioDynamic.mappingInvalid', { message: error?.message || String(error) }), 'error')
+    }
+  })
+
   mappingCopy.addEventListener('click', async () => {
     if (!mappingOutput.value.trim()) return
     try {
@@ -303,6 +496,10 @@ export function initStudioView() {
 
   mappingValidate.addEventListener('click', async () => {
     if (!lastRuntimeWorldIr || !mappingOutput.value.trim()) return
+    try { if (lastMapping) syncMappingOutput() } catch (error) {
+      setStatus(t('studioDynamic.mappingInvalid', { message: error?.message || String(error) }), 'error')
+      return
+    }
     let mapping
     try {
       mapping = JSON.parse(mappingOutput.value)

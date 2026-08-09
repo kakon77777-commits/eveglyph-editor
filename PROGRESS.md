@@ -2,7 +2,39 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-08-07
-> (World Studio: real-file validation fix).
+> (World Studio: visual mapping and direct buffer write-back).
+
+## World Studio / visual write-back slice (2026-08-07)
+
+The visual authoring loop now covers the full review-side path without turning
+metadata into Runtime rules or writing to disk implicitly:
+
+- State Machine Preview exposes an editable initial-state selector, transition
+  inspector (`from`, `to`, `on`, `guards`, `requirements`, `priority`,
+  `event_match`, and `reward.currency`), and JSON-shaped editors for variables,
+  events, language instructions, and responses.
+- Runtime mapping review exposes entity room/target bindings, state-machine
+  target/guard policy, and transition EventIR, requirements, priority,
+  event-match, and reward fields. Raw mapping JSON can be loaded into the visual
+  editor and visual edits can be synchronized back before Runtime validation.
+- All visual edits use the existing `editorSet()` path: they update the
+  CodeMirror document buffer and mark the file modified; disk Save remains an
+  explicit human action. Runtime State is never touched by these controls.
+- Free-form semantic records remain extensible metadata, bounded random remains
+  controlled draft data, and unmapped guards remain fail-closed. The visual
+  mapping editor only offers known Runtime event and guard-policy candidates;
+  manually loaded unknown values are preserved and left for Runtime validation
+  instead of being silently replaced by a UI default.
+- Transition edits commit on both `change` and captured `blur`, so keyboard or
+  mouse-driven edits write back consistently. The UI rejects malformed EventIR
+  JSON, invalid requirement grammar, and values beyond the Runtime priority,
+  EventIR-field, requirement-count, and currency limits before write-back.
+
+Verification: `node --check src/studio.js`, `node --check src/smview.js`,
+`npm run build`, and a local browser smoke test covering visual mapping load /
+edit / sync plus State Machine rendering and semantic-record add. EveGlyph was
+not committed or pushed in this pass; the original responsible AI remains the
+owner of that handoff.
 
 ## World Studio — real-file validation fix, found via testing (2026-08-07)
 

@@ -76,7 +76,9 @@ export default {
     mappingHelp: '在這裡編輯 room、EventIR 與 guard 的對應決策，然後驗證這份對應。在另一個獨立的封裝編譯步驟之前，這裡都只是審核用的草稿。',
     mappingPlaceholder: '用 Runtime 檢查草稿以取得對應建議。',
     mappingValidate: '驗證對應',
-    mappingCopy: '複製對應 JSON'
+    mappingCopy: '複製對應 JSON',
+    mappingLoadVisual: '將 JSON 載入視覺編輯器',
+    mappingSync: '將視覺編輯同步回 JSON'
   },
   ai: {
     selectionLabel: '選取範圍',
@@ -398,7 +400,18 @@ export default {
     mappingRuntimeReady: '對應已可供 Runtime 使用；封裝編譯仍需人工處理',
     mappingCompleteReviewNeeded: '對應欄位已齊全，但 Runtime 語意仍需審核',
     mappingErrorsBlock: '{count} 個對應錯誤阻擋了 Runtime 使用',
-    mappingValidatorUnavailable: 'Runtime 對應驗證器無法使用：{message}'
+    mappingValidatorUnavailable: 'Runtime 對應驗證器無法使用：{message}',
+    mappingVisualEmpty: 'Runtime 對應建議會顯示在這裡。',
+    mappingVisualTitle: '視覺化對應審查',
+    mappingVisualHint: '在這裡修改欄位，驗證前先同步回 JSON。',
+    mappingEntities: 'Entity 房間對應',
+    mappingVisualNoEntities: '目前沒有 entity 對應。',
+    mappingMachines: '狀態機對應',
+    mappingVisualNoTransitions: '目前沒有 transition 對應。',
+    mappingVisualNoMachines: '目前沒有狀態機對應。',
+    mappingVisualInvalid: '視覺化對應含有無效值。',
+    mappingVisualLoaded: '已將 mapping JSON 載入視覺編輯器。',
+    mappingVisualSynced: '視覺化對應已同步回 JSON。'
   },
   smview: {
     variables: '變數',
@@ -419,7 +432,14 @@ export default {
     thFrom: 'from',
     thTo: 'to',
     thOn: 'on',
-    thGuards: 'guards'
+    thGuards: 'guards',
+    transitionEditor: '轉場編輯器',
+    requirementsPlaceholder: 'requirements（用 | 分隔）',
+    deleteRecord: '刪除資料',
+    saveRecord: '保存資料',
+    addRecord: '新增資料',
+    noRecords: '尚無資料。',
+    noTransitions: '尚無轉場。'
   },
   entityview: {
     invalidEntity: '⚠ 不是有效的 entity 文件：{message}',

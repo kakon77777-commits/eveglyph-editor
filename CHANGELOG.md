@@ -6,6 +6,15 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Complete visual World Studio write-back slice** — State Machine Preview now
+  includes initial-state, transition, and extensible semantic-record editors;
+  Runtime mapping review now has visual entity, state-machine, EventIR,
+  requirements, priority, event-match, guard-policy, and reward controls. A
+  mapping can be loaded from raw JSON and synchronized back before validation.
+  These controls update the editor buffer only; disk Save remains explicit and
+  Runtime State remains read-only from Studio. Transition fields now commit on
+  blur as well as change and reject invalid or over-limit Runtime contract data;
+  unknown mapping values are preserved instead of being silently defaulted.
 - **Chart & function-plot blocks (Visual IR)** — `::: chart {type="bar|line|pie"}
   ... :::` for self-contained data, `::: plot {domain="[a, b]"} fn-body :::` for a
   function's curve, both rendered as hand-rolled SVG. `aimd-view

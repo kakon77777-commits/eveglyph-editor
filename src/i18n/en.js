@@ -78,7 +78,9 @@ export default {
     mappingHelp: 'Edit room, EventIR, and guard decisions here, then validate the mapping. This remains a review artifact until a separate package compilation step.',
     mappingPlaceholder: 'Check the draft with Runtime to receive a mapping suggestion.',
     mappingValidate: 'Validate mapping',
-    mappingCopy: 'Copy mapping JSON'
+    mappingCopy: 'Copy mapping JSON',
+    mappingLoadVisual: 'Load JSON into visual editor',
+    mappingSync: 'Sync visual edits to JSON'
   },
   ai: {
     selectionLabel: 'Selection',
@@ -400,7 +402,18 @@ export default {
     mappingRuntimeReady: 'Mapping is Runtime-ready; package compilation remains explicit',
     mappingCompleteReviewNeeded: 'Mapping fields are complete, but Runtime semantics still need review',
     mappingErrorsBlock: '{count} mapping error(s) block Runtime use',
-    mappingValidatorUnavailable: 'Runtime mapping validator unavailable: {message}'
+    mappingValidatorUnavailable: 'Runtime mapping validator unavailable: {message}',
+    mappingVisualEmpty: 'Runtime mapping suggestion will appear here.',
+    mappingVisualTitle: 'Visual mapping review',
+    mappingVisualHint: 'Edit fields here, then sync to JSON before validation.',
+    mappingEntities: 'Entity room bindings',
+    mappingVisualNoEntities: 'No entity bindings.',
+    mappingMachines: 'State-machine mappings',
+    mappingVisualNoTransitions: 'No transition mappings.',
+    mappingVisualNoMachines: 'No state-machine mappings.',
+    mappingVisualInvalid: 'Visual mapping contains an invalid value.',
+    mappingVisualLoaded: 'Mapping JSON loaded into visual editor.',
+    mappingVisualSynced: 'Visual mapping edits synced to JSON.'
   },
   smview: {
     variables: 'Variables',
@@ -421,7 +434,14 @@ export default {
     thFrom: 'from',
     thTo: 'to',
     thOn: 'on',
-    thGuards: 'guards'
+    thGuards: 'guards',
+    transitionEditor: 'Transition editor',
+    requirementsPlaceholder: 'requirements (separate with |)',
+    deleteRecord: 'Delete record',
+    saveRecord: 'Save record',
+    addRecord: 'Add record',
+    noRecords: 'No records yet.',
+    noTransitions: 'No transitions yet.'
   },
   entityview: {
     invalidEntity: '⚠ Not a valid entity document: {message}',
