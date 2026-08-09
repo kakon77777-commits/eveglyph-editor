@@ -34,6 +34,9 @@ export const S = {
     agentQuiet: CONFIG.agentQuiet,
     memory: { ...CONFIG.memory },
     contextPackWrite: CONFIG.contextPackWrite,
+    worldStudio: {
+      enabled: CONFIG.worldStudio.enabled
+    },
     // Only the user-tunable subset of the schema persists; the enum lists (types /
     // statuses) stay in CONFIG so they can't go stale in someone's localStorage.
     eveglyphMd: {

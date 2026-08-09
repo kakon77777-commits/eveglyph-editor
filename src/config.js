@@ -21,7 +21,7 @@ export const CONFIG = {
     name: 'EveGlyph Editor',                                 // [const] product name
     tagline: 'A local-first, agent-native Markdown workspace', // [const]
     format: 'EveGlyph-MD',                                    // [const] the format/protocol it edits
-    version: '0.4.0',                                      // [const] keep in sync with package.json
+    version: '0.5.0',                                      // [const] keep in sync with package.json
     egCode: 'EG-MD-2026',                                // [const] EveMissLab protocol/product code
     year: 2026,                                            // [const] copyright year
     license: 'MIT',                                        // [const] see LICENSE
@@ -132,6 +132,15 @@ export const CONFIG = {
     enabled: true,                                        // [flag] show the Log panel tab
     limit: 200,                                           // [tunable] events fetched per refresh (bridge caps at monitorViewMax)
     autoRefreshMs: 2500,                                  // [tunable] poll interval while Auto is on + the tab is open
+  },
+
+  // ── Advanced World authoring (persisted, opt-in) ──
+  // EveGlyph's default product surface stays an AI-native Markdown editor.
+  // Enabling this reveals CompilableWorld Runtime, World overview, Studio,
+  // and specialized editable World IR previews. The source remains plain
+  // YAML either way, and disabling this never mutates a document or Runtime.
+  worldStudio: {
+    enabled: false,                                       // [user] opt in to advanced CompilableWorld authoring surfaces
   },
 
   // ── Encoding ──

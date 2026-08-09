@@ -16,6 +16,7 @@ import { evaluateDocument } from './aimdc/graph.js'
 import { renderBlock as renderAimdcBlockHtml, substituteInlineRefs } from './aimdc/render.js'
 import { renderChartBlock } from './visual/chart.js'
 import { renderPlotBlock } from './visual/plot.js'
+import { worldStudioEnabled } from './worldfeatures.js'
 
 export function previewUpdate() {
   const el  = document.getElementById('preview-body')
@@ -31,7 +32,11 @@ export function previewUpdate() {
   // View and State Machine View are editable (see entityview.js/smview.js).
   const worldIrHtml = renderWorldIrProjection(src)
   if (worldIrHtml !== null) {
-    el.innerHTML = worldIrHtml
+    // With World Studio disabled, World IR remains ordinary, directly editable
+    // YAML instead of exposing the advanced visual authoring projection.
+    el.innerHTML = worldStudioEnabled()
+      ? worldIrHtml
+      : `<pre class="world-source-preview"><code>${esc(src)}</code></pre>`
     return
   }
 

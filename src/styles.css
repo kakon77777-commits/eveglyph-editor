@@ -224,6 +224,12 @@ body.resizing #editor-container, body.resizing .cm-editor { pointer-events: none
 
 .tcontent { display:none; flex:1; overflow-y:auto; flex-direction:column; gap:12px; padding:12px; }
 .tcontent.active { display:flex; }
+.ptab[hidden], .tcontent[hidden] { display:none !important; }
+.world-source-preview {
+  margin:0; padding:10px; min-height:100%; box-sizing:border-box; overflow:auto;
+  white-space:pre; background:var(--bg-0); color:var(--t1); border:1px solid var(--bdr);
+  border-radius:var(--r); font:11px/1.55 var(--fm);
+}
 
 .cw-runtime-status { color:var(--t2); font-size:11px; min-height:16px; }
 .cw-runtime-status.ok { color:var(--ok); }
@@ -956,6 +962,20 @@ pre.diff span { display:block; padding:0 2px; }
 .sm-json-field, .sm-record-json { font-family:var(--fm); white-space:pre; }
 .sm-invalid-field { border-color:#f87171 !important; box-shadow:0 0 0 1px rgba(248,113,113,.2); }
 .sm-semantic-record-editor { border:1px solid var(--bdr); border-radius:var(--r); padding:7px; background:var(--bg-0); min-width:0; }
+.sm-record-form { display:grid; grid-template-columns:repeat(2,minmax(90px,1fr)); gap:6px; }
+.sm-record-field-wrap { display:flex; flex-direction:column; gap:3px; color:var(--t3); font:9px var(--fm); min-width:0; }
+.sm-record-field-wrap > input, .sm-record-field-wrap > textarea, .sm-record-field-wrap > select {
+  width:100%; min-width:0; box-sizing:border-box; padding:5px 6px; background:var(--bg-1);
+  color:var(--t1); border:1px solid var(--bdr); border-radius:4px; font:11px var(--fu, inherit);
+}
+.sm-record-field-wrap > textarea { min-height:54px; resize:vertical; }
+.sm-record-field-wrap > textarea.sm-json-field { min-height:72px; font-family:var(--fm); white-space:pre; }
+.sm-record-wide { grid-column:1 / -1; }
+.sm-random-editor { display:grid; grid-template-columns:repeat(2,minmax(90px,1fr)); gap:6px; margin:2px 0 0; padding:7px; border:1px dashed var(--bdr); border-radius:4px; }
+.sm-random-editor legend { padding:0 4px; color:var(--t2); font:9.5px var(--fm); }
+.sm-random-editor > small { grid-column:1 / -1; color:var(--t3); font:9px/1.4 var(--fu); }
+.sm-record-raw { margin-top:7px; border-top:1px solid var(--bdr); padding-top:5px; }
+.sm-record-raw > summary { cursor:pointer; color:var(--t3); font-size:9.5px; }
 .sm-record-json { display:block; width:100%; min-height:110px; padding:6px; resize:vertical; }
 .sm-record-save { margin-top:5px; }
 .sm-record-delete { color:#fca5a5; }
@@ -963,4 +983,6 @@ pre.diff span { display:block; padding:0 2px; }
 @media (max-width: 760px) {
   .sm-transition-grid { grid-template-columns:repeat(2,minmax(100px,1fr)); }
   .sm-wide-field { grid-column:span 2; }
+  .sm-record-form, .sm-random-editor { grid-template-columns:1fr; }
+  .sm-record-wide { grid-column:1; }
 }

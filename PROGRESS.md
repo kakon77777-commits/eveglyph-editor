@@ -1,8 +1,36 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-08-07
-> (World Studio: visual mapping and direct buffer write-back).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-08-09
+> (World Studio opt-in surface + guided semantic write-back).
+
+## World Studio / Editor completion slice (2026-08-09)
+
+- Advanced CompilableWorld surfaces are now explicitly opt-in through
+  **Settings → Enable World Studio**. Runtime, World, Studio, and specialized
+  World IR Preview are hidden by default so EveGlyph's normal identity remains
+  the AI-native Markdown editor. Disabling while one of those tabs is active
+  safely returns to Preview; recognized World IR displays as plain YAML.
+- State Machine semantic metadata is no longer limited to whole-record JSON.
+  Variables, defaults, bounded random specs, events/payload, instruction intent
+  and examples, plus response conditions/text now have guided visual controls.
+  Add buttons seed conservative valid templates.
+- Guided fields and the Advanced JSON fallback both write only through the
+  CodeMirror buffer. They apply Studio limits before write-back and fail closed
+  for malformed JSON, excessive examples/choices/text, invalid random bounds,
+  or a record that would fail bounded semantic validation.
+- Unknown extension fields remain available in each record's Advanced JSON and
+  round-trip untouched when a guided field changes. Bounded random remains
+  draft metadata; Runtime State and disk files are never written implicitly.
+
+Verified with static module checks, `npm run build`, `git diff --check`, and an
+isolated real-browser smoke test: default-off and reload persistence; opt-in tab
+visibility; plain-YAML fallback; guided default/random writes; preservation of
+unknown extension fields; rejection of a reversed random range, 13 examples,
+and an invalid whole-record edit; valid response-template insertion; zero
+console errors. The on-screen buffer changed while the isolated source file on
+disk retained its original default/range values and never gained the unsaved
+template record before cleanup.
 
 ## World Studio / visual write-back slice (2026-08-07)
 

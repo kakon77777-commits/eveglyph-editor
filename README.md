@@ -18,7 +18,7 @@ It is the editor half of **EveGlyph-MD**, a semantic-first Markdown format/proto
 - **Diff-first agent review (PatchMD)** — before an agent runs, the workspace is git-snapshotted; afterwards you review a real diff — grouped into **per-file cards with +/− counts** — and **Accept** (commit) or **Reject** (revert). A live activity panel shows the agent working.
 - **Permission tiers** — *Cautious* / *Standard* / *Trusted* map to **real CLI enforcement** (Claude Code tool allow-lists, Codex sandbox levels, Gemini approval modes), not just prompt text.
 - **EveGlyph-MD frontmatter** — a lightweight `type` / `status` / `tags` classification with a status-bar chip and preview badges; the active document's class is handed to the agent as sanitized, non-instruction metadata.
-- **World Studio draft generation** — the **Studio** tab asks the configured cloud AI for a bounded state-machine draft containing states, variables, optional controlled random ranges, events, language instructions, responses, and transitions. The result is parsed and validated locally before it can be applied to the editor; **Check with Runtime** can send it to the Runtime's read-only World IR importer, edit the returned mapping draft, and validate it again. It never writes Runtime State or saves a file automatically.
+- **World Studio draft generation** — opt in with **Settings → Enable World Studio**. The **Studio** tab asks the configured cloud AI for a bounded state-machine draft containing states, variables, optional controlled random ranges, events, language instructions, responses, and transitions. State Machine Preview provides direct visual buffer editing for those records and Runtime mapping review. The result is parsed and validated locally before it can be applied to the editor; **Check with Runtime** can send it to the Runtime's read-only World IR importer, edit the returned mapping draft, and validate it again. It never writes Runtime State or saves a file automatically.
 - **Workspace memory (`.eveglyph/`)** — per-workspace `rules.md` / `glossary.md` / `memory/*` injected into every agent run; a back-stage **Monitor** tab reads the diagnostic stream.
 - **MCP server** (`mcp-server.js`) — a standalone stdio [MCP](https://modelcontextprotocol.io) server so any MCP-capable client (Claude Desktop, Claude Code, etc.) can read/write a workspace and run AIMD-C/World-IR logic directly, no browser needed. See [below](#mcp-server-for-ai-clients).
 
@@ -47,6 +47,7 @@ Then open <http://localhost:5173>.
 - Cloud providers: API key + model id.
 - Local agent: choose the agent, set an **absolute workspace path** (the browser cannot expose the picked folder's real path to the agent), and an optional command override.
 - **Default encoding** — fallback used when auto-detection is uncertain, and the encoding applied to newly created files.
+- **Enable World Studio** — reveals the advanced Runtime, World, Studio, and editable World IR views. It is off by default so the normal surface remains an AI-native Markdown editor; source files remain plain YAML and disk Save is always explicit.
 
 ## How it works
 
@@ -118,7 +119,7 @@ Read **[SECURITY.md](SECURITY.md)** for the full trust model — localhost gatin
 
 ## Status
 
-**v0.4.0** — local prototype, pre-1.0. `EG-MD-2026`. Built by Neo.K under **EveMissLab**.
+**v0.5.0** — local prototype, pre-1.0. `EG-MD-2026`. Built by Neo.K under **EveMissLab**.
 
 ## 關於本專案 (About & License)
 

@@ -194,6 +194,8 @@ export function cfgLoad() {
 
   const ffEl = $('s-font-family')
   if (ffEl) ffEl.value = S.cfg.editorFontFamily || ''
+  const worldStudioEl = $('s-world-studio-enabled')
+  if (worldStudioEl) worldStudioEl.checked = S.cfg.worldStudio?.enabled === true
   const permEl = $('s-agent-permission')
   if (permEl) permEl.value = S.cfg.agentPermission || 'standard'
   const toEl = $('s-agent-timeout')
@@ -278,6 +280,11 @@ export function cfgSave(showMessage = true) {
       recent:   $('s-mem-recent')     ? $('s-mem-recent').checked     : (S.cfg.memory?.recent    !== false),
     },
     contextPackWrite: S.cfg.contextPackWrite !== false,
+    worldStudio: {
+      enabled: $('s-world-studio-enabled')
+        ? $('s-world-studio-enabled').checked
+        : (S.cfg.worldStudio?.enabled === true),
+    },
     eveglyphMd: {
       enabled:           $('s-eveglyph-enabled') ? $('s-eveglyph-enabled').checked : (S.cfg.eveglyphMd?.enabled !== false),
       stampNewFiles:     $('s-eveglyph-stamp')   ? $('s-eveglyph-stamp').checked   : (S.cfg.eveglyphMd?.stampNewFiles !== false),

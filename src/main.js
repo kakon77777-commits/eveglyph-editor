@@ -1,6 +1,6 @@
 // =====================================================================
 // EveGlyph Editor · entry (main.js)
-// EG-MD-2026 · v0.3.0 · local-first, agent-native Markdown workspace (EveGlyph-MD)
+// EG-MD-2026 · v0.5.0 · local-first, agent-native Markdown workspace (EveGlyph-MD)
 // EVEMISS TECHNOLOGY CO., LTD. (一言諾科技有限公司) · Neo.K (許筌崴) · 2026
 // MIT License — see LICENSE
 //
@@ -57,6 +57,8 @@ import { initStudioView }          from './studio.js'
 import { exportActiveAsPdf }       from './typstui.js'
 import { applyTranslations }       from './i18n/index.js'
 import { applyLayout, initResizers } from './resize.js'
+import { applyWorldStudioVisibility } from './worldfeatures.js'
+import { previewUpdate } from './preview.js'
 
 // Toggle the app-wide light theme (CSS variables in styles.css).
 export function applyTheme(theme) {
@@ -248,6 +250,14 @@ function bindAll() {
     try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
     monitor('settings:font-family', {})
   }
+  document.getElementById('s-world-studio-enabled').onchange = (e) => {
+    if (!S.cfg.worldStudio) S.cfg.worldStudio = {}
+    S.cfg.worldStudio.enabled = e.target.checked
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
+    applyWorldStudioVisibility()
+    previewUpdate()
+    monitor('settings:world-studio', { enabled: e.target.checked })
+  }
   document.getElementById('s-agent-permission').onchange = (e) => {
     S.cfg.agentPermission = e.target.value
     try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
@@ -329,6 +339,7 @@ applyTheme(S.cfg.theme)
 applyLanguage(S.cfg.language)
 applyLayout()
 bindAll()
+applyWorldStudioVisibility()
 renderAbout()
 initDocs()
 initOverview()

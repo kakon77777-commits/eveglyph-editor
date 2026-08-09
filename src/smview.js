@@ -23,6 +23,7 @@ import jsYaml from 'js-yaml'
 import { validateStateMachine, unreachableStatesOf } from './validate.js'
 import { renderDiagnosticsBlock } from './diagnostics.js'
 import { editorGet, editorSet } from './editor.js'
+import { STUDIO_LIMITS, STUDIO_RANDOM_KINDS, validateStudioDraft } from './studiogenerator.js'
 // Aliased: this file uses `t` extensively as a transition-object variable name.
 import { t as i18n } from './i18n/index.js'
 
@@ -127,23 +128,109 @@ function renderSemanticRecords(doc) {
   `
 }
 
-// Semantic records stay JSON-shaped because their fields are extensible
-// authoring metadata, not Runtime rules. The inspector edits one record at a
-// time without silently dropping fields unknown to the current UI.
-function renderSemanticRecordEditors(doc) {
-  const sections = [
-    { key: 'variables', label: i18n('smview.variables') },
-    { key: 'events', label: i18n('smview.events') },
-    { key: 'instructions', label: i18n('smview.instructions') },
-    { key: 'responses', label: i18n('smview.responses') },
+const SEMANTIC_SECTIONS = Object.freeze([
+  { key: 'variables', label: 'variables' },
+  { key: 'events', label: 'events' },
+  { key: 'instructions', label: 'instructions' },
+  { key: 'responses', label: 'responses' },
+])
+
+function nestedValue(object, path) {
+  return path.split('.').reduce((value, key) => value?.[key], object)
+}
+
+function semanticField(record, sectionKey, index, path, {
+  label = path,
+  type = 'text',
+  placeholder = '',
+  wide = false,
+} = {}) {
+  const value = nestedValue(record, path)
+  let display = ''
+  if (type === 'json') display = value === undefined ? '' : JSON.stringify(value, null, 2)
+  else if (type === 'lines') display = Array.isArray(value) ? value.join('\n') : (value ?? '')
+  else display = value ?? ''
+  const attrs = `class="sm-record-field${type === 'json' ? ' sm-json-field' : ''}" data-record-key="${esc(sectionKey)}" data-record-index="${index}" data-record-field="${esc(path)}" data-value-type="${esc(type)}"`
+  const control = (type === 'textarea' || type === 'json' || type === 'lines')
+    ? `<textarea ${attrs} placeholder="${esc(placeholder)}" spellcheck="false">${esc(display)}</textarea>`
+    : `<input ${attrs} type="${type === 'number' ? 'number' : 'text'}"${type === 'number' ? ' step="any"' : ''} value="${esc(display)}" placeholder="${esc(placeholder)}">`
+  return `<label class="sm-record-field-wrap${wide ? ' sm-record-wide' : ''}"><span>${esc(label)}</span>${control}</label>`
+}
+
+function randomEditor(record, sectionKey, index) {
+  const random = record?.random && typeof record.random === 'object' && !Array.isArray(record.random)
+    ? record.random
+    : null
+  const kind = typeof random?.kind === 'string' ? random.kind : ''
+  const options = [
+    `<option value=""${kind ? '' : ' selected'}>${i18n('smview.randomNone')}</option>`,
+    ...STUDIO_RANDOM_KINDS.map(item => `<option value="${item}"${item === kind ? ' selected' : ''}>${item}</option>`),
   ]
+  if (kind && !STUDIO_RANDOM_KINDS.includes(kind)) {
+    options.push(`<option value="${esc(kind)}" selected>${esc(kind)} (${i18n('smview.unknownValue')})</option>`)
+  }
+  const common = `data-record-key="${esc(sectionKey)}" data-record-index="${index}"`
+  let fields = ''
+  if (kind === 'integer' || kind === 'number') {
+    fields = semanticField(record, sectionKey, index, 'random.min', { type: 'number' }) +
+      semanticField(record, sectionKey, index, 'random.max', { type: 'number' })
+  } else if (kind === 'choice') {
+    fields = semanticField(record, sectionKey, index, 'random.values', {
+      type: 'json', label: 'values (JSON)', wide: true, placeholder: '[true, false]',
+    })
+  }
+  if (kind) fields += semanticField(record, sectionKey, index, 'random.seed', { placeholder: i18n('smview.optionalSeed') })
+  return `
+    <fieldset class="sm-random-editor sm-record-wide">
+      <legend>${i18n('smview.boundedRandom')}</legend>
+      <label class="sm-record-field-wrap"><span>kind</span>
+        <select class="sm-record-field" ${common} data-record-field="random.kind" data-value-type="random-kind">${options.join('')}</select>
+      </label>
+      ${fields}
+      <small>${i18n('smview.randomDraftOnly')}</small>
+    </fieldset>
+  `
+}
+
+function semanticVisualFields(sectionKey, record, index) {
+  const id = semanticField(record, sectionKey, index, 'id', { placeholder: `${sectionKey}.${index + 1}` })
+  if (sectionKey === 'variables') return `
+    ${id}
+    ${semanticField(record, sectionKey, index, 'type', { placeholder: 'string | number | boolean | …' })}
+    ${semanticField(record, sectionKey, index, 'default', { type: 'json', label: 'default (JSON)', wide: true, placeholder: '"text", 0, true, [] or {}' })}
+    ${semanticField(record, sectionKey, index, 'description', { type: 'textarea', wide: true })}
+    ${randomEditor(record, sectionKey, index)}
+  `
+  if (sectionKey === 'events') return `
+    ${id}
+    ${semanticField(record, sectionKey, index, 'description', { type: 'textarea', wide: true })}
+    ${semanticField(record, sectionKey, index, 'payload', { type: 'json', label: 'payload (JSON)', wide: true, placeholder: '{}' })}
+  `
+  if (sectionKey === 'instructions') return `
+    ${id}
+    ${semanticField(record, sectionKey, index, 'intent', { type: 'textarea', wide: true })}
+    ${semanticField(record, sectionKey, index, 'examples', { type: 'lines', label: i18n('smview.examplesOnePerLine'), wide: true })}
+    ${semanticField(record, sectionKey, index, 'description', { type: 'textarea', wide: true })}
+  `
+  return `
+    ${id}
+    ${semanticField(record, sectionKey, index, 'when', { type: 'textarea', wide: true })}
+    ${semanticField(record, sectionKey, index, 'text', { type: 'textarea', wide: true })}
+    ${semanticField(record, sectionKey, index, 'description', { type: 'textarea', wide: true })}
+  `
+}
+
+// Common semantic fields have guided controls and write straight back to the
+// editor buffer. The complete JSON record remains available underneath, so
+// fields unknown to this UI round-trip instead of being silently discarded.
+function renderSemanticRecordEditors(doc) {
   return `
     <div class="sm-semantic-grid sm-semantic-editors">
-      ${sections.map(section => {
+      ${SEMANTIC_SECTIONS.map(section => {
         const records = Array.isArray(doc[section.key]) ? doc[section.key] : []
         return `
           <details class="sm-semantic-section" open>
-            <summary>${esc(section.label)} <span>${records.length}</span></summary>
+            <summary>${esc(i18n(`smview.${section.label}`))} <span>${records.length}</span></summary>
             <div class="sm-semantic-records">
               ${records.map((record, index) => `
                 <article class="sm-semantic-record-editor">
@@ -151,8 +238,12 @@ function renderSemanticRecordEditors(doc) {
                     <strong>${esc(record?.id || record?.name || `${section.key}.${index + 1}`)}</strong>
                     <button class="btn-s sm-record-delete" data-record-key="${esc(section.key)}" data-record-index="${index}" type="button">${i18n('smview.deleteRecord')}</button>
                   </div>
-                  <textarea class="sm-record-json" data-record-key="${esc(section.key)}" data-record-index="${index}" spellcheck="false">${esc(JSON.stringify(record ?? {}, null, 2))}</textarea>
-                  <button class="btn-s sm-record-save" data-record-key="${esc(section.key)}" data-record-index="${index}" type="button">${i18n('smview.saveRecord')}</button>
+                  <div class="sm-record-form">${semanticVisualFields(section.key, record ?? {}, index)}</div>
+                  <details class="sm-record-raw">
+                    <summary>${i18n('smview.advancedJson')}</summary>
+                    <textarea class="sm-record-json" data-record-key="${esc(section.key)}" data-record-index="${index}" spellcheck="false">${esc(JSON.stringify(record ?? {}, null, 2))}</textarea>
+                    <button class="btn-s sm-record-save" data-record-key="${esc(section.key)}" data-record-index="${index}" type="button">${i18n('smview.saveRecord')}</button>
+                  </details>
                 </article>
               `).join('') || `<span class="studio-dim">${i18n('smview.noRecords')}</span>`}
             </div>
@@ -207,7 +298,13 @@ export function renderStateMachine(src) {
     return `<div class="sm-error">${i18n('smview.invalidDoc', { message: esc(e.message) })}</div>`
   }
 
-  const issues = validateStateMachine(sm.doc)
+  const stateMachineIssues = validateStateMachine(sm.doc)
+  // Reuse Studio's bounded semantic validator in the ordinary visual editor,
+  // while keeping validateStateMachine's original issue codes for graph
+  // highlighting. Drop Studio's prefixed duplicates of those same graph issues.
+  const semanticIssues = validateStudioDraft(sm.doc)
+    .filter(issue => !String(issue.code || '').startsWith('state_machine_'))
+  const issues = [...stateMachineIssues, ...semanticIssues]
   const unreachable = unreachableStatesOf(issues)
 
   const boxW = 150, boxH = 56, gapX = 90, gapY = 100
@@ -336,6 +433,158 @@ function withCurrentDoc(mutate) {
   return true
 }
 
+function setNestedValue(record, path, value, remove = false) {
+  const parts = path.split('.')
+  const leaf = parts.pop()
+  let target = record
+  for (const part of parts) {
+    if (!target[part] || typeof target[part] !== 'object' || Array.isArray(target[part])) target[part] = {}
+    target = target[part]
+  }
+  if (remove) delete target[leaf]
+  else target[leaf] = value
+}
+
+function mutateRandomKind(record, kind) {
+  if (!kind) {
+    delete record.random
+    return
+  }
+  const random = record.random && typeof record.random === 'object' && !Array.isArray(record.random)
+    ? { ...record.random }
+    : {}
+  random.kind = kind
+  if (kind === 'boolean') {
+    delete random.min; delete random.max; delete random.values
+  } else if (kind === 'choice') {
+    delete random.min; delete random.max
+    if (!Array.isArray(random.values) || !random.values.length) random.values = [true, false]
+  } else {
+    delete random.values
+    if (!Number.isFinite(random.min)) random.min = 0
+    if (!Number.isFinite(random.max)) random.max = 1
+    if (kind === 'integer') {
+      random.min = Math.trunc(random.min)
+      random.max = Math.trunc(random.max)
+    }
+  }
+  record.random = random
+}
+
+function parseSemanticField(field, record) {
+  const type = field.dataset.valueType
+  const path = field.dataset.recordField
+  const raw = field.value
+  if (type === 'random-kind') {
+    return STUDIO_RANDOM_KINDS.includes(raw) || raw === ''
+      ? { valid: true, value: raw }
+      : { valid: false, message: i18n('smview.invalidRandomKind') }
+  }
+  if (type === 'json') {
+    if (!raw.trim()) return { valid: true, remove: true }
+    let value
+    try { value = JSON.parse(raw) } catch (_) {
+      return { valid: false, message: i18n('smview.invalidJson') }
+    }
+    if (path === 'random.values') {
+      const validChoice = item => typeof item === 'string' || typeof item === 'boolean' ||
+        (typeof item === 'number' && Number.isFinite(item))
+      if (!Array.isArray(value) || !value.length || value.length > STUDIO_LIMITS.randomChoices || value.some(item => !validChoice(item))) {
+        return { valid: false, message: i18n('smview.invalidRandomValues', { count: STUDIO_LIMITS.randomChoices }) }
+      }
+    }
+    return { valid: true, value }
+  }
+  if (type === 'lines') {
+    const value = raw.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
+    if (!value.length) return { valid: true, remove: true }
+    if (value.length > STUDIO_LIMITS.examplesPerInstruction || value.some(item => item.length > STUDIO_LIMITS.textChars)) {
+      return { valid: false, message: i18n('smview.invalidExamples', { count: STUDIO_LIMITS.examplesPerInstruction }) }
+    }
+    return { valid: true, value }
+  }
+  if (type === 'number') {
+    const value = Number(raw)
+    if (!raw.trim() || !Number.isFinite(value)) return { valid: false, message: i18n('smview.invalidNumber') }
+    const random = record?.random || {}
+    const min = path === 'random.min' ? value : random.min
+    const max = path === 'random.max' ? value : random.max
+    if (Number.isFinite(min) && Number.isFinite(max)) {
+      if (max < min || max - min > STUDIO_LIMITS.randomRange) {
+        return { valid: false, message: i18n('smview.invalidRandomRange', { range: STUDIO_LIMITS.randomRange }) }
+      }
+      if (random.kind === 'integer' && (!Number.isInteger(min) || !Number.isInteger(max))) {
+        return { valid: false, message: i18n('smview.integerBounds') }
+      }
+    }
+    return { valid: true, value }
+  }
+  if (raw.length > STUDIO_LIMITS.textChars) {
+    return { valid: false, message: i18n('smview.textTooLong', { count: STUDIO_LIMITS.textChars }) }
+  }
+  return raw === '' ? { valid: true, remove: true } : { valid: true, value: raw }
+}
+
+function writeValidatedSemanticRecord(key, index, mutate) {
+  let doc
+  try { doc = jsYaml.load(editorGet()) } catch (_) { return { ok: false, message: i18n('smview.invalidYamlBuffer') } }
+  const record = Array.isArray(doc?.[key]) ? doc[key][index] : null
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    return { ok: false, message: i18n('smview.missingRecord') }
+  }
+  mutate(record)
+  const prefix = `${key}[${index}]`
+  const error = validateStudioDraft(doc).find(issue => issue.severity === 'error' && String(issue.path || '').startsWith(prefix))
+  if (error) return { ok: false, message: error.message }
+  editorSet(jsYaml.dump(doc))
+  return { ok: true }
+}
+
+function commitSemanticField(field) {
+  if (field.dataset.lastCommittedValue === field.value) return true
+  const key = field.dataset.recordKey
+  const index = Number(field.dataset.recordIndex)
+  let current
+  try { current = jsYaml.load(editorGet())?.[key]?.[index] } catch (_) {}
+  const parsed = parseSemanticField(field, current)
+  if (!parsed.valid) {
+    field.classList.add('sm-invalid-field')
+    field.setAttribute('aria-invalid', 'true')
+    field.setAttribute('title', parsed.message || '')
+    return false
+  }
+  const result = writeValidatedSemanticRecord(key, index, record => {
+    if (field.dataset.valueType === 'random-kind') mutateRandomKind(record, parsed.value)
+    else setNestedValue(record, field.dataset.recordField, parsed.value, parsed.remove)
+  })
+  if (!result.ok) {
+    field.classList.add('sm-invalid-field')
+    field.setAttribute('aria-invalid', 'true')
+    field.setAttribute('title', result.message || '')
+    return false
+  }
+  field.classList.remove('sm-invalid-field')
+  field.removeAttribute('aria-invalid')
+  field.removeAttribute('title')
+  field.dataset.lastCommittedValue = field.value
+  // editorSet() re-renders on the normal preview debounce. Refresh the raw
+  // fallback immediately as well, so a fast "guided edit → Advanced JSON →
+  // Save" sequence cannot overwrite the just-committed value with stale JSON.
+  try {
+    const refreshed = jsYaml.load(editorGet())?.[key]?.[index]
+    const rawEditor = field.closest('.sm-semantic-record-editor')?.querySelector('.sm-record-json')
+    if (rawEditor) rawEditor.value = JSON.stringify(refreshed ?? {}, null, 2)
+  } catch (_) {}
+  return true
+}
+
+const SEMANTIC_RECORD_TEMPLATES = Object.freeze({
+  variables: index => ({ id: `variables.${index}`, type: 'string', default: '' }),
+  events: index => ({ id: `events.${index}`, payload: {} }),
+  instructions: index => ({ id: `instructions.${index}`, intent: '', examples: [] }),
+  responses: index => ({ id: `responses.${index}`, when: '', text: '' }),
+})
+
 function commitTransitionField(field) {
   if (field.dataset.lastCommittedValue === field.value) return true
   const parsed = parseTransitionField(field)
@@ -432,7 +681,11 @@ export function wireStateMachineInteractions(el) {
       const key = recordAdd.dataset.recordKey
       withCurrentDoc(doc => {
         if (!Array.isArray(doc[key])) doc[key] = []
-        doc[key].push({ id: `${key}.${doc[key].length + 1}` })
+        if (doc[key].length >= (STUDIO_LIMITS[key] ?? Infinity)) return
+        const ids = new Set(doc[key].map(record => record?.id).filter(Boolean))
+        let serial = doc[key].length + 1
+        while (ids.has(`${key}.${serial}`)) serial += 1
+        doc[key].push(SEMANTIC_RECORD_TEMPLATES[key]?.(serial) || { id: `${key}.${serial}` })
       })
       return
     }
@@ -456,13 +709,30 @@ export function wireStateMachineInteractions(el) {
       )
       if (!input) return
       let value
-      try { value = JSON.parse(input.value) } catch (_) { input.classList.add('sm-invalid-field'); return }
-      if (!value || typeof value !== 'object' || Array.isArray(value)) { input.classList.add('sm-invalid-field'); return }
-      input.classList.remove('sm-invalid-field')
-      withCurrentDoc(doc => {
-        if (!Array.isArray(doc[key])) doc[key] = []
-        doc[key][index] = value
+      try { value = JSON.parse(input.value) } catch (_) {
+        input.classList.add('sm-invalid-field')
+        input.setAttribute('aria-invalid', 'true')
+        input.setAttribute('title', i18n('smview.invalidJson'))
+        return
+      }
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        input.classList.add('sm-invalid-field')
+        input.setAttribute('aria-invalid', 'true')
+        input.setAttribute('title', i18n('smview.recordMustBeObject'))
+        return
+      }
+      const result = writeValidatedSemanticRecord(key, index, record => {
+        for (const name of Object.keys(record)) delete record[name]
+        Object.assign(record, value)
       })
+      input.classList.toggle('sm-invalid-field', !result.ok)
+      if (!result.ok) {
+        input.setAttribute('aria-invalid', 'true')
+        input.setAttribute('title', result.message || '')
+      } else {
+        input.removeAttribute('aria-invalid')
+        input.removeAttribute('title')
+      }
     }
   })
 
@@ -475,6 +745,9 @@ export function wireStateMachineInteractions(el) {
 
     const field = e.target.closest('.sm-tx-field')
     if (field) commitTransitionField(field)
+
+    const semanticField = e.target.closest('.sm-record-field')
+    if (semanticField) commitSemanticField(semanticField)
   })
 
   // Textarea/input automation and some browsers expose the final edit as a
@@ -484,5 +757,7 @@ export function wireStateMachineInteractions(el) {
   el.addEventListener('blur', (e) => {
     const field = e.target.closest?.('.sm-tx-field')
     if (field) commitTransitionField(field)
+    const semanticField = e.target.closest?.('.sm-record-field')
+    if (semanticField) commitSemanticField(semanticField)
   }, true)
 }

@@ -288,6 +288,12 @@
           <input type="text" id="s-font-family" placeholder="'JetBrains Mono', monospace">
         </div>
         <div class="sg">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="s-world-studio-enabled"> <span data-i18n="settings.worldStudioEnabled">Enable World Studio</span>
+          </label>
+          <span style="font-size:10px;color:var(--t3)" data-i18n="settings.worldStudioHint">Shows the advanced Runtime, World, Studio, and editable World IR views. Source stays plain YAML and all disk saves remain explicit.</span>
+        </div>
+        <div class="sg">
           <label data-i18n="settings.aiProvider">AI Provider</label>
           <select id="s-provider">
             <option value="anthropic">Anthropic (Claude)</option>

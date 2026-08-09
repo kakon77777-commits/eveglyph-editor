@@ -116,15 +116,25 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
 
 ## World IR mode (CompilableWorld)
 
+Turn on **Settings ⚙ → Enable World Studio** first. It is off by default so
+EveGlyph's normal surface remains focused on AI-native Markdown. Enabling it
+reveals the Runtime, World, and Studio tabs plus specialized World IR Preview.
+Turning it off again never changes the editor buffer, a file on disk, or Runtime
+State; recognized World IR simply previews as plain YAML source.
+
 Open a `.yaml`/`.yml` file whose content starts with one of these, and the
 Preview pane shows a specialized visual projection instead of Markdown. The
 file itself is always plain YAML text in the editor — these are different
 ways of viewing/editing it, not a separate save format.
 
 - **`kind: state_machine`** — states and transitions render as an SVG diagram
-  (guard conditions shown on each arrow). It's click-to-use: **+ Add State**
-  and **+ Add Transition** controls below the diagram, a **✕** on every state
-  box, a **✕** on every row of the raw transitions table.
+  (guard conditions shown on each arrow). It's click-to-use: edit the initial
+  state; add, edit, or delete states and transitions; and edit Runtime-facing
+  transition fields (`requirements`, `priority`, `event_match`, and reward).
+  Variables, events, language instructions, and responses have guided visual
+  forms. Bounded random metadata uses explicit boolean/integer/number/choice
+  controls. Each record also retains an Advanced JSON editor, so extension
+  fields the current UI does not know about are preserved instead of dropped.
 - **`kind: entity`** — renders as an editable field form. Change a value and
   blur (or press Enter) to write it back into the YAML. `id`/`kind` stay
   read-only on purpose — stable IDs shouldn't change casually.
@@ -134,7 +144,9 @@ ways of viewing/editing it, not a separate save format.
 Every one of these also runs a validator — missing/undefined initial state,
 transitions pointing at undefined states, conflicting transitions, unreachable
 states, missing or duplicate ids — and shows the result as a Diagnostics block
-right under the view.
+right under the view. State machines additionally apply Studio's semantic
+record counts, text lengths, examples, and bounded-random limits. Invalid
+guided fields are rejected before write-back.
 
 The **🌐 World** tab scans every `.yaml`/`.yml` file in the open workspace,
 classifies and validates each one, and lists them grouped by kind with

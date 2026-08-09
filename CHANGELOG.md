@@ -6,6 +6,14 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Opt-in advanced World Studio surface + guided semantic write-back** —
+  Settings now controls visibility of Runtime, World, Studio, and editable
+  World IR Preview; it is off by default and safely falls back to plain YAML
+  Preview without mutating the buffer. State Machine semantic records now have
+  guided forms for variables/defaults/bounded random, events/payload,
+  instructions/examples, and responses. Unsupported extension fields survive
+  through the Advanced JSON fallback. Invalid JSON, over-limit examples,
+  invalid random choices/ranges, and invalid full-record edits fail closed.
 - **Complete visual World Studio write-back slice** — State Machine Preview now
   includes initial-state, transition, and extensible semantic-record editors;
   Runtime mapping review now has visual entity, state-machine, EventIR,
