@@ -38,11 +38,13 @@ export default {
     studioTitle: 'Generate and review bounded World IR drafts',
     ai: 'AI',
     search: '🔍',
+    searchTitle: 'Search — find in files, replace, ask in plain language',
     log: '◷',
     logTitle: 'Monitor — diagnostic stream',
     docs: '📖',
     docsTitle: 'User Guide & Changelog',
-    settings: '⚙'
+    settings: '⚙',
+    settingsTitle: 'Settings — theme, language, AI provider, permissions'
   },
   world: {
     scanWorkspace: '↻ Scan workspace',

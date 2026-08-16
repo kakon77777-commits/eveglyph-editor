@@ -36,11 +36,13 @@ export default {
     studioTitle: '產生並審核有邊界限制的 World IR 草稿',
     ai: 'AI',
     search: '🔍',
+    searchTitle: '搜尋 — 檔案內搜尋/取代、用一般語言提問',
     log: '◷',
     logTitle: 'Monitor — 診斷訊息流',
     docs: '📖',
     docsTitle: '使用手冊與更新紀錄',
-    settings: '⚙'
+    settings: '⚙',
+    settingsTitle: '設置 — 主題、語言、AI 供應商、權限'
   },
   world: {
     scanWorkspace: '↻ 掃描工作區',
