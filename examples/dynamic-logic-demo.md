@@ -63,7 +63,16 @@ label: Radar update further reduces rain support
 source: demo://radar-update
 :::
 
-## Judgment runtime
+## Judgment runtime — visualization + replay controls
+
+Use **▶ Play** for automatic event-driven playback, or ← / → for manual steps.
+The formula, evidence cards, metrics, and judgment block all re-render from the
+same selected evidence prefix. **⏸ Pause** freezes exactly where it is; **Live**
+returns to the latest state. Everything that reacts to replay lives together in
+this one section — nothing to scroll away from while you're driving it.
+
+::: aimd-history {claim="@weather-claim"}
+:::
 
 ::: aimd-judgment {id="weather-judge" claim="@weather-claim"}
 support_threshold: 0.8
@@ -83,32 +92,15 @@ Logic external ref — there is no second math evaluator hidden behind it:
 S_t
 :::
 
-## Replay / browser motion
-
-Use **▶ Play** for automatic event-driven playback, or ← / → for manual steps.
-The formula, evidence cards, metrics, and judgment block all re-render from the
-same selected evidence prefix. **⏸ Pause** freezes exactly where it is; **Live**
-returns to the latest state.
-
-::: aimd-history {claim="@weather-claim"}
-:::
-
-Expected evidence-prefix states:
-
-1. step 0: $\Omega$ (open)
-2. step 1: $\Omega$ (generating)
-3. step 2: $\top_p$ (provisional support)
-4. step 3: $\Omega$ (reopened)
-5. step 4: $\bot_p$ (provisional oppose)
+Expected evidence-prefix states: step 0 $\Omega$ (open) · step 1 $\Omega$
+(generating) · step 2 $\top_p$ (provisional support) · step 3 $\Omega$
+(reopened) · step 4 $\bot_p$ (provisional oppose).
 
 ::: note {title="Motion boundary"}
 This is semantic motion, not a fake thinking animation. CSS motion is emitted
 only when a browser frame observes a real replay/state/value change. The
-renderer also honors `prefers-reduced-motion`.
-:::
-
-::: note {title="MVP persistence boundary"}
-The replay cursor is still intentionally UI-local. A later increment will
-persist an append-only event sidecar; this browser-rendering phase verifies the
-continuous visual semantics first without prematurely adding disk mutation.
+renderer also honors `prefers-reduced-motion`. The replay cursor is still
+intentionally UI-local — a later increment persists an append-only event
+sidecar; this phase verifies the continuous visual semantics first without
+prematurely adding disk mutation.
 :::
