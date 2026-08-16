@@ -33,6 +33,14 @@ let motion = doc.motionByJudgment.get('judge')
 assert.equal(motion.firstFrame, true)
 assert.equal(motion.changed, false)
 
+// Re-rendering an unchanged all-null/open frame must also stay still. This
+// guards against treating a non-numeric null delta as if it were a real change.
+doc = frameAt(0)
+motion = doc.motionByJudgment.get('judge')
+assert.equal(motion.firstFrame, false)
+assert.equal(motion.changed, false)
+assert.equal(motion.cursorDelta, 0)
+
 // A real replay-step change creates motion even when the epistemic state remains omega.
 doc = frameAt(1)
 motion = doc.motionByJudgment.get('judge')
@@ -55,7 +63,7 @@ assert.ok(motion.supportDelta < 0)
 assert.equal(doc.refTransitions['judge.support'].changed, true)
 assert.equal(doc.refTransitions['judge.state'].changed, true)
 
-// Re-rendering the same frame must stay still: no fake idle animation.
+// Re-rendering the same numeric frame must stay still: no fake idle animation.
 doc = frameAt(3)
 motion = doc.motionByJudgment.get('judge')
 assert.equal(motion.changed, false)
