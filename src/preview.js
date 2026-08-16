@@ -62,7 +62,9 @@ export function previewUpdate() {
   // placeholders, so we can evaluate their whole-document semantics first,
   // render both, substitute shared {{ id.field }} refs, then run KaTeX.
   if (pendingAimdcBlocks.length || pendingDynamicLogicBlocks.length) {
-    const dynamicDoc = evaluateDynamicDocument(pendingDynamicLogicBlocks)
+    // Replay state is UI-only, but must still be namespaced by the active file;
+    // two documents are allowed to use the same local claim id independently.
+    const dynamicDoc = evaluateDynamicDocument(pendingDynamicLogicBlocks, S.active || '__buffer__')
     const aimdcDoc = evaluateDocument(pendingAimdcBlocks, dynamicDoc.refs)
     let html = el.innerHTML
     html = html.replace(/AIMDC_BLOCK_PLACEHOLDER_(\d+)/g, (_, i) => renderAimdcBlockHtml(pendingAimdcBlocks[Number(i)], aimdcDoc))
