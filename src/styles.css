@@ -61,6 +61,38 @@
   --ok:  #15924f;
 }
 
+/* Studio theme — a warmer, less-saturated dark palette (neutral slate instead
+   of the Dark theme's cool near-black), with the brand accent (indigo) kept
+   separate from the semantic "success/ok" colour (green) rather than reusing
+   one colour for both, the way Dark/Light both do. Applied via
+   [data-theme="studio"] on <html> (main.js setTheme) — a different mechanism
+   from Light's .theme-light class on purpose, so Dark/Light's own CSS and
+   toggle logic stay completely untouched. */
+:root[data-theme="studio"] {
+  --bg-0:   #14151a;
+  --bg-1:   #1a1b21;
+  --bg-2:   #202128;
+  --bg-3:   #282a33;
+  --surf:   #24252c;
+  --surf-h: #2c2d36;
+  --surf-a: #34353f;
+  --bdr:    #313239;
+  --bdr-s:  #40414b;
+
+  --t0: #eef0f3;
+  --t1: #a9acb8;
+  --t2: #74778a;
+  --t3: #454750;
+
+  --ac:    #818cf8;
+  --ac-d:  #4f46e5;
+  --ac-g:  rgba(129,140,248,.12);
+  --ac-g2: rgba(129,140,248,.22);
+
+  --err: #f87171;
+  --ok:  #4ade80;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -73,7 +105,7 @@ html, body {
 /* ─── APP GRID ─── */
 #app {
   display: grid;
-  grid-template-rows: var(--th) var(--pth) 1fr var(--sh);
+  grid-template-rows: var(--th) var(--sh) var(--pth) 1fr;
   height: 100vh;
 }
 
@@ -90,7 +122,18 @@ html, body {
 .brand-name { font-weight: 600; font-size: 14px; letter-spacing:.02em; }
 .brand-sub { font-size: 10px; color: var(--t2); letter-spacing:.1em; text-transform:uppercase; }
 .sep { width: 1px; height: 18px; background: var(--bdr-s); margin: 0 4px; }
-.topbar-actions { margin-left: auto; display:flex; align-items:center; gap:6px; }
+/* Quick theme/language switchers — a fast entry point for what's otherwise
+   buried in Settings, sitting immediately left of the action buttons (both
+   groups anchored to the topbar's right edge as one visual cluster). */
+.topbar-quick { margin-left: auto; display:flex; align-items:center; gap:6px; }
+.qs-select {
+  background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r);
+  padding:5px 7px; color:var(--t1); font-family:var(--fu); font-size:11.5px;
+  outline:none; cursor:pointer; transition:border-color .1s;
+}
+.qs-select:hover, .qs-select:focus { border-color:var(--ac-d); color:var(--t0); }
+.qs-select option { background:var(--bg-1); }
+.topbar-actions { display:flex; align-items:center; gap:6px; }
 
 /* ─── MAIN GRID ─── */
 #main { display: grid; grid-template-columns: var(--sw) 4px 1fr 4px var(--rw); overflow: hidden; }
@@ -123,8 +166,7 @@ body.resizing #editor-container, body.resizing .cm-editor { pointer-events: none
 
 .dir-item {
   padding: 3px 10px;
-  font-size: 10px; font-weight:700;
-  letter-spacing:.08em; text-transform:uppercase;
+  font-size: 11px; font-weight:600;
   color: var(--t2); user-select:none;
 }
 .file-item {
@@ -530,8 +572,7 @@ textarea#ai-input:focus { border-color:var(--ac-d); }
 /* ─── SETTINGS ─── */
 .sg { display:flex; flex-direction:column; gap:4px; }
 .sg label {
-  font-size:9px; font-weight:700; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--t2);
+  font-size:11px; font-weight:600; color:var(--t2);
 }
 .sg input, .sg select {
   background:var(--bg-0); border:1px solid var(--bdr); border-radius:var(--r);
@@ -552,8 +593,11 @@ textarea#ai-input:focus { border-color:var(--ac-d); }
 #settings-msg.err { color:var(--err); }
 
 /* ─── STATUSBAR ─── */
+/* Now sits directly under #topbar (was a footer at the very bottom of the
+   viewport) — border-bottom instead of border-top to divide it from the
+   panel-tabs/content below, same visual role, flipped side. */
 #statusbar {
-  background:var(--bg-0); border-top:1px solid var(--bdr);
+  background:var(--bg-0); border-bottom:1px solid var(--bdr);
   display:flex; align-items:center; padding:0 12px; gap:14px;
   font-size:11px; color:var(--t2); user-select:none;
 }

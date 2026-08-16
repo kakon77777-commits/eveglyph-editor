@@ -10,7 +10,9 @@ export default {
     print: '列印',
     printTitle: '列印 / 另存為 PDF（瀏覽器內建）',
     exportPdf: 'PDF',
-    exportPdfTitle: '匯出成真正的排版 PDF（Typst，在瀏覽器裡跑，第一次使用會下載約 51MB，含繁體中文字型，之後有快取）'
+    exportPdfTitle: '匯出成真正的排版 PDF（Typst，在瀏覽器裡跑，第一次使用會下載約 51MB，含繁體中文字型，之後有快取）',
+    quickThemeTitle: '主題',
+    quickLanguageTitle: '語言'
   },
   sidebar: {
     noFolderOpen: '尚未開啟資料夾'
@@ -139,6 +141,7 @@ export default {
     theme: '主題',
     themeDark: '深色',
     themeLight: '淺色',
+    themeStudio: 'Studio',
     language: '語言',
     languageHint: '（介面文字目前仍是英文 — 詳見 PROGRESS.md）',
     editorFontSize: '編輯器字級',

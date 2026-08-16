@@ -12,7 +12,9 @@ export default {
     print: 'Print',
     printTitle: 'Print / Save-as-PDF the preview',
     exportPdf: 'PDF',
-    exportPdfTitle: 'Export as a real typeset PDF (Typst, runs in your browser — first use downloads ~51MB incl. Traditional Chinese fonts, cached after)'
+    exportPdfTitle: 'Export as a real typeset PDF (Typst, runs in your browser — first use downloads ~51MB incl. Traditional Chinese fonts, cached after)',
+    quickThemeTitle: 'Theme',
+    quickLanguageTitle: 'Language'
   },
   sidebar: {
     noFolderOpen: 'No folder open'
@@ -141,6 +143,7 @@ export default {
     theme: 'Theme',
     themeDark: 'Dark',
     themeLight: 'Light',
+    themeStudio: 'Studio',
     language: 'Language',
     languageHint: '(UI text stays English for now — see PROGRESS.md)',
     editorFontSize: 'Editor font size',

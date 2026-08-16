@@ -60,9 +60,40 @@ import { applyLayout, initResizers } from './resize.js'
 import { applyWorldStudioVisibility } from './worldfeatures.js'
 import { previewUpdate } from './preview.js'
 
-// Toggle the app-wide light theme (CSS variables in styles.css).
+// Toggle the app-wide theme (CSS variables in styles.css). Light stays the
+// existing .theme-light class on <html>, untouched; Studio is a separate
+// [data-theme="studio"] attribute so Dark/Light's own CSS/toggle logic never
+// has to know a third theme exists.
 export function applyTheme(theme) {
   document.documentElement.classList.toggle('theme-light', theme === 'light')
+  if (theme === 'studio') document.documentElement.setAttribute('data-theme', 'studio')
+  else document.documentElement.removeAttribute('data-theme')
+}
+
+// Shared by the Settings-panel theme select (#s-theme) and the topbar quick
+// switcher (#qs-theme) — one state change, two entry points, always in sync.
+function setTheme(theme) {
+  S.cfg.theme = theme
+  applyTheme(theme)
+  if (S.editor) editorInit(editorGet())   // re-create so CodeMirror picks up the new theme
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
+  monitor('settings:theme', { theme })
+  for (const id of ['s-theme', 'qs-theme']) {
+    const el = document.getElementById(id)
+    if (el && el.value !== theme) el.value = theme
+  }
+}
+
+// Shared by #s-language and the topbar quick switcher (#qs-language).
+function setLanguage(lang) {
+  S.cfg.language = lang
+  applyLanguage(lang)
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
+  monitor('settings:language', { language: lang })
+  for (const id of ['s-language', 'qs-language']) {
+    const el = document.getElementById(id)
+    if (el && el.value !== lang) el.value = lang
+  }
 }
 
 // i18n Phase 2 (see src/i18n/): sets <html lang> and re-applies every
@@ -223,19 +254,10 @@ function bindAll() {
     if (el.value) navigator.clipboard?.writeText(el.value).then(() => setMsg('Command copied', 'ok')).catch(() => {})
   }
   document.getElementById('s-agentcmd').onchange = () => { monitor('settings:agentcmd', { hasOverride: Boolean(document.getElementById('s-agentcmd').value.trim()) }); connectAgent() }
-  document.getElementById('s-theme').onchange = (e) => {
-    S.cfg.theme = e.target.value
-    applyTheme(S.cfg.theme)
-    if (S.editor) editorInit(editorGet())   // re-create so CodeMirror picks up the new theme
-    try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
-    monitor('settings:theme', { theme: S.cfg.theme })
-  }
-  document.getElementById('s-language').onchange = (e) => {
-    S.cfg.language = e.target.value
-    applyLanguage(S.cfg.language)
-    try { localStorage.setItem(CFG_KEY, JSON.stringify(S.cfg)) } catch (_) {}
-    monitor('settings:language', { language: S.cfg.language })
-  }
+  document.getElementById('s-theme').onchange = (e) => setTheme(e.target.value)
+  document.getElementById('qs-theme').onchange = (e) => setTheme(e.target.value)
+  document.getElementById('s-language').onchange = (e) => setLanguage(e.target.value)
+  document.getElementById('qs-language').onchange = (e) => setLanguage(e.target.value)
   document.getElementById('s-font-size').onchange = (e) => {
     const v = parseFloat(e.target.value)
     if (!Number.isFinite(v) || v < 8 || v > 40) { e.target.value = S.cfg.editorFontSize; return }

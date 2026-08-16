@@ -21,9 +21,17 @@
       <button class="brand-changelog" id="btn-whats-new" data-i18n="topbar.whatsNew" data-i18n-title="topbar.whatsNew">What's new</button>
     </div>
     <div class="sep"></div>
+    <div class="topbar-quick">
+      <select class="qs-select" id="qs-theme" data-i18n-title="topbar.quickThemeTitle" title="Theme">
+        <option value="dark" data-i18n="settings.themeDark">Dark</option>
+        <option value="light" data-i18n="settings.themeLight">Light</option>
+        <option value="studio" data-i18n="settings.themeStudio">Studio</option>
+      </select>
+      <select class="qs-select" id="qs-language" data-i18n-title="topbar.quickLanguageTitle" title="Language"></select>
+    </div>
     <div class="topbar-actions">
       <button class="btn-p" id="btn-open" data-i18n="topbar.openFolder">Open Folder</button>
-      <button class="btn-s" id="btn-save" disabled data-i18n="topbar.save">Save</button>
+      <button class="btn-p" id="btn-save" disabled data-i18n="topbar.save">Save</button>
       <button class="btn-s" id="btn-new" disabled data-i18n="topbar.newFile">+ New</button>
       <button class="btn-s" id="btn-import" data-i18n="topbar.importDocx" data-i18n-title="topbar.importDocxTitle">Import DOCX</button>
       <button class="btn-s" id="btn-print" data-i18n="topbar.print" data-i18n-title="topbar.printTitle">Print</button>
@@ -31,6 +39,18 @@
       <input type="file" id="docx-input" accept=".docx" style="display:none">
     </div>
   </header>
+
+  <!-- STATUSBAR — moved up to sit directly under the topbar (was a footer at
+       the very bottom of the viewport, easy to never look at). Same content,
+       new position; see styles.css for the border-side flip that goes with it. -->
+  <footer id="statusbar">
+    <span id="s-cursor" data-i18n="statusbar.lnCol">Ln 1, Col 1</span>
+    <span id="s-mod"></span>
+    <span id="s-file" style="color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px"></span>
+    <span id="s-eveglyph" class="s-eveglyph" data-i18n-title="statusbar.eveglyphClassTitle" title="EveGlyph-MD document class — click to set"></span>
+    <span id="status-provider"></span>
+    <span id="s-encoding" class="s-enc" data-i18n-title="statusbar.encodingTitle" title="File encoding — click to change"></span>
+  </footer>
 
   <!-- PANEL TABS — own full-width grid row (2026-07-17: moved out of
        #right-panel, which at --rw was too narrow to hold 9 tabs legibly). -->
@@ -273,6 +293,7 @@
           <select id="s-theme">
             <option value="dark" data-i18n="settings.themeDark">Dark</option>
             <option value="light" data-i18n="settings.themeLight">Light</option>
+            <option value="studio" data-i18n="settings.themeStudio">Studio</option>
           </select>
         </div>
         <div class="sg">
@@ -478,16 +499,6 @@
       </div>
     </aside>
   </div>
-
-  <!-- STATUSBAR -->
-  <footer id="statusbar">
-    <span id="s-cursor" data-i18n="statusbar.lnCol">Ln 1, Col 1</span>
-    <span id="s-mod"></span>
-    <span id="s-file" style="color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px"></span>
-    <span id="s-eveglyph" class="s-eveglyph" data-i18n-title="statusbar.eveglyphClassTitle" title="EveGlyph-MD document class — click to set"></span>
-    <span id="status-provider"></span>
-    <span id="s-encoding" class="s-enc" data-i18n-title="statusbar.encodingTitle" title="File encoding — click to change"></span>
-  </footer>
 
 </div>
 

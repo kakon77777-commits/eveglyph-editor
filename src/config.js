@@ -37,12 +37,14 @@ export const CONFIG = {
   layout: {
     sidebarWidth: 240,                                    // [user] px — default seed; live override persists as cfg.sidebarWidth
     rightPanelWidth: 340,                                 // [user] px — default seed; live override persists as cfg.rightPanelWidth
-    sidebarMin: 160, sidebarMax: 480,                     // [tunable] drag clamp range
-    rightPanelMin: 260, rightPanelMax: 640,               // [tunable] drag clamp range
+    sidebarMin: 160, sidebarMax: 640,                     // [tunable] drag clamp range
+    rightPanelMin: 260, rightPanelMax: 900,               // [tunable] drag clamp range
   },
 
   // ── Appearance ──
-  theme: 'dark',                                          // [user] app theme: dark | light
+  theme: 'dark',                                          // [user] app theme: dark | light | studio
+  themes: ['dark', 'light', 'studio'],                    // [const] supported themes
+  themeLabels: { dark: 'Dark', light: 'Light', studio: 'Studio' }, // [const]
   // i18n Phase 1: the setting + <html lang> only. UI strings stay English until
   // the translation-string architecture itself is decided (Neo: "先來一個語言
   // 設置。然後我們來討論如何最好的兼容性") — deliberately not solved here.

@@ -178,15 +178,20 @@ export function cfgLoad() {
 
   const themeSel = $('s-theme')
   if (themeSel) themeSel.value = S.cfg.theme || 'dark'
+  const qsThemeSel = $('qs-theme')
+  if (qsThemeSel) qsThemeSel.value = S.cfg.theme || 'dark'
 
-  const langSel = $('s-language')
-  if (langSel) {
-    if (!langSel.options.length) for (const code of CONFIG.languages) {
+  // Language select is populated once here (Settings panel); the topbar quick
+  // switcher (#qs-language) shares the exact same CONFIG.languages/labels list.
+  for (const id of ['s-language', 'qs-language']) {
+    const sel = $(id)
+    if (!sel) continue
+    if (!sel.options.length) for (const code of CONFIG.languages) {
       const o = document.createElement('option')
       o.value = code; o.textContent = CONFIG.languageLabels[code] || code
-      langSel.appendChild(o)
+      sel.appendChild(o)
     }
-    langSel.value = S.cfg.language || 'en'
+    sel.value = S.cfg.language || 'en'
   }
 
   const fsEl = $('s-font-size')
