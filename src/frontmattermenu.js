@@ -35,9 +35,12 @@ export function openFrontmatterMenu(anchor) {
     `<div class="fm-tags-row"><input type="text" class="fm-tags-input" placeholder="${t('frontmatterMenu.tagsPlaceholder')}" value="${escAttr(cls.tags.join(', '))}"></div>`
   document.body.appendChild(menu)
 
+  // Anchored from the top and opens downward — see encodingmenu.js's identical
+  // fix for why (statusbar moved to sit under the topbar, no longer at the
+  // bottom of the viewport).
   const rect = anchor.getBoundingClientRect()
   menu.style.left = `${Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8)}px`
-  menu.style.bottom = `${window.innerHeight - rect.top + 6}px`
+  menu.style.top = `${rect.bottom + 6}px`
 
   const close = () => { menu.remove(); document.removeEventListener('click', onDoc, true) }
   const onDoc = (e) => { if (!menu.contains(e.target)) close() }

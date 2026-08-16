@@ -32,9 +32,12 @@ export function openEncodingMenu(anchor) {
     `<div class="enc-item enc-save" data-save="1">${t('encodingMenu.saveAsUtf8')}</div>`
   document.body.appendChild(menu)
 
+  // Anchored from the top and opens downward — the statusbar sits directly
+  // under the topbar now, not at the bottom of the viewport, so a
+  // bottom-anchored popup would render off-screen or overlap the topbar.
   const rect = anchor.getBoundingClientRect()
   menu.style.left = `${Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8)}px`
-  menu.style.bottom = `${window.innerHeight - rect.top + 6}px`
+  menu.style.top = `${rect.bottom + 6}px`
 
   const close = () => { menu.remove(); document.removeEventListener('click', onDoc, true) }
   const onDoc = (e) => { if (!menu.contains(e.target)) close() }
