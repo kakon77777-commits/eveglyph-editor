@@ -59,10 +59,10 @@ function reduceWithHistory(state, event, policy, history) {
   return next
 }
 
-function evaluateJudgment(judgment, blocks) {
+function evaluateJudgment(judgment, blocks, replayKey) {
   const policy = judgment.policy
   const allEvidence = sortedEvidence(blocks, judgment.claim)
-  const replayCursor = getReplayCursor(judgment.claim, allEvidence.length)
+  const replayCursor = getReplayCursor(replayKey, allEvidence.length)
   const evidence = allEvidence.slice(0, replayCursor)
   let sequence = 0
   let state = initialJudgmentState(judgment.claim)
@@ -105,7 +105,7 @@ function evaluateJudgment(judgment, blocks) {
     }
   }
 
-  return { state, history, policy, replayCursor, evidenceCount: allEvidence.length }
+  return { state, history, policy, replayCursor, evidenceCount: allEvidence.length, replayKey }
 }
 
 function exposeRefs(refs, judgmentId, result) {
@@ -120,12 +120,14 @@ function exposeRefs(refs, judgmentId, result) {
   refs[`${judgmentId}.evidence_count`] = result.evidenceCount
 }
 
-export function evaluateDynamicDocument(blocks) {
+export function evaluateDynamicDocument(blocks, replayNamespace = '') {
   const byId = new Map()
   const results = new Map()
   const historyByClaim = new Map()
+  const replayKeysByClaim = new Map()
   const issues = []
   const refs = {}
+  const replayKeyForClaim = (claimId) => replayNamespace ? `${replayNamespace}::${claimId}` : claimId
 
   for (const b of blocks) {
     if (b.id) {
@@ -152,9 +154,11 @@ export function evaluateDynamicDocument(blocks) {
     }
     seenJudgmentClaims.add(j.claim)
     try {
-      const result = evaluateJudgment(j, blocks)
+      const replayKey = replayKeyForClaim(j.claim)
+      const result = evaluateJudgment(j, blocks, replayKey)
       results.set(j.id, result)
       historyByClaim.set(j.claim, result.history)
+      replayKeysByClaim.set(j.claim, replayKey)
       exposeRefs(refs, j.id, result)
     } catch (e) {
       issues.push({ id: j.id, message: e?.message || String(e) })
@@ -163,7 +167,7 @@ export function evaluateDynamicDocument(blocks) {
 
   for (const c of claims.values()) refs[`${c.id}.statement`] = c.statement
 
-  return { byId, results, historyByClaim, issues, refs, blocks }
+  return { byId, results, historyByClaim, replayKeysByClaim, issues, refs, blocks, replayNamespace }
 }
 
 export function canonicalDynamicDocument(doc) {
