@@ -52,8 +52,11 @@ function diffFrame(previous, current) {
   const stateChanged = previous.state !== current.state
   const projectionChanged = previous.projection !== current.projection
   const cursorDelta = current.evidenceCursor - previous.evidenceCursor
+  const supportChanged = previous.support !== current.support
+  const counterpressureChanged = previous.counterpressure !== current.counterpressure
+  const completenessChanged = previous.completeness !== current.completeness
   const changed = stateChanged || projectionChanged || cursorDelta !== 0 ||
-    supportDelta !== 0 || counterpressureDelta !== 0 || completenessDelta !== 0
+    supportChanged || counterpressureChanged || completenessChanged
 
   return {
     changed,
