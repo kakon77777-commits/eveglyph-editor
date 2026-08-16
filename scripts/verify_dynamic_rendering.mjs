@@ -3,6 +3,7 @@ import { evaluateDynamicDocument } from '../src/dynamiclogic/runtime.js'
 import { clearReplayCursor, getReplayCursor, setReplayCursor } from '../src/dynamiclogic/replay.js'
 import { annotateDynamicMotion, clearDynamicMotion } from '../src/dynamiclogic/motion.js'
 import { isReplayPlaying, startReplayPlayback, stopReplayPlayback } from '../src/dynamiclogic/playback.js'
+import { renderBlock as renderAimdBlock, substituteInlineRefs } from '../src/aimdc/render.js'
 
 const namespace = 'render-test'
 const claim = 'weather-claim'
@@ -63,6 +64,26 @@ assert.ok(motion.supportDelta < 0)
 assert.equal(doc.refTransitions['judge.support'].changed, true)
 assert.equal(doc.refTransitions['judge.state'].changed, true)
 
+// AIMD-C remains the formula renderer, but receives a read-only presentation
+// transition map so the changed external ref visibly animates and gets a delta.
+const aimdDoc = {
+  byId: new Map(),
+  results: new Map(),
+  issues: [],
+  externalRefs: doc.refs,
+  externalTransitions: doc.refTransitions,
+}
+const formulaHtml = renderAimdBlock({
+  kind: 'view', id: null, source: 'judge.support', renderer: 'formula', config: {}, label: 'S_t',
+}, aimdDoc)
+assert.match(formulaHtml, /dl-formula-changed/)
+assert.match(formulaHtml, /dl-formula-delta/)
+assert.match(formulaHtml, /Δ -74\.63 pp/)
+
+const inlineHtml = substituteInlineRefs('support={{ judge.support }}', aimdDoc)
+assert.match(inlineHtml, /dl-inline-ref-changed/)
+assert.match(inlineHtml, /0\.2537/)
+
 // Re-rendering the same numeric frame must stay still: no fake idle animation.
 doc = frameAt(3)
 motion = doc.motionByJudgment.get('judge')
@@ -87,6 +108,20 @@ assert.equal(isReplayPlaying(replayKey), false)
 assert.ok(refreshes >= 3) // start frame + step 1 + final frame
 // Final playback position is also true Live: a later longer stream follows it.
 assert.equal(getReplayCursor(replayKey, 3), 3)
+
+// In a browser, playback must stop if the source structure changes mid-run.
+// Simulate the visible History block reporting a different evidence max.
+globalThis.document = {
+  querySelectorAll: () => [{ dataset: { dlReplayKey: replayKey, dlMax: '3' } }],
+}
+clearReplayCursor(replayKey)
+refreshes = 0
+assert.equal(startReplayPlayback(replayKey, 2, () => { refreshes += 1 }, 150), true)
+await new Promise(resolve => setTimeout(resolve, 190))
+assert.equal(isReplayPlaying(replayKey), false)
+assert.equal(getReplayCursor(replayKey, 2), 0)
+assert.equal(refreshes, 1) // initial frame only; no mixed-history refresh
+delete globalThis.document
 
 stopReplayPlayback(replayKey)
 clearReplayCursor(replayKey)
