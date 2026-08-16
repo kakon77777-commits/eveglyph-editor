@@ -17,6 +17,12 @@ export function stopReplayPlayback(replayKey) {
   sessions.delete(replayKey)
 }
 
+function stillVisible(replayKey) {
+  if (typeof document === 'undefined') return true
+  return [...document.querySelectorAll('.dynamic-history')]
+    .some(el => el.dataset.dlReplayKey === replayKey)
+}
+
 export function startReplayPlayback(replayKey, maxEvidenceCount, refresh, intervalMs = DEFAULT_INTERVAL_MS) {
   stopReplayPlayback(replayKey)
   if (!(maxEvidenceCount > 0)) return false
@@ -42,6 +48,14 @@ export function startReplayPlayback(replayKey, maxEvidenceCount, refresh, interv
   const tick = () => {
     const active = sessions.get(replayKey)
     if (!active) return
+
+    // File/tab switching can remove the History block while a timer is alive.
+    // Stop silently instead of waking previewUpdate() in an unrelated document.
+    if (!stillVisible(replayKey)) {
+      stopReplayPlayback(replayKey)
+      return
+    }
+
     const current = getReplayCursor(replayKey, active.maxEvidenceCount)
     const next = Math.min(active.maxEvidenceCount, current + 1)
     setReplayCursor(replayKey, next, active.maxEvidenceCount)
