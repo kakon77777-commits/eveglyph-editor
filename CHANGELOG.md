@@ -6,6 +6,18 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Dynamic Logic MVP: replayable judgments on top of AIMD-C** — new
+  `aimd-claim`/`aimd-evidence`/`aimd-judgment`/`aimd-history` blocks add a
+  claim/evidence/judgment runtime layered above AIMD-C, not a second math
+  engine. A deterministic reducer tracks each judgment through
+  open → generating → provisionally true/false, reopening a closed judgment
+  when later evidence drifts back across its own closure threshold. UI-local
+  replay (`←`/`→`/`Live`) steps through a claim's evidence history without
+  ever rewriting Markdown or touching disk, namespaced per document so two
+  files can reuse the same claim id independently. A narrow `externalRefs`
+  bridge lets existing `{{ }}`/`aimd-view` syntax read a judgment's values
+  (`@weather-judge.support`) with local AIMD-C ids always taking precedence.
+  See `examples/dynamic-logic-demo.md` and `npm run verify:dynamic-logic`.
 - **Opt-in advanced World Studio surface + guided semantic write-back** —
   Settings now controls visibility of Runtime, World, Studio, and editable
   World IR Preview; it is off by default and safely falls back to plain YAML

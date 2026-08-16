@@ -96,6 +96,34 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
   - Only pure computation is supported so far (no file/network/agent access
     from inside a block) — see `examples/aimd-demo.md`'s closing note for
     what's deliberately not built yet.
+- **Dynamic Logic blocks (MVP)** — a claim/evidence/judgment layer above
+  AIMD-C, not a second math engine. See `examples/dynamic-logic-demo.md`:
+  - `::: aimd-claim {id="weather-judge"} It will rain tomorrow. :::` — a
+    statement under evaluation.
+  - `::: aimd-evidence {id="e1" claim="@weather-judge" direction="support" source-type="observation"} ... :::` —
+    one piece of evidence for/against/neutral on a claim. `source_type`
+    (`observation`/`document`/`derived`/`inference`) is required; `verified`
+    defaults to `false`, never `true`, unless the source says otherwise.
+  - `::: aimd-judgment {id="weather-judge" claim="@weather-judge"} support_threshold: 0.8 :::` —
+    a deterministic policy (support/oppose thresholds, minimum evidence count,
+    reopen sensitivity) that reduces accumulated evidence into a judgment
+    state: open → generating → provisionally true/false. A closed judgment
+    reopens if later evidence drifts it back across its own closure
+    threshold, even without any single large update.
+  - `::: aimd-history {claim="@weather-judge"} :::` — a replay panel with
+    `←`/`→`/`Live` controls that step through the evidence sequence.
+    Replay only changes what's projected on screen — it never rewrites the
+    document's Markdown or touches the file on disk, and each document
+    keeps its own replay position even if two files reuse the same claim id.
+  - A judgment's values are readable from ordinary AIMD-C via
+    `@weather-judge.support`, `{{ weather-judge.state }}`, etc. — the same
+    reference syntax `aimd-compute`/`aimd-view` already use, not a separate
+    language. A local AIMD-C id with the same name always wins over a
+    Dynamic Logic one, so this never changes what an existing document means.
+  - Evidence is still document-declared for this first slice (no autonomous
+    search/AI ingestion yet), and the support score is a simple weighted
+    ratio, explicitly not a calibrated probability — see the demo file's own
+    notes for the rest of what's deliberately not built yet.
 - **Chart & function-plot blocks** — hand-rolled SVG, no external library. See
   `examples/visual-ir-demo.md` for a full walkthrough.
   - `::: chart {id="q" type="bar" title="..."} - label: Q1\n  value: 120 :::` —

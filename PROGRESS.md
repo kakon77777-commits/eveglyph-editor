@@ -1,8 +1,57 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-08-09
-> (World Studio opt-in surface + guided semantic write-back).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-08-16
+> (Dynamic Logic MVP: replayable judgments on top of AIMD-C).
+
+## Dynamic Logic MVP (2026-08-16)
+
+- First executable slice of a claim/evidence/judgment runtime layered above
+  AIMD-C: `AIMD-C = formula + expression + dependency runtime`,
+  `Dynamic Logic = claim + evidence + judgment + history runtime`. Dynamic
+  Logic evaluates first each render and exposes validated, read-only refs to
+  AIMD-C; it does not replace `src/aimdc/evaluator.js` or duplicate its
+  arithmetic/Boolean grammar.
+- New `aimd-claim`/`aimd-evidence`/`aimd-judgment`/`aimd-history` blocks and
+  a deterministic reducer (`src/dynamiclogic/reducer.js`): open → generating
+  → provisionally_true/false, with explicit guards on every transition. A
+  closed judgment reopens whenever accumulated evidence drifts it back across
+  the closure threshold that justified the closure, not only on one large
+  single-update jump.
+- UI-local replay cursor (`src/dynamiclogic/replay.js`), namespaced by active
+  document + local claim id so two files never share replay state; replay
+  only changes what's projected on screen, never the Markdown buffer or the
+  file on disk.
+- `src/aimdc/graph.js` gained an `externalRefs` parameter to `resolveRef()`/
+  `evaluateDocument()` — a narrow, read-only bridge so `{{ }}` and
+  `aimd-view` can read a judgment's values (`@weather-judge.support`)
+  without a second reference language. Local AIMD-C ids always take
+  precedence over external refs, so no existing document's meaning changes.
+- `examples/dynamic-logic-demo.md` and `npm run verify:dynamic-logic`
+  (deterministic replay / parser-boundary / external-ref checks).
+
+This landed as a draft PR opened directly against GitHub (no local checkout
+in that environment — the author's own PR description said as much and
+asked for exactly the verification below before merging). Reviewed and
+independently re-verified in a real local checkout before merging, not
+taken on faith: `npm ci`, `node --check` on every touched/new file,
+`npm run verify:dynamic-logic`, and a full production build all clean;
+live-browser testing of the demo file reproduced the PR's claimed
+support-score sequence exactly (100% → 100% → 25.37% → 14.53%) through the
+real render pipeline; confirmed the linked AIMD-C formula view
+(`aimd-view {source="@weather-judge.support"}`) stays in sync through all
+three replay directions; confirmed neither the CodeMirror buffer nor the
+file on disk changes from replay clicks; regression-checked
+`examples/aimd-demo.md` (15 blocks, 3 pre-existing intentional-failure
+demos, zero new errors). No new npm dependencies. Merged as public
+`acde913`.
+
+Deliberately not built yet, per the PR's own scope: append-only sidecar
+persistence for the replay cursor (currently in-memory only); autonomous
+evidence search/AI ingestion (evidence is still document-declared); a
+calibrated Bayesian support score (the current one is a simple weighted
+support/oppose ratio); an evidence-independence graph; formula-AST rewrite
+or hypothesis-split UI; MCP write tools for Dynamic Logic.
 
 ## World Studio / Editor completion slice (2026-08-09)
 
