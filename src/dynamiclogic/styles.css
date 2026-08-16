@@ -157,10 +157,19 @@
   color: var(--ac);
 }
 
+/* AIMD-C owns formula rendering; Dynamic Logic only passes a one-frame
+   external-ref transition map. These classes make that real value change
+   visible without teaching AIMD-C any judgment semantics. */
 .dl-formula-changed,
 .aimdc-view-number.dl-external-ref-changed {
   position: relative;
   animation: dl-formula-shift .5s ease-out;
+}
+
+.dl-inline-ref-changed {
+  display: inline-block;
+  border-radius: 3px;
+  animation: dl-inline-ref-shift .48s ease-out;
 }
 
 .dl-formula-delta {
@@ -208,9 +217,14 @@
 }
 
 @keyframes dl-formula-shift {
-  0% { transform: translateY(-2px); opacity: .55; }
-  55% { transform: translateY(1px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 1; }
+  0% { transform: translateY(-2px) scale(.985); opacity: .5; }
+  55% { transform: translateY(1px) scale(1.012); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes dl-inline-ref-shift {
+  0% { background: var(--ac-g2); transform: translateY(-1px); }
+  100% { background: transparent; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -222,6 +236,7 @@
   .dl-timeline-progress,
   .dl-formula-changed,
   .dl-formula-delta,
+  .dl-inline-ref-changed,
   .aimdc-view-number.dl-external-ref-changed {
     animation: none !important;
     transition: none !important;
