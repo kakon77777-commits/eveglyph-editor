@@ -20,6 +20,11 @@ const bool = (value, fallback = false) => {
   return String(value).toLowerCase() === 'true'
 }
 
+function unitInterval(value, label) {
+  if (!(value >= 0 && value <= 1)) throw new Error(`${label} must be between 0 and 1`)
+  return value
+}
+
 function yamlObject(body, label) {
   const raw = body.trim()
   if (!raw) return {}
@@ -52,6 +57,10 @@ function evidence(attrs, body) {
   }
   const weight = num(attrs.weight ?? data.weight, 1)
   if (!(weight >= 0)) throw new Error(`aimd-evidence "${attrs.id}" weight must be >= 0`)
+  const sequence = num(attrs.sequence ?? data.sequence, null)
+  if (sequence !== null && (!Number.isInteger(sequence) || sequence < 0)) {
+    throw new Error(`aimd-evidence "${attrs.id}" sequence must be a non-negative integer`)
+  }
   return {
     kind: 'dl-evidence',
     id: attrs.id,
@@ -61,7 +70,7 @@ function evidence(attrs, body) {
     weight,
     // Fail closed: evidence is unverified unless the source explicitly says otherwise.
     verified: bool(attrs.verified ?? data.verified, false),
-    sequence: num(attrs.sequence ?? data.sequence, null),
+    sequence,
     label: String(data.label || data.source || attrs.label || attrs.id),
     source: data.source || null,
   }
@@ -71,15 +80,19 @@ function judgment(attrs, body) {
   if (!attrs.id) throw new Error('aimd-judgment is missing a required id="..." attribute')
   if (!attrs.claim) throw new Error(`aimd-judgment "${attrs.id}" is missing claim="@..."`)
   const data = yamlObject(body, `aimd-judgment "${attrs.id}"`)
+  const supportThreshold = unitInterval(num(data.support_threshold ?? attrs['support-threshold'], 0.8), 'support_threshold')
+  const opposeThreshold = unitInterval(num(data.oppose_threshold ?? attrs['oppose-threshold'], 0.2), 'oppose_threshold')
+  const reopenDelta = unitInterval(num(data.reopen_delta ?? attrs['reopen-delta'], 0.2), 'reopen_delta')
+  if (opposeThreshold > supportThreshold) throw new Error('oppose_threshold cannot exceed support_threshold')
   return {
     kind: 'dl-judgment',
     id: attrs.id,
     claim: attrs.claim.replace(/^@/, ''),
     policy: {
-      supportThreshold: num(data.support_threshold ?? attrs['support-threshold'], 0.8),
-      opposeThreshold: num(data.oppose_threshold ?? attrs['oppose-threshold'], 0.2),
+      supportThreshold,
+      opposeThreshold,
       minEvidenceCount: Math.max(1, Math.trunc(num(data.min_evidence_count ?? attrs['min-evidence-count'], 2))),
-      reopenDelta: Math.max(0, num(data.reopen_delta ?? attrs['reopen-delta'], 0.2)),
+      reopenDelta,
     },
   }
 }
