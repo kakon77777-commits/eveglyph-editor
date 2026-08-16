@@ -62,9 +62,10 @@ export function renderDynamicLogicBlock(block, doc) {
   if (block.kind === 'dl-history') {
     const history = doc.historyByClaim.get(block.claim) || []
     const evidenceCount = doc.blocks.filter(b => b.kind === 'dl-evidence' && b.claim === block.claim).length
-    const cursor = getReplayCursor(block.claim, evidenceCount)
+    const replayKey = doc.replayKeysByClaim.get(block.claim) || block.claim
+    const cursor = getReplayCursor(replayKey, evidenceCount)
     const items = history.map(h => `<li style="margin:3px 0"><code>${esc(h.sequence)}</code> ${esc(h.type)} → <b>${esc(stateLabel(h.state))}</b>${h.label ? ` · ${esc(h.label)}` : ''}</li>`).join('')
-    return `<div class="cfp-block cfp-note dynamic-history" data-dl-claim="${esc(block.claim)}" data-dl-max="${evidenceCount}">` +
+    return `<div class="cfp-block cfp-note dynamic-history" data-dl-replay-key="${esc(replayKey)}" data-dl-max="${evidenceCount}">` +
       `<div class="cfp-label">JUDGMENT HISTORY · ${esc(block.claim)}</div>` +
       `<div style="display:flex;align-items:center;gap:6px;margin:6px 0 8px">` +
       `<button type="button" class="btn-s dl-replay-prev">←</button>` +
@@ -81,18 +82,18 @@ export function renderDynamicLogicBlock(block, doc) {
 
 export function wireDynamicLogicInteractions(root, refresh) {
   root.querySelectorAll('.dynamic-history').forEach(el => {
-    const claim = el.dataset.dlClaim
+    const replayKey = el.dataset.dlReplayKey
     const max = Number(el.dataset.dlMax || 0)
     el.querySelector('.dl-replay-prev')?.addEventListener('click', () => {
-      setReplayCursor(claim, getReplayCursor(claim, max) - 1, max)
+      setReplayCursor(replayKey, getReplayCursor(replayKey, max) - 1, max)
       refresh()
     })
     el.querySelector('.dl-replay-next')?.addEventListener('click', () => {
-      setReplayCursor(claim, getReplayCursor(claim, max) + 1, max)
+      setReplayCursor(replayKey, getReplayCursor(replayKey, max) + 1, max)
       refresh()
     })
     el.querySelector('.dl-replay-live')?.addEventListener('click', () => {
-      clearReplayCursor(claim)
+      clearReplayCursor(replayKey)
       refresh()
     })
   })
