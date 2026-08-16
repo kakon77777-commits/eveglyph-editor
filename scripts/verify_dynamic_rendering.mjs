@@ -69,6 +69,13 @@ motion = doc.motionByJudgment.get('judge')
 assert.equal(motion.changed, false)
 assert.equal(motion.cursorDelta, 0)
 
+// Setting replay to the current max must normalize to true Live mode. If new
+// evidence is appended afterwards, Live follows the new max instead of freezing
+// at the old terminal cursor.
+setReplayCursor(replayKey, 4, 4)
+assert.equal(getReplayCursor(replayKey, 4), 4)
+assert.equal(getReplayCursor(replayKey, 5), 5)
+
 // Playback uses event-driven timers and reaches the final evidence cursor.
 clearReplayCursor(replayKey)
 let refreshes = 0
@@ -78,6 +85,8 @@ await new Promise(resolve => setTimeout(resolve, 380))
 assert.equal(getReplayCursor(replayKey, 2), 2)
 assert.equal(isReplayPlaying(replayKey), false)
 assert.ok(refreshes >= 3) // start frame + step 1 + final frame
+// Final playback position is also true Live: a later longer stream follows it.
+assert.equal(getReplayCursor(replayKey, 3), 3)
 
 stopReplayPlayback(replayKey)
 clearReplayCursor(replayKey)
