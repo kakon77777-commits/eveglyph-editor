@@ -26,6 +26,11 @@ function sortedEvidence(blocks, claimId) {
 function shouldReopen(before, after, policy) {
   if (!['provisionally_true', 'provisionally_false'].includes(before.state)) return false
   if (before.support_score === null || after.support_score === null) return false
+  // A closed state must reopen if it no longer satisfies the policy that
+  // justified its closure, even when several individually-small evidence
+  // updates drift across the threshold without any one update exceeding rho.
+  if (before.state === 'provisionally_true' && after.support_score < policy.supportThreshold) return true
+  if (before.state === 'provisionally_false' && after.support_score > policy.opposeThreshold) return true
   return Math.abs(after.support_score - before.support_score) >= policy.reopenDelta
 }
 
@@ -72,6 +77,7 @@ function evaluateJudgment(judgment, blocks) {
       evidence: {
         id: ev.id,
         direction: ev.direction,
+        source_type: ev.sourceType,
         weight: ev.weight,
         verified: ev.verified,
         label: ev.label,
@@ -82,7 +88,7 @@ function evaluateJudgment(judgment, blocks) {
 
     if (shouldReopen(before, state, policy)) {
       state = reduceWithHistory(state, makeEvent(++sequence, 'STATE_REOPENED', judgment.claim, {
-        reason: 'Evidence changed support beyond reopen threshold',
+        reason: 'Closed judgment no longer satisfies its closure/reopen policy',
       }), policy, history)
     }
 
@@ -130,11 +136,21 @@ export function evaluateDynamicDocument(blocks) {
   }
 
   const claims = new Map(blocks.filter(b => b.kind === 'dl-claim').map(b => [b.id, b]))
+  for (const e of blocks.filter(b => b.kind === 'dl-evidence')) {
+    if (!claims.has(e.claim)) issues.push({ id: e.id, message: `evidence "${e.id}" refers to missing claim "${e.claim}"` })
+  }
+
+  const seenJudgmentClaims = new Set()
   for (const j of blocks.filter(b => b.kind === 'dl-judgment')) {
     if (!claims.has(j.claim)) {
       issues.push({ id: j.id, message: `judgment "${j.id}" refers to missing claim "${j.claim}"` })
       continue
     }
+    if (seenJudgmentClaims.has(j.claim)) {
+      issues.push({ id: j.id, message: `MVP supports one judgment policy per claim; duplicate judgment for "${j.claim}"` })
+      continue
+    }
+    seenJudgmentClaims.add(j.claim)
     try {
       const result = evaluateJudgment(j, blocks)
       results.set(j.id, result)
