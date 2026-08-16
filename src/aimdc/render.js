@@ -115,7 +115,7 @@ function renderRowsAsTable(rows) {
 function renderView(block, doc) {
   let value
   try {
-    value = resolveRef(block.source, doc.byId, doc.results)
+    value = resolveRef(block.source, doc.byId, doc.results, doc.externalRefs)
   } catch (e) {
     return `<div class="aimdc-block aimdc-view aimdc-state-failed"><span class="aimdc-error-msg">${esc(e.message)}</span></div>`
   }
@@ -152,10 +152,12 @@ function renderError(block) {
 // `{{ id.field }}` inline references — resolved after the whole document's
 // blocks are evaluated, since a reference can point at any block regardless
 // of document order (whitepaper §15.1: dependency-driven, not position-driven).
+// Dynamic Logic uses the same syntax through doc.externalRefs, so ordinary
+// prose and formula views share one reference language rather than two.
 export function substituteInlineRefs(html, doc) {
-  return html.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, path) => {
+  return html.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, path) => {
     try {
-      return esc(fmtValue(resolveRef(path, doc.byId, doc.results)))
+      return esc(fmtValue(resolveRef(path, doc.byId, doc.results, doc.externalRefs)))
     } catch (e) {
       return `<span class="aimdc-error-msg">{{ ${esc(path)}: ${esc(e.message)} }}</span>`
     }
