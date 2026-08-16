@@ -1,0 +1,244 @@
+/* ─── DYNAMIC LOGIC BROWSER RENDERING ──────────────────────────────────────
+   Motion is semantic: these classes are only emitted when a real judgment,
+   evidence-prefix, or external-ref value changes. No idle animation loop. */
+
+.dynamic-judgment {
+  position: relative;
+  overflow: hidden;
+}
+
+.dynamic-judgment.dl-motion-change {
+  animation: dl-judgment-pulse .48s ease-out;
+}
+
+.dynamic-judgment.dl-motion-state-change::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-left: 3px solid var(--ac);
+  opacity: 0;
+  animation: dl-state-edge .6s ease-out;
+}
+
+.dl-state-open,
+.dl-state-generating,
+.dl-state-conflicted {
+  --dl-state-accent: #fbbf24;
+}
+
+.dl-state-provisionally_true {
+  --dl-state-accent: var(--ok);
+}
+
+.dl-state-provisionally_false {
+  --dl-state-accent: var(--err);
+}
+
+.dl-state-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+
+.dl-state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dl-state-accent, var(--ac));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dl-state-accent, var(--ac)) 16%, transparent);
+  flex: 0 0 auto;
+}
+
+.dl-transition-summary {
+  margin: 6px 0 8px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--dl-state-accent, var(--ac));
+  background: var(--bg-2);
+  color: var(--t1);
+  font-size: 10.5px;
+  line-height: 1.45;
+  animation: dl-summary-in .38s ease-out;
+}
+
+.dl-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  font-size: 11px;
+}
+
+.dl-metric {
+  min-width: 0;
+}
+
+.dl-metric-label {
+  color: var(--t2);
+}
+
+.dl-metric-value {
+  display: inline-block;
+  margin-top: 2px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-metric.changed .dl-metric-value {
+  animation: dl-number-pop .42s ease-out;
+}
+
+.dl-metric-delta {
+  margin-left: 5px;
+  font-size: 9.5px;
+  font-family: var(--fm);
+}
+
+.dl-delta-up { color: var(--ok); }
+.dl-delta-down { color: var(--err); }
+.dl-delta-flat { color: var(--t3); }
+
+.dynamic-evidence {
+  transition: opacity .18s ease, transform .18s ease, filter .18s ease;
+}
+
+.dynamic-evidence.dl-evidence-pending {
+  opacity: .38;
+  filter: saturate(.45);
+}
+
+.dynamic-evidence.dl-evidence-pending .cfp-label::after {
+  content: ' · not reached';
+  color: var(--t3);
+  font-weight: 400;
+}
+
+.dynamic-evidence.dl-evidence-arrived {
+  animation: dl-evidence-arrive .52s ease-out;
+}
+
+.dynamic-evidence.dl-evidence-rewound {
+  animation: dl-evidence-rewind .38s ease-out;
+}
+
+.dynamic-history .dl-replay-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 7px;
+}
+
+.dynamic-history .dl-replay-play.is-playing {
+  border-color: var(--ac);
+  color: var(--ac);
+}
+
+.dl-timeline-track {
+  position: relative;
+  height: 5px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--bg-3);
+  margin: 0 0 9px;
+}
+
+.dl-timeline-progress {
+  display: block;
+  height: 100%;
+  background: var(--ac);
+  transform-origin: left center;
+  transition: width .24s ease;
+}
+
+.dl-history-current {
+  color: var(--ac);
+}
+
+/* AIMD-C owns formula rendering; Dynamic Logic only passes a one-frame
+   external-ref transition map. These classes make that real value change
+   visible without teaching AIMD-C any judgment semantics. */
+.dl-formula-changed,
+.aimdc-view-number.dl-external-ref-changed {
+  position: relative;
+  animation: dl-formula-shift .5s ease-out;
+}
+
+.dl-inline-ref-changed {
+  display: inline-block;
+  border-radius: 3px;
+  animation: dl-inline-ref-shift .48s ease-out;
+}
+
+.dl-formula-delta {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 5px;
+  border: 1px solid var(--bdr-s);
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--t1);
+  font: 9.5px/1.2 var(--fm);
+  vertical-align: middle;
+  animation: dl-summary-in .42s ease-out;
+}
+
+@keyframes dl-judgment-pulse {
+  0% { transform: translateY(2px); filter: brightness(1.16); }
+  100% { transform: translateY(0); filter: brightness(1); }
+}
+
+@keyframes dl-state-edge {
+  0% { opacity: .9; }
+  100% { opacity: 0; }
+}
+
+@keyframes dl-summary-in {
+  0% { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dl-number-pop {
+  0% { transform: scale(.92); opacity: .55; }
+  65% { transform: scale(1.07); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes dl-evidence-arrive {
+  0% { opacity: .25; transform: translateX(-10px); filter: saturate(.4); }
+  100% { opacity: 1; transform: translateX(0); filter: saturate(1); }
+}
+
+@keyframes dl-evidence-rewind {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: .38; transform: translateX(4px); }
+}
+
+@keyframes dl-formula-shift {
+  0% { transform: translateY(-2px) scale(.985); opacity: .5; }
+  55% { transform: translateY(1px) scale(1.012); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes dl-inline-ref-shift {
+  0% { background: var(--ac-g2); transform: translateY(-1px); }
+  100% { background: transparent; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dynamic-judgment,
+  .dynamic-judgment::before,
+  .dl-transition-summary,
+  .dl-metric-value,
+  .dynamic-evidence,
+  .dl-timeline-progress,
+  .dl-formula-changed,
+  .dl-formula-delta,
+  .dl-inline-ref-changed,
+  .aimdc-view-number.dl-external-ref-changed {
+    animation: none !important;
+    transition: none !important;
+  }
+}

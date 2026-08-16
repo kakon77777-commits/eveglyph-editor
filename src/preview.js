@@ -16,6 +16,7 @@ import { evaluateDocument } from './aimdc/graph.js'
 import { renderBlock as renderAimdcBlockHtml, substituteInlineRefs } from './aimdc/render.js'
 import { isDynamicLogicType, parseDynamicLogicBlock } from './dynamiclogic/parser.js'
 import { evaluateDynamicDocument } from './dynamiclogic/runtime.js'
+import { annotateDynamicMotion } from './dynamiclogic/motion.js'
 import { renderDynamicLogicBlock, wireDynamicLogicInteractions } from './dynamiclogic/render.js'
 import { renderChartBlock } from './visual/chart.js'
 import { renderPlotBlock } from './visual/plot.js'
@@ -65,11 +66,19 @@ export function previewUpdate() {
     // Replay state is UI-only, but must still be namespaced by the active file;
     // two documents are allowed to use the same local claim id independently.
     const dynamicDoc = evaluateDynamicDocument(pendingDynamicLogicBlocks, S.active || '__buffer__')
+
+    // Compute one browser-frame diff BEFORE either renderer runs. Dynamic Logic
+    // remains the owner of transition semantics; AIMD-C receives only a read-only
+    // map saying which external ref changed, so formula views can visibly react
+    // without learning anything about claims/evidence/replay themselves.
+    annotateDynamicMotion(dynamicDoc)
     const aimdcDoc = evaluateDocument(pendingAimdcBlocks, dynamicDoc.refs)
+    aimdcDoc.externalTransitions = dynamicDoc.refTransitions
+
     let html = el.innerHTML
     html = html.replace(/AIMDC_BLOCK_PLACEHOLDER_(\d+)/g, (_, i) => renderAimdcBlockHtml(pendingAimdcBlocks[Number(i)], aimdcDoc))
     html = html.replace(/DYNAMIC_LOGIC_BLOCK_PLACEHOLDER_(\d+)/g, (_, i) => renderDynamicLogicBlock(pendingDynamicLogicBlocks[Number(i)], dynamicDoc))
-    // AIMD-C's resolver now accepts dynamicDoc.refs as a read-only external
+    // AIMD-C's resolver accepts dynamicDoc.refs as a read-only external
     // namespace, so the SAME inline syntax works for computed and judgment
     // values rather than introducing a second reference language.
     html = substituteInlineRefs(html, aimdcDoc)

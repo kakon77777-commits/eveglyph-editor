@@ -4,7 +4,7 @@ status: draft
 tags: [dynamic-logic, live-paper, aimd-c]
 ---
 
-# Dynamic Logic MVP — live judgment + formula replay
+# Dynamic Logic MVP — browser-live judgment + formula replay
 
 This demo is intentionally small. It proves one thing visually:
 
@@ -15,6 +15,12 @@ $$
 The four evidence blocks are document-declared events for this first MVP.
 The History controls do **not** rewrite this Markdown; they only move an
 in-memory replay cursor and re-render the same evidence prefix.
+
+The browser renderer is event-driven rather than decorative: **Play** advances
+one real evidence step at a time. Evidence cards enter the active domain,
+judgment metrics show real deltas, state changes pulse once, and the AIMD-C
+formula below is recomputed from the same Dynamic Logic external ref. When no
+state/value changes, the page stays still.
 
 ## Claim
 
@@ -77,10 +83,12 @@ Logic external ref — there is no second math evaluator hidden behind it:
 S_t
 :::
 
-## Replay
+## Replay / browser motion
 
-Use ← / → below. The formula and the judgment block re-render against the
-selected evidence prefix.
+Use **▶ Play** for automatic event-driven playback, or ← / → for manual steps.
+The formula, evidence cards, metrics, and judgment block all re-render from the
+same selected evidence prefix. **⏸ Pause** freezes exactly where it is; **Live**
+returns to the latest state.
 
 ::: aimd-history {claim="@weather-claim"}
 :::
@@ -93,8 +101,14 @@ Expected evidence-prefix states:
 4. step 3: $\Omega$ (reopened)
 5. step 4: $\bot_p$ (provisional oppose)
 
-::: note {title="MVP boundary"}
-The replay cursor is intentionally UI-local in v0.1. A later increment will
-persist an append-only event sidecar; this demo first verifies the semantic
-boundary and the AIMD-C integration without prematurely adding disk mutation.
+::: note {title="Motion boundary"}
+This is semantic motion, not a fake thinking animation. CSS motion is emitted
+only when a browser frame observes a real replay/state/value change. The
+renderer also honors `prefers-reduced-motion`.
+:::
+
+::: note {title="MVP persistence boundary"}
+The replay cursor is still intentionally UI-local. A later increment will
+persist an append-only event sidecar; this browser-rendering phase verifies the
+continuous visual semantics first without prematurely adding disk mutation.
 :::
