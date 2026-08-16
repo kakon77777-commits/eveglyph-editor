@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "mcp": "node mcp-server.js",
     "mcp:remote": "node mcp-server-remote.js",
-    "verify:dynamic-logic": "node scripts/verify_dynamic_logic.mjs"
+    "verify:dynamic-logic": "node scripts/verify_dynamic_logic.mjs",
+    "verify:dynamic-rendering": "node scripts/verify_dynamic_rendering.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.1",
