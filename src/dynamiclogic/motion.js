@@ -70,6 +70,11 @@ function diffFrame(previous, current) {
 }
 
 export function annotateDynamicMotion(doc) {
+  // renderDynamicLogicBlock() runs once per block. Keep this idempotent for one
+  // preview pass so only the first block compares against the previous browser
+  // frame; the rest reuse the same transition metadata.
+  if (doc.motionByJudgment && doc.refTransitions) return doc
+
   const motionByJudgment = new Map()
   const refTransitions = {}
 
@@ -101,7 +106,9 @@ export function annotateDynamicMotion(doc) {
     frames.set(key, current)
   }
 
-  return { ...doc, motionByJudgment, refTransitions }
+  doc.motionByJudgment = motionByJudgment
+  doc.refTransitions = refTransitions
+  return doc
 }
 
 export function clearDynamicMotion(replayKeyPrefix = '') {
