@@ -17,10 +17,10 @@ export function stopReplayPlayback(replayKey) {
   sessions.delete(replayKey)
 }
 
-function stillVisible(replayKey) {
-  if (typeof document === 'undefined') return true
+function visibleHistory(replayKey) {
+  if (typeof document === 'undefined') return null
   return [...document.querySelectorAll('.dynamic-history')]
-    .some(el => el.dataset.dlReplayKey === replayKey)
+    .find(el => el.dataset.dlReplayKey === replayKey) || null
 }
 
 export function startReplayPlayback(replayKey, maxEvidenceCount, refresh, intervalMs = DEFAULT_INTERVAL_MS) {
@@ -51,9 +51,21 @@ export function startReplayPlayback(replayKey, maxEvidenceCount, refresh, interv
 
     // File/tab switching can remove the History block while a timer is alive.
     // Stop silently instead of waking previewUpdate() in an unrelated document.
-    if (!stillVisible(replayKey)) {
+    const visible = visibleHistory(replayKey)
+    if (typeof document !== 'undefined' && !visible) {
       stopReplayPlayback(replayKey)
       return
+    }
+
+    // Editing the source while playback is running may add/remove evidence.
+    // A replay session is defined over one fixed event sequence: if the live DOM
+    // reports a different max, stop rather than silently mixing two histories.
+    if (visible) {
+      const currentMax = Number(visible.dataset.dlMax || 0)
+      if (currentMax !== active.maxEvidenceCount) {
+        stopReplayPlayback(replayKey)
+        return
+      }
     }
 
     const current = getReplayCursor(replayKey, active.maxEvidenceCount)
