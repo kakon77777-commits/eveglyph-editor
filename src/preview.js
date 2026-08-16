@@ -14,6 +14,9 @@ import { prepareFormula } from './math/capability.js'
 import { isAimdcType, parseAimdcBlock } from './aimdc/parser.js'
 import { evaluateDocument } from './aimdc/graph.js'
 import { renderBlock as renderAimdcBlockHtml, substituteInlineRefs } from './aimdc/render.js'
+import { isDynamicLogicType, parseDynamicLogicBlock } from './dynamiclogic/parser.js'
+import { evaluateDynamicDocument } from './dynamiclogic/runtime.js'
+import { renderDynamicLogicBlock, wireDynamicLogicInteractions } from './dynamiclogic/render.js'
 import { renderChartBlock } from './visual/chart.js'
 import { renderPlotBlock } from './visual/plot.js'
 import { worldStudioEnabled } from './worldfeatures.js'
@@ -43,29 +46,35 @@ export function previewUpdate() {
   // Sanitize before injecting: marked passes raw HTML through, and the editor
   // may hold untrusted/agent-written Markdown on a page that can call the local
   // bridge — so strip script/iframe/event-handlers/javascript: URLs (XSS guard).
-  pendingAimdcBlocks = []   // fresh store for this render — see the comment above its declaration
+  pendingAimdcBlocks = []        // fresh store for this render — see declaration below
+  pendingDynamicLogicBlocks = [] // Dynamic Logic uses a separate semantic layer above AIMD-C
   const processed = cfpPreprocess(src)
   const rawHtml   = marked ? marked.parse(processed) : processed
   el.innerHTML    = DOMPurify.sanitize(rawHtml)
 
-  // AIMD-C (roadmap Phase 3): every block was collected (not yet rendered)
-  // during cfpPreprocess and replaced with a placeholder token, because
-  // rendering any one of them correctly needs the WHOLE document's
-  // dependency graph evaluated first (a compute block's result can be
-  // referenced by a view or {{ inline }} ref anywhere else in the document,
-  // regardless of source order — whitepaper §15.1). Evaluate now, substitute
-  // both the block placeholders and any {{ id.field }} references in the
-  // surrounding prose, then re-sanitize (defense in depth — this HTML is
-  // freshly generated from evaluated values, not the original DOMPurify
-  // pass, so it gets its own pass too) before the math renderer below sees
-  // it — an aimd-view{renderer="formula"} block emits real `$$...$$`
-  // KaTeX/MathJax source, so it needs to still be in the DOM when that runs.
-  if (pendingAimdcBlocks.length) {
-    const aimdcDoc = evaluateDocument(pendingAimdcBlocks)
+  // Dynamic Logic v0.1 is evaluated BEFORE AIMD-C so its validated judgment
+  // projections can be exposed as read-only external refs to the existing
+  // AIMD expression graph (`@weather-judge.support`). This is the key layering
+  // rule: Dynamic Logic does not grow a second arithmetic evaluator; AIMD-C
+  // remains the formula engine, while Dynamic Logic owns evidence/history.
+  //
+  // Both block families were collected during cfpPreprocess and replaced with
+  // placeholders, so we can evaluate their whole-document semantics first,
+  // render both, substitute shared {{ id.field }} refs, then run KaTeX.
+  if (pendingAimdcBlocks.length || pendingDynamicLogicBlocks.length) {
+    // Replay state is UI-only, but must still be namespaced by the active file;
+    // two documents are allowed to use the same local claim id independently.
+    const dynamicDoc = evaluateDynamicDocument(pendingDynamicLogicBlocks, S.active || '__buffer__')
+    const aimdcDoc = evaluateDocument(pendingAimdcBlocks, dynamicDoc.refs)
     let html = el.innerHTML
     html = html.replace(/AIMDC_BLOCK_PLACEHOLDER_(\d+)/g, (_, i) => renderAimdcBlockHtml(pendingAimdcBlocks[Number(i)], aimdcDoc))
+    html = html.replace(/DYNAMIC_LOGIC_BLOCK_PLACEHOLDER_(\d+)/g, (_, i) => renderDynamicLogicBlock(pendingDynamicLogicBlocks[Number(i)], dynamicDoc))
+    // AIMD-C's resolver now accepts dynamicDoc.refs as a read-only external
+    // namespace, so the SAME inline syntax works for computed and judgment
+    // values rather than introducing a second reference language.
     html = substituteInlineRefs(html, aimdcDoc)
     el.innerHTML = DOMPurify.sanitize(html)
+    wireDynamicLogicInteractions(el, previewUpdate)
   }
 
   if (renderMathInElement) {
@@ -163,6 +172,14 @@ function cfpPreprocess(src) {
       const idx = pendingAimdcBlocks.push(block) - 1
       return `AIMDC_BLOCK_PLACEHOLDER_${idx}`
     }
+    if (isDynamicLogicType(type)) {
+      // Dynamic Logic MVP: claims/evidence/judgments/history are collected
+      // separately from AIMD-C formulas, then evaluated first so judgment
+      // projections can feed the existing formula graph as external refs.
+      const block = parseDynamicLogicBlock(type, rest, inner)
+      const idx = pendingDynamicLogicBlocks.push(block) - 1
+      return `DYNAMIC_LOGIC_BLOCK_PLACEHOLDER_${idx}`
+    }
     // Visual IR (roadmap Phase 5): chart/plot blocks are self-contained —
     // own inline data or a bare function expression, no cross-block
     // dependency graph to wait for (unlike AIMD-C blocks above) — so they
@@ -189,3 +206,8 @@ function cfpPreprocess(src) {
 // Reset once per previewUpdate() call, not per block, so multiple AIMD-C
 // blocks in one document share the same evaluation pass.
 let pendingAimdcBlocks = []
+
+// Dynamic Logic is intentionally a layer ABOVE AIMD-C rather than new math
+// syntax. Its blocks produce evidence/judgment runtime refs that AIMD-C may
+// consume; replay is UI-local and never mutates canonical Markdown source.
+let pendingDynamicLogicBlocks = []

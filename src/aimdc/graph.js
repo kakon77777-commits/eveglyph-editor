@@ -22,10 +22,19 @@ function collectRefPaths(node, out) {
   if (node.args) node.args.forEach(n => collectRefPaths(n, out))
 }
 
-function resolveRef(path, byId, results) {
+// `externalRefs` is the narrow bridge for runtimes layered above AIMD-C.
+// Dynamic Logic v0.1 uses it for refs like `@weather-judge.support` without
+// pretending a judgment is an AIMD compute block or building a second formula
+// evaluator. Exact-path lookup comes first only when no AIMD block owns the id,
+// so existing document-local references keep their original semantics.
+function resolveRef(path, byId, results, externalRefs = {}) {
   const [id, field] = path.split('.')
   const block = byId.get(id)
-  if (!block) throw new Error(`unresolved reference "@${path}" — no block with id "${id}"`)
+  if (!block) {
+    if (Object.prototype.hasOwnProperty.call(externalRefs, path)) return externalRefs[path]
+    if (!field && Object.prototype.hasOwnProperty.call(externalRefs, id)) return externalRefs[id]
+    throw new Error(`unresolved reference "@${path}" — no block with id "${id}"`)
+  }
   if (block.kind === 'value') return block.value
   // roadmap Phase 5 (Visual IR): a table block's rows are its "value" — no
   // .field indexing (a table is already a list of rows, not a single
@@ -52,20 +61,20 @@ function resolveRef(path, byId, results) {
   throw new Error(`"@${path}" refers to a "${block.kind}" block, which has no value to reference`)
 }
 
-function buildRefEnv(node, byId, results) {
+function buildRefEnv(node, byId, results, externalRefs) {
   const paths = new Set()
   collectRefPaths(node, paths)
   const refs = {}
-  for (const p of paths) refs[p] = resolveRef(p, byId, results)
+  for (const p of paths) refs[p] = resolveRef(p, byId, results, externalRefs)
   return { refs }
 }
 
-function evalCompute(block, functions, byId, results) {
+function evalCompute(block, functions, byId, results, externalRefs) {
   const fn = functions.get(block.use)
   if (!fn) throw new Error(`uses undefined function "${block.use}"`)
   const env = {}
   for (const bind of block.bindings) {
-    const refEnv = buildRefEnv(bind.expr, byId, results)
+    const refEnv = buildRefEnv(bind.expr, byId, results, externalRefs)
     env[bind.name] = evaluate(bind.expr, refEnv)
   }
   for (const [name, typeName] of Object.entries(fn.input)) {
@@ -79,19 +88,18 @@ function evalCompute(block, functions, byId, results) {
   return { outputs, ledger: ledgerEntry(block, env, outputs) }
 }
 
-function evalAssert(block, byId, results) {
-  const refEnv = buildRefEnv(block.expr, byId, results)
+function evalAssert(block, byId, results, externalRefs) {
+  const refEnv = buildRefEnv(block.expr, byId, results, externalRefs)
   const value = evaluate(block.expr, refEnv)
   if (typeof value !== 'boolean') throw new Error(`assertion did not evaluate to a boolean (got ${typeof value})`)
   return { passed: value, ledger: ledgerEntry(block, refEnv.refs, { passed: value }) }
 }
 
-// Returns { byId, results, issues, ledger }. `results` maps block id →
-// { outputs } | { passed } | { error }. `issues` is a flat list of
-// { id, message } for the diagnostics panel — a circular reference or a
-// failed evaluation, never thrown, matching this app's "diagnose, don't
-// crash" posture elsewhere (Phase 1's math diagnostics, World IR's validator).
-export function evaluateDocument(blocks) {
+// Returns { byId, results, issues, ledger, externalRefs }. `results` maps
+// block id → { outputs } | { passed } | { error }. External refs are a
+// read-only namespace supplied by another validated runtime; AIMD-C does not
+// mutate them or infer their semantics.
+export function evaluateDocument(blocks, externalRefs = {}) {
   const byId = new Map()
   for (const b of blocks) if (b.id) byId.set(b.id, b)
   const functions = new Map()
@@ -123,7 +131,7 @@ export function evaluateDocument(blocks) {
       for (const member of cycleMembers) issues.push({ id: member, message })
       return
     }
-    if (!byId.has(id)) return
+    if (!byId.has(id)) return // external runtime ref: no AIMD node to visit
     state.set(id, 'visiting')
     for (const dep of deps.get(id) || []) visit(dep, [...path, id])
     state.set(id, 'done')
@@ -144,11 +152,11 @@ export function evaluateDocument(blocks) {
     if (!b || b.kind === 'view' || b.kind === 'table' || b.kind === 'error') continue
     try {
       if (b.kind === 'compute') {
-        const { outputs, ledger: entry } = evalCompute(b, functions, byId, results)
+        const { outputs, ledger: entry } = evalCompute(b, functions, byId, results, externalRefs)
         results.set(id, { outputs })
         ledger.push(entry)
       } else if (b.kind === 'assert') {
-        const { passed, ledger: entry } = evalAssert(b, byId, results)
+        const { passed, ledger: entry } = evalAssert(b, byId, results, externalRefs)
         results.set(id, { passed })
         ledger.push(entry)
       }
@@ -159,7 +167,7 @@ export function evaluateDocument(blocks) {
     }
   }
 
-  return { byId, results, issues, ledger }
+  return { byId, results, issues, ledger, externalRefs }
 }
 
 export { resolveRef }
