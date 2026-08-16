@@ -35,7 +35,7 @@ export function renderDynamicLogicBlock(block, doc) {
   if (block.kind === 'dl-evidence') {
     const arrow = block.direction === 'support' ? '↑' : block.direction === 'oppose' ? '↓' : '·'
     return `<div class="cfp-block cfp-note"><div class="cfp-label">EVIDENCE ${arrow} · ${esc(block.id)}</div>` +
-      `<div><b>${esc(block.direction)}</b> · weight ${esc(block.weight)} · ${block.verified ? 'verified' : 'unverified'}</div>` +
+      `<div><b>${esc(block.direction)}</b> · ${esc(block.sourceType)} · weight ${esc(block.weight)} · ${block.verified ? 'verified' : 'unverified'}</div>` +
       `<div style="color:var(--t2);font-size:11px;margin-top:4px">${esc(block.label)}</div></div>`
   }
 
