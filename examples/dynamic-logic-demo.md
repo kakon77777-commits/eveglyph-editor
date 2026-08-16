@@ -27,6 +27,7 @@ statement: "Tomorrow afternoon will be rainy."
 First supporting source:
 
 ::: aimd-evidence {id="forecast-a" claim="@weather-claim" direction="support" weight="0.9" verified="true" sequence="1"}
+source_type: document
 label: Forecast A supports rain
 source: demo://forecast-a
 :::
@@ -35,6 +36,7 @@ Second supporting source — with two verified evidence items, the demo policy
 now allows provisional support:
 
 ::: aimd-evidence {id="forecast-b" claim="@weather-claim" direction="support" weight="0.8" verified="true" sequence="2"}
+source_type: document
 label: Forecast B independently supports rain
 source: demo://forecast-b
 :::
@@ -42,6 +44,7 @@ source: demo://forecast-b
 A major counter-signal arrives and reopens the previously closed judgment:
 
 ::: aimd-evidence {id="front-shift" claim="@weather-claim" direction="oppose" weight="5" verified="true" sequence="3"}
+source_type: document
 label: Frontal system shifts away
 source: demo://front-shift
 :::
@@ -49,6 +52,7 @@ source: demo://front-shift
 A second strong opposing signal closes provisionally in the other direction:
 
 ::: aimd-evidence {id="radar-update" claim="@weather-claim" direction="oppose" weight="5" verified="true" sequence="4"}
+source_type: document
 label: Radar update further reduces rain support
 source: demo://radar-update
 :::
