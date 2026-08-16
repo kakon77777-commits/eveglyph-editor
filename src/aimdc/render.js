@@ -28,6 +28,23 @@ function formatNumber(value, fmt) {
   return fmtValue(value)
 }
 
+function externalTransition(block, doc) {
+  return doc.externalTransitions?.[block.source] || null
+}
+
+function transitionBadge(transition) {
+  if (!transition?.changed) return ''
+  if (Number.isFinite(transition.delta)) {
+    const points = transition.delta * 100
+    const sign = points > 0 ? '+' : ''
+    return `<span class="dl-formula-delta">Δ ${sign}${esc(points.toFixed(2))} pp</span>`
+  }
+  if (transition.from !== null && transition.from !== undefined && transition.to !== null && transition.to !== undefined) {
+    return `<span class="dl-formula-delta">${esc(fmtValue(transition.from))} → ${esc(fmtValue(transition.to))}</span>`
+  }
+  return ''
+}
+
 export function renderBlock(block, doc) {
   switch (block.kind) {
     case 'value':    return renderValue(block)
@@ -119,6 +136,9 @@ function renderView(block, doc) {
   } catch (e) {
     return `<div class="aimdc-block aimdc-view aimdc-state-failed"><span class="aimdc-error-msg">${esc(e.message)}</span></div>`
   }
+  const transition = externalTransition(block, doc)
+  const changed = Boolean(transition?.changed)
+
   if (block.renderer === 'table' && Array.isArray(value)) return renderRowsAsTable(value)
   // roadmap Phase 5 (Visual IR): plot an AIMD-C-computed table as a chart —
   // reuses the exact same renderer a standalone ::: chart ::: block uses
@@ -133,12 +153,17 @@ function renderView(block, doc) {
   }
   if (block.renderer === 'number') {
     const text = block.config.format ? formatNumber(value, block.config.format) : fmtValue(value)
-    return `<div class="aimdc-block aimdc-view aimdc-view-number">${esc(text)}</div>`
+    return `<div class="aimdc-block aimdc-view aimdc-view-number${changed ? ' dl-external-ref-changed' : ''}">` +
+      `${esc(text)}${transitionBadge(transition)}</div>`
   }
   // 'formula' (default) — typeset as "label = value" via the existing KaTeX
   // pass, which runs after this substitution in preview.js's own pipeline.
+  // `externalTransitions` is presentation metadata only: the formula still
+  // resolves through normal AIMD-C refs; a changed external ref merely adds a
+  // one-frame visual transition and delta badge.
   const label = block.label || block.source.split('.').pop()
-  return `<div class="aimdc-block aimdc-view aimdc-view-formula">$$${esc(label)} = ${esc(fmtValue(value))}$$</div>`
+  return `<div class="aimdc-block aimdc-view aimdc-view-formula${changed ? ' dl-formula-changed' : ''}">` +
+    `$$${esc(label)} = ${esc(fmtValue(value))}$$${transitionBadge(transition)}</div>`
 }
 
 function renderError(block) {
@@ -157,7 +182,9 @@ function renderError(block) {
 export function substituteInlineRefs(html, doc) {
   return html.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, path) => {
     try {
-      return esc(fmtValue(resolveRef(path, doc.byId, doc.results, doc.externalRefs)))
+      const text = esc(fmtValue(resolveRef(path, doc.byId, doc.results, doc.externalRefs)))
+      const transition = doc.externalTransitions?.[path]
+      return transition?.changed ? `<span class="dl-inline-ref-changed">${text}</span>` : text
     } catch (e) {
       return `<span class="aimdc-error-msg">{{ ${esc(path)}: ${esc(e.message)} }}</span>`
     }
