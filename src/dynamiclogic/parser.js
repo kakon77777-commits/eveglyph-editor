@@ -6,6 +6,7 @@ import jsYaml from 'js-yaml'
 import { parseAttrs } from '../aimdc/parser.js'
 
 const TYPES = new Set(['aimd-claim', 'aimd-evidence', 'aimd-judgment', 'aimd-history'])
+const SOURCE_TYPES = new Set(['observation', 'document', 'derived', 'inference'])
 
 const num = (value, fallback = null) => {
   if (value === undefined || value === null || value === '') return fallback
@@ -45,6 +46,10 @@ function evidence(attrs, body) {
   if (!['support', 'oppose', 'neutral', 'unresolved'].includes(direction)) {
     throw new Error(`aimd-evidence "${attrs.id}" has invalid direction "${direction}"`)
   }
+  const sourceType = String(attrs['source-type'] || data.source_type || '').toLowerCase()
+  if (!SOURCE_TYPES.has(sourceType)) {
+    throw new Error(`aimd-evidence "${attrs.id}" requires source_type: observation|document|derived|inference`)
+  }
   const weight = num(attrs.weight ?? data.weight, 1)
   if (!(weight >= 0)) throw new Error(`aimd-evidence "${attrs.id}" weight must be >= 0`)
   return {
@@ -52,8 +57,10 @@ function evidence(attrs, body) {
     id: attrs.id,
     claim: attrs.claim.replace(/^@/, ''),
     direction,
+    sourceType,
     weight,
-    verified: bool(attrs.verified ?? data.verified, true),
+    // Fail closed: evidence is unverified unless the source explicitly says otherwise.
+    verified: bool(attrs.verified ?? data.verified, false),
     sequence: num(attrs.sequence ?? data.sequence, null),
     label: String(data.label || data.source || attrs.label || attrs.id),
     source: data.source || null,
