@@ -6,6 +6,21 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Dynamic Logic browser renderer: event-driven motion + autoplay** — the
+  Dynamic Logic history panel gains `▶ Play`/`⏸ Pause` autoplay (one real
+  evidence step per tick, no decorative animation loop — motion fires only on
+  an actual state/value change), a timeline progress bar, and evidence-card
+  arrival/rewind transitions. Judgment cards pulse and show a transition
+  summary plus support/counterpressure/completeness deltas. AIMD-C formula
+  and inline `{{ }}` views that read a changed Dynamic Logic external ref
+  animate once and show a delta badge — presentation-only, `aimdc/graph.js`
+  is untouched. Reaching the terminal replay step now normalizes to true
+  Live, so later-appended evidence is followed automatically instead of
+  freezing at the old maximum. Playback stops itself (not silently, not
+  crashing) if its panel leaves the DOM (tab/file switch) or if the source is
+  edited mid-session and the evidence count changes. Respects
+  `prefers-reduced-motion`. See `docs/dynamic-logic-browser-renderer.md` and
+  `npm run verify:dynamic-rendering`.
 - **Dynamic Logic MVP: replayable judgments on top of AIMD-C** — new
   `aimd-claim`/`aimd-evidence`/`aimd-judgment`/`aimd-history` blocks add a
   claim/evidence/judgment runtime layered above AIMD-C, not a second math

@@ -2,7 +2,62 @@
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
 > compiler injects mid-memory into every local-agent run). Last updated: 2026-08-16
-> (Dynamic Logic MVP: replayable judgments on top of AIMD-C).
+> (Dynamic Logic browser renderer: event-driven motion + autoplay).
+
+## Dynamic Logic browser renderer (2026-08-16)
+
+- Second Dynamic Logic increment, same day: the history panel's manual
+  snapshot stepping now also has event-driven `▶ Play`/`⏸ Pause` autoplay —
+  one timer tick commits one real evidence-prefix advance through the normal
+  preview pipeline, not a decorative animation loop. A timeline progress bar
+  and per-card arrival/rewind transitions make the evidence sequence
+  legible; judgment cards pulse and show a transition summary
+  (`state → state`, evidence-step delta, support Δ) only on an actual
+  change — a repeated identical frame (including `null → null`) produces no
+  motion, checked by a dedicated test.
+- `src/dynamiclogic/motion.js` (new) diffs each judgment's last *rendered*
+  browser frame against the current one — purely presentation metadata, it
+  never touches the reducer, evidence set, replay cursor, buffer, or disk.
+  `src/aimdc/graph.js` is untouched by this increment: the diff is attached
+  to the existing AIMD-C doc object as a read-only
+  `doc.externalTransitions` map, and `aimdc/render.js` only adds a CSS class
+  and delta badge when it says a ref changed — no new evaluator semantics.
+- `src/dynamiclogic/replay.js` gains "true Live" normalization: setting the
+  cursor to the current terminal step now clears it (rather than storing
+  that value), so a later source edit that appends new evidence is followed
+  automatically instead of freezing the view at the old maximum.
+- `src/dynamiclogic/playback.js` (new): a `setTimeout`-driven session per
+  replay key. Stops itself — not silently broken, not crashing — if its
+  History panel leaves the DOM (tab/file switch) or if the live evidence
+  count no longer matches what the session started with (source edited
+  mid-playback), rather than continuing against a stale or mixed event
+  sequence. Manual `←`/`→` clicks also now stop any running playback first,
+  so stepping and autoplay can't race each other.
+- `prefers-reduced-motion` disables every animation/transition the new
+  stylesheet (`src/dynamiclogic/styles.css`) declares while keeping all
+  state/delta information visible — checked pairwise against every
+  `animation:`/`transition:` rule in the file, not assumed from the
+  media-query block alone.
+
+Reviewed and independently re-verified before merging, in an isolated git
+worktree (this PR's own description said its environment "cannot run the
+full Vite browser build," same as the MVP the day before): `npm ci`,
+`node --check` on every touched/new file, `npm run verify:dynamic-logic`,
+the new `npm run verify:dynamic-rendering`, and a full production build all
+clean. Live-browser testing: clicking Play synchronously flips the button to
+Pause and resets the projection to evidence step 0 (confirmed before any
+timer tick could fire); waiting through a full autoplay cycle reached the
+terminal step unattended and cleanly restored the Play button (not stuck on
+Pause); switching to a different open file mid-playback stopped the timer
+silently with zero console errors, and reopening the original document
+showed a clean Play state with no ghost session; the linked AIMD-C formula
+view picked up the `dl-formula-changed` class and delta badge from a real
+playback-driven support-score change. Regression-checked
+`examples/aimd-demo.md` (15 blocks, 3 pre-existing intentional-failure
+demos, zero new errors). No new npm dependencies. A "cursor" string briefly
+looked like a disk-write false alarm when checking the demo file was
+untouched — traced to the file's own pre-existing prose explaining what a
+replay cursor is, not app-written state. Merged as public `b1c5be6`.
 
 ## Dynamic Logic MVP (2026-08-16)
 

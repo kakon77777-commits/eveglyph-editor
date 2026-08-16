@@ -111,10 +111,17 @@ EveGlyph-MD is plain Markdown plus a small set of additions:
     reopens if later evidence drifts it back across its own closure
     threshold, even without any single large update.
   - `::: aimd-history {claim="@weather-judge"} :::` — a replay panel with
-    `←`/`→`/`Live` controls that step through the evidence sequence.
-    Replay only changes what's projected on screen — it never rewrites the
-    document's Markdown or touches the file on disk, and each document
-    keeps its own replay position even if two files reuse the same claim id.
+    `←`/`→`/`▶ Play`/`Live` controls and a timeline progress bar. Play
+    auto-advances one real evidence step per tick — no decorative animation,
+    motion only happens on an actual change — and stops itself cleanly at
+    the end or if you switch files mid-playback. Replay only changes what's
+    projected on screen — it never rewrites the document's Markdown or
+    touches the file on disk, and each document keeps its own replay
+    position even if two files reuse the same claim id. Reaching the last
+    step snaps back to Live, so evidence added later is picked up
+    automatically. Judgment cards and any AIMD-C formula/`{{ }}` view reading
+    a changed value briefly highlight with a delta — respects
+    `prefers-reduced-motion`.
   - A judgment's values are readable from ordinary AIMD-C via
     `@weather-judge.support`, `{{ weather-judge.state }}`, etc. — the same
     reference syntax `aimd-compute`/`aimd-view` already use, not a separate
