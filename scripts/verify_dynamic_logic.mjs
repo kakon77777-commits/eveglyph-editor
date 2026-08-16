@@ -45,6 +45,13 @@ const rejectedEvidence = parseDynamicLogicBlock(
 )
 assert.equal(rejectedEvidence.kind, 'dl-error')
 
+const rejectedPolicy = parseDynamicLogicBlock(
+  'aimd-judgment',
+  ' {id="bad-policy" claim="@weather-claim"}',
+  'support_threshold: 1.2'
+)
+assert.equal(rejectedPolicy.kind, 'dl-error')
+
 let doc = stateAt(0)
 assert.equal(doc.results.get('weather-judge').state.state, 'open')
 assert.equal(doc.refs['weather-judge.projection'], 'omega')
@@ -71,7 +78,15 @@ assert.ok(doc.results.get('weather-judge').history.some(e => e.type === 'STATE_C
 // Existing AIMD-C resolver can read the Dynamic Logic runtime namespace.
 assert.equal(resolveRef('weather-judge.support', new Map(), new Map(), doc.refs), doc.refs['weather-judge.support'])
 
-// Runtime failure is orthogonal to epistemic state: ERROR must not become false/omega by mutation.
+// Same local claim id in two files must not share the UI replay cursor.
+setReplayCursor('doc-a.md::weather-claim', 2, 4)
+const docA = evaluateDynamicDocument(blocks, 'doc-a.md')
+const docB = evaluateDynamicDocument(blocks, 'doc-b.md')
+assert.equal(docA.results.get('weather-judge').state.state, 'provisionally_true')
+assert.equal(docB.results.get('weather-judge').state.state, 'provisionally_false')
+clearReplayCursor('doc-a.md::weather-claim')
+
+// Runtime failure is orthogonal to epistemic state: ERROR must not become false by mutation.
 const policy = { supportThreshold: 0.8, opposeThreshold: 0.2, minEvidenceCount: 2, reopenDelta: 0.2 }
 let errorState = initialJudgmentState('error-claim')
 errorState = reduceJudgment(errorState, { sequence: 1, type: 'CLAIM_CREATED', claim_id: 'error-claim', payload: {} }, policy)
