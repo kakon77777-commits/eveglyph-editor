@@ -6,6 +6,25 @@ All notable changes to EveGlyph Editor are documented here. Format loosely follo
 ## [Unreleased]
 
 ### Added
+- **Heading scale, Paper/Midnight themes, and Custom CSS** — three gaps found by
+  reading Zettlr's real source (`github.com/Zettlr/Zettlr`) as a UI benchmark,
+  closed one-for-one: a full h1-h6 preview heading scale (was h1-h3 only); two
+  new selectable themes, Paper (warm sepia light) and Midnight (true-black
+  max-contrast dark), joining Studio as `data-theme` attribute themes so
+  Dark/Light's own CSS/toggle logic stays untouched; and a Custom CSS setting
+  (`src/customcss.js`, workspace-relative path, loaded after the app's own
+  styles, reloaded automatically on workspace switch and Settings save).
+- **UI polish pass: topbar consolidation, Studio theme, wider resize range** —
+  the status bar (cursor position, modified indicator, encoding) moved from an
+  easy-to-miss strip at the very bottom of the viewport to directly under the
+  topbar; quick Theme and Language switchers were added to the topbar itself
+  (left of Open Folder), staying in sync with the same controls in Settings;
+  a third, more "commercial-grade" theme, **Studio**, joined Dark/Light
+  (both left exactly as they were); and the sidebar/right-panel resize range
+  was widened (`sidebarMax` 480→640, `rightPanelMax` 640→900). A follow-up fix
+  corrected the encoding/frontmatter popup menus, which positioned off-screen
+  after the status bar moved (they computed position relative to the status
+  bar's old location).
 - **Dynamic Logic browser renderer: event-driven motion + autoplay** — the
   Dynamic Logic history panel gains `▶ Play`/`⏸ Pause` autoplay (one real
   evidence step per tick, no decorative animation loop — motion fires only on

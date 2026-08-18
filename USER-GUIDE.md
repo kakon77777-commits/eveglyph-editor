@@ -353,9 +353,10 @@ workspace path, for the stdio version above.
 
 | Setting | What it does |
 | --- | --- |
-| Theme | Dark / Light |
-| Language | English / 繁體中文 so far, easy to extend. Translates the app's UI chrome live — topbar, panels, Settings, status bar, and dynamically-generated content (file tree, context menus, diff-review UI, AI presets, search results, alerts). AI prompt text sent to providers, Monitor diagnostic logs, and your document content itself always stay as written, regardless of this setting. |
+| Theme | Dark / Light / Studio / Paper / Midnight. Also switchable from the topbar (left of Open Folder) — both controls stay in sync. |
+| Language | English / 繁體中文 so far, easy to extend. Translates the app's UI chrome live — topbar, panels, Settings, status bar, and dynamically-generated content (file tree, context menus, diff-review UI, AI presets, search results, alerts). AI prompt text sent to providers, Monitor diagnostic logs, and your document content itself always stay as written, regardless of this setting. Also switchable from the topbar. |
 | Editor font size / family | Self-explanatory |
+| Custom CSS | A workspace-relative path (e.g. `.eveglyph/custom.css`) to a stylesheet loaded after the app's own styles. Optional; clear the field to turn it off. Reloads automatically on save and on workspace switch. |
 | AI Provider | Anthropic / OpenAI-compatible / Local Agent |
 | Default encoding | Fallback when a file's encoding can't be confidently detected, and the encoding used for new files |
 | `.eveglyph/` memory toggles | Which pieces of workspace memory get sent to the agent |

@@ -1,8 +1,105 @@
 # EveGlyph Editor — Progress
 
 > AI-readable project state. Doubles as `.eveglyph/memory/recent.md` (the context
-> compiler injects mid-memory into every local-agent run). Last updated: 2026-08-16
-> (Dynamic Logic browser renderer: event-driven motion + autoplay).
+> compiler injects mid-memory into every local-agent run). Last updated: 2026-08-19
+> (Heading scale, Paper/Midnight themes, and Custom CSS).
+
+## Heading scale, Paper/Midnight themes, and Custom CSS (2026-08-19)
+
+- Neo uses Zettlr (`Program Files\Zettlr`) to read plain Markdown day-to-day and
+  said its UI still beats EveGlyph's on polish, despite EveGlyph having more
+  AI-era features — explicitly separated as two different axes, not a request
+  to chase feature parity. Authorized reading Zettlr's real GitHub source
+  (`github.com/Zettlr/Zettlr`, GPL-3.0) directly rather than reverse-engineering
+  the local binary. Three concrete, worth-copying gaps found; one explicitly
+  flagged as *not* worth copying (OS-native input styling per
+  `body.darwin`/`.win32`/`.linux` — meaningless for a browser-based Vite app)
+  and skipped. Neo approved all three found gaps at once ("1.2.3都來吧").
+- **Full h1-h6 heading scale** in `#preview-body` (previously only h1-h3 had
+  rules; h4-h6 fell through to browser defaults). Sizes/weights/colors chosen
+  to sit alongside the existing token set rather than copying Zettlr's exact
+  numbers.
+- **Two new themes**, `Paper` (warm sepia light) and `Midnight` (true-black,
+  higher contrast than Dark) — same `data-theme="<name>"` attribute mechanism
+  Studio introduced (2026-08-17, below), so Dark/Light are untouched.
+  `applyTheme()` in `src/main.js` now tests membership in a
+  `DATA_ATTR_THEMES` array instead of a single hardcoded `'studio'` check.
+  Registered in `src/config.js`'s `themes`/`themeLabels`, both `<select>`s in
+  `index.html` (Settings panel `#s-theme` *and* topbar `#qs-theme` — both
+  checked by grep count this time, after Studio shipped with only one of the
+  two updated the first time around), and both i18n files.
+- **Custom CSS** (`src/customcss.js`, new) — a Settings field
+  (`.eveglyph/custom.css` by convention, any workspace-relative path accepted)
+  whose content is injected into a `<style>` tag after the app's own styles,
+  reloaded on workspace switch (`files.js`'s `loadWorkspacePath()`) and on
+  Settings save. Off by default; clearing the field turns it off.
+- **Bug found and fixed during live verification** (Bugology pattern, same
+  class as the World Studio false-positive found 2026-08-07): `cfgSave()`'s
+  first version copied `editorFontFamily`'s
+  `value || S.cfg.oldValue || default` fallback shape for the new
+  `customCssPath` field. Clearing the Settings field and clicking Save
+  silently kept the *old* CSS active, because an empty string is falsy and
+  fell through to the stored value — reproduced live (set path → pink test
+  style injected → cleared path → saved → style tag still present), then
+  fixed by dropping the `|| S.cfg.customCssPath` fallback for this field only,
+  with a comment explaining why its semantics differ from
+  `editorFontFamily`'s (clearing is a meaningful "turn it off," not
+  "not yet populated"). Re-verified live after the fix: style tag removed,
+  topbar back to the theme's normal background.
+- Verified: `node --check` on every touched JS file, `npm run build` clean,
+  Dark/Light computed styles byte-identical to before, both `<select>`s show
+  all 5 themes, an existing demo file (`examples/dynamic-logic-demo.md`)
+  renders with no new console errors (same 12 pre-existing `400`s from
+  optional `.eveglyph/{rules,glossary,memory/recent}.md` probes that don't
+  exist in this workspace — confirmed pre-existing via `git diff` on
+  `context.js`, which this round never touched).
+
+## UI polish pass: topbar consolidation, Studio theme, wider resize range (2026-08-17)
+
+- Neo flagged the UI as reading amateur/"too messy" next to commercial tools,
+  in both Dark and Light (confirmed identical across the public and internal
+  repos — they share the same `index.html`/`styles.css` chrome). Five asks in
+  one message: (1) the bottom status bar sits where eyes don't naturally look,
+  (2) keep Dark/Light exactly as-is but add a third "commercial-grade" theme,
+  (3) quick Theme/Language switchers in the topbar, left of Open Folder,
+  (4) the resize drag range felt too narrow, (5) open invitation for more.
+- Moved `#statusbar` (cursor position, modified indicator, file class,
+  provider, encoding) from an isolated strip at the very bottom of the
+  viewport to directly under `#topbar` — the concrete fix for ask (1). Updated
+  the `#app` grid rows and border placement in `styles.css` accordingly.
+- Added a `.topbar-quick` block to the topbar with Theme and Language
+  `<select>`s, bound to the same `applyTheme()`/`applyLanguage()` functions
+  and `S.cfg` persistence the Settings-panel controls already used — a second
+  entry point to the same state, not duplicated logic. Both surfaces stay in
+  sync (verified in both directions, after finding a one-direction-only sync
+  bug during this same round — see below).
+- Added a third theme, **Studio**, via `[data-theme="studio"]` — warmer dark
+  slate (`--bg-0:#14151a`) instead of Dark's near-black `#07070f`, one accent
+  color used consistently, closer to how Linear/Notion/Vercel-style tools
+  read as premium. Dark and Light CSS left byte-for-byte untouched per Neo's
+  "兩個先不動."
+- Widened resize clamps in `src/config.js`: `sidebarMax` 480→640,
+  `rightPanelMax` 640→900. Reused `resize.js`'s existing clamp mechanism —
+  no new resize logic.
+- Own additions (ask 5, flagged for approval rather than assumed): softened
+  `.sg label`/`.dir-item` from all-caps letter-spaced to plain weight/
+  normal-case; gave `#btn-save` `.btn-p` (primary/accent) styling when dirty
+  instead of leaving Open Folder as the only-ever-colored button.
+- **Bug found while adding Studio**: the Settings-panel `#s-theme` `<select>`
+  never got a `studio` `<option>` added (only the new topbar `#qs-theme` did),
+  so assigning it that value silently went blank — no error, since assigning
+  a non-existent value to a `<select>` just fails quietly. Found by explicitly
+  testing sync in *both* directions instead of assuming one successful test
+  covered both. Fixed; re-checked by grep count (2 occurrences of each theme
+  `<option>`) for every theme added since, including this round's Paper/
+  Midnight above.
+- **Follow-up fix, same day**: `encodingmenu.js`/`frontmattermenu.js` popups
+  positioned off-screen after the status bar move — both hardcoded
+  `menu.style.bottom = window.innerHeight - rect.top + 6`, which assumed the
+  anchor sat near the viewport bottom. Symptom was Neo seeing only a fragment
+  of the frontmatter tags input on screen. Fixed to
+  `menu.style.top = rect.bottom + 6` in both files; grepped for the same
+  pattern elsewhere first to confirm no third file shared it.
 
 ## Dynamic Logic browser renderer (2026-08-16)
 
