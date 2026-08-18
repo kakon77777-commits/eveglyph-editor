@@ -6,6 +6,7 @@ import { aiCall }       from './ai.js'
 import { detectAgents } from './agent.js'
 import { loadWorkspacePath } from './files.js'
 import { ENCODINGS }    from './encodingmenu.js'
+import { loadCustomCss } from './customcss.js'
 
 const $ = (id) => document.getElementById(id)
 
@@ -199,6 +200,8 @@ export function cfgLoad() {
 
   const ffEl = $('s-font-family')
   if (ffEl) ffEl.value = S.cfg.editorFontFamily || ''
+  const cssPathEl = $('s-custom-css-path')
+  if (cssPathEl) cssPathEl.value = S.cfg.customCssPath || ''
   const worldStudioEl = $('s-world-studio-enabled')
   if (worldStudioEl) worldStudioEl.checked = S.cfg.worldStudio?.enabled === true
   const permEl = $('s-agent-permission')
@@ -274,6 +277,11 @@ export function cfgSave(showMessage = true) {
     language: $('s-language')?.value || S.cfg.language || 'en',
     editorFontSize: parseFloat($('s-font-size')?.value) || S.cfg.editorFontSize || 13.5,
     editorFontFamily: ($('s-font-family')?.value.trim()) || S.cfg.editorFontFamily || undefined,
+    // No `|| S.cfg.customCssPath` fallback here on purpose (unlike editorFontFamily
+    // above) — clearing this field is a real, meaningful action (turn Custom CSS
+    // off), not "field not yet populated"; falling back to the old value would
+    // make it impossible to ever clear via the UI.
+    customCssPath: $('s-custom-css-path')?.value.trim() || undefined,
     agentPermission: $('s-agent-permission')?.value || S.cfg.agentPermission || 'standard',
     agentTimeoutMs: ($('s-agent-timeout')?.value ? parseInt($('s-agent-timeout').value, 10) * 1000 : 0) || S.cfg.agentTimeoutMs || 180000,
     agentQuiet: $('s-agent-quiet') ? !$('s-agent-quiet').checked : (S.cfg.agentQuiet !== false),
@@ -309,6 +317,7 @@ export function cfgSave(showMessage = true) {
   if (S.cfg.keyPersist === false) toPersist.key = ''
   if (!S.cfg.mcpTokenPersist) toPersist.mcpToken = ''
   localStorage.setItem(CFG_KEY, JSON.stringify(toPersist))
+  loadCustomCss()   // path may have just changed — reload (or clear) so Save is visibly immediate
   if (showMessage) {
     setMsg('Saved', 'ok')
     setTimeout(() => setMsg(''), 1800)

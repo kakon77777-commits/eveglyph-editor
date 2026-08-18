@@ -26,6 +26,8 @@
         <option value="dark" data-i18n="settings.themeDark">Dark</option>
         <option value="light" data-i18n="settings.themeLight">Light</option>
         <option value="studio" data-i18n="settings.themeStudio">Studio</option>
+        <option value="paper" data-i18n="settings.themePaper">Paper</option>
+        <option value="midnight" data-i18n="settings.themeMidnight">Midnight</option>
       </select>
       <select class="qs-select" id="qs-language" data-i18n-title="topbar.quickLanguageTitle" title="Language"></select>
     </div>
@@ -294,6 +296,8 @@
             <option value="dark" data-i18n="settings.themeDark">Dark</option>
             <option value="light" data-i18n="settings.themeLight">Light</option>
             <option value="studio" data-i18n="settings.themeStudio">Studio</option>
+            <option value="paper" data-i18n="settings.themePaper">Paper</option>
+            <option value="midnight" data-i18n="settings.themeMidnight">Midnight</option>
           </select>
         </div>
         <div class="sg">
@@ -313,6 +317,10 @@
             <input type="checkbox" id="s-world-studio-enabled"> <span data-i18n="settings.worldStudioEnabled">Enable World Studio</span>
           </label>
           <span style="font-size:10px;color:var(--t3)" data-i18n="settings.worldStudioHint">Shows the advanced Runtime, World, Studio, and editable World IR views. Source stays plain YAML and all disk saves remain explicit.</span>
+        </div>
+        <div class="sg">
+          <label><span data-i18n="settings.customCss">Custom CSS</span> <span style="color:var(--t3)" data-i18n="settings.customCssHint">(workspace-relative path, e.g. .eveglyph/custom.css — optional, loaded after the app's own styles)</span></label>
+          <input type="text" id="s-custom-css-path" placeholder=".eveglyph/custom.css">
         </div>
         <div class="sg">
           <label data-i18n="settings.aiProvider">AI Provider</label>

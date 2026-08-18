@@ -61,12 +61,13 @@ import { applyWorldStudioVisibility } from './worldfeatures.js'
 import { previewUpdate } from './preview.js'
 
 // Toggle the app-wide theme (CSS variables in styles.css). Light stays the
-// existing .theme-light class on <html>, untouched; Studio is a separate
-// [data-theme="studio"] attribute so Dark/Light's own CSS/toggle logic never
-// has to know a third theme exists.
+// existing .theme-light class on <html>, untouched; every theme past Dark/
+// Light is a [data-theme="<name>"] attribute instead, so Dark/Light's own
+// CSS/toggle logic never has to know how many other themes exist.
+const DATA_ATTR_THEMES = ['studio', 'paper', 'midnight']
 export function applyTheme(theme) {
   document.documentElement.classList.toggle('theme-light', theme === 'light')
-  if (theme === 'studio') document.documentElement.setAttribute('data-theme', 'studio')
+  if (DATA_ATTR_THEMES.includes(theme)) document.documentElement.setAttribute('data-theme', theme)
   else document.documentElement.removeAttribute('data-theme')
 }
 

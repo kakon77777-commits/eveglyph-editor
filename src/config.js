@@ -42,9 +42,9 @@ export const CONFIG = {
   },
 
   // ── Appearance ──
-  theme: 'dark',                                          // [user] app theme: dark | light | studio
-  themes: ['dark', 'light', 'studio'],                    // [const] supported themes
-  themeLabels: { dark: 'Dark', light: 'Light', studio: 'Studio' }, // [const]
+  theme: 'dark',                                          // [user] app theme: dark | light | studio | paper | midnight
+  themes: ['dark', 'light', 'studio', 'paper', 'midnight'], // [const] supported themes
+  themeLabels: { dark: 'Dark', light: 'Light', studio: 'Studio', paper: 'Paper', midnight: 'Midnight' }, // [const]
   // i18n Phase 1: the setting + <html lang> only. UI strings stay English until
   // the translation-string architecture itself is decided (Neo: "先來一個語言
   // 設置。然後我們來討論如何最好的兼容性") — deliberately not solved here.

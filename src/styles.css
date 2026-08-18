@@ -93,6 +93,62 @@
   --ok:  #4ade80;
 }
 
+/* Paper theme — warm cream/sepia light, distinct from Light's cool
+   white/blue-gray (an e-reader/printed-page feel for long-form reading).
+   Same [data-theme] mechanism as Studio. */
+:root[data-theme="paper"] {
+  --bg-0:   #faf6ed;
+  --bg-1:   #f3ede0;
+  --bg-2:   #ece4d3;
+  --bg-3:   #e2d7c0;
+  --surf:   #f0e9da;
+  --surf-h: #e8dfc9;
+  --surf-a: #ddd0b4;
+  --bdr:    #ddd0b8;
+  --bdr-s:  #c9b998;
+
+  --t0: #3a2f1f;
+  --t1: #6b5a40;
+  --t2: #93815f;
+  --t3: #b8a888;
+
+  --ac:    #a0622c;
+  --ac-d:  #7d4a1f;
+  --ac-g:  rgba(160,98,44,.10);
+  --ac-g2: rgba(160,98,44,.18);
+
+  --err: #b23b3b;
+  --ok:  #5a7d3a;
+}
+
+/* Midnight theme — true black, maximum contrast (OLED-friendly, accessibility-
+   oriented), a vivid cyan accent distinct from every other theme's green/
+   indigo/terracotta. Same [data-theme] mechanism as Studio/Paper. */
+:root[data-theme="midnight"] {
+  --bg-0:   #000000;
+  --bg-1:   #0a0a0a;
+  --bg-2:   #121212;
+  --bg-3:   #1a1a1a;
+  --surf:   #141414;
+  --surf-h: #1e1e1e;
+  --surf-a: #262626;
+  --bdr:    #2a2a2a;
+  --bdr-s:  #3a3a3a;
+
+  --t0: #ffffff;
+  --t1: #c4c4c4;
+  --t2: #8a8a8a;
+  --t3: #4a4a4a;
+
+  --ac:    #00e5ff;
+  --ac-d:  #00b8cc;
+  --ac-g:  rgba(0,229,255,.12);
+  --ac-g2: rgba(0,229,255,.22);
+
+  --err: #ff5252;
+  --ok:  #00e676;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -325,9 +381,20 @@ body.resizing #editor-container, body.resizing .cm-editor { pointer-events: none
 #preview-body {
   font-family:var(--fu); font-size:13.5px; line-height:1.7; color:var(--t0);
 }
-#preview-body h1 { font-size:19px; margin-bottom:12px; }
-#preview-body h2 { font-size:15px; margin:14px 0 7px; }
-#preview-body h3 { font-size:13.5px; margin:10px 0 5px; color:var(--t1); }
+/* Full h1-h6 scale (was h1-h3 only, and h1-h3 sat too close together to read
+   as a real hierarchy — h3 was the same size as body text). Sizes/weights
+   loosely follow the jump pattern common in commercial writing apps: a real
+   step at the top, tapering to label-like weight by h5/h6 rather than just
+   shrinking font-size. */
+#preview-body h1 { font-size:23px; font-weight:700; margin:4px 0 14px; }
+#preview-body h2 { font-size:18px; font-weight:700; margin:16px 0 8px; }
+#preview-body h3 { font-size:15.5px; font-weight:600; margin:12px 0 6px; color:var(--t1); }
+#preview-body h4 { font-size:14px; font-weight:600; margin:10px 0 5px; color:var(--t1); }
+#preview-body h5 { font-size:13.5px; font-weight:700; margin:9px 0 4px; color:var(--t2); }
+#preview-body h6 {
+  font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  margin:9px 0 4px; color:var(--t2);
+}
 #preview-body p { margin-bottom:9px; }
 #preview-body a { color:var(--ac); }
 #preview-body code {

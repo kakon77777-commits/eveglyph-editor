@@ -8,8 +8,9 @@ import { tabAdd, tabUpdate, tabPrune } from './tabs.js'
 import { monitor } from './monitor.js'
 import { pickFolder } from './folderbrowser.js'
 import { t } from './i18n/index.js'
+import { loadCustomCss } from './customcss.js'
 
-function bridgeFileUrl(root, file, encoding, fallback) {
+export function bridgeFileUrl(root, file, encoding, fallback) {
   const params = { cwd: root, path: file }
   if (encoding) params.encoding = encoding             // hard override (menu pick) — wins over detection
   if (fallback && fallback !== 'UTF-8') params.fallback = fallback   // soft default — only when detection is uncertain
@@ -142,6 +143,7 @@ export async function loadWorkspacePath(cwd) {
     document.getElementById('btn-new').disabled = false
     renderTree()
     statusUpdate()
+    loadCustomCss()   // workspace-relative, so a new folder may have a different (or no) custom.css — fire-and-forget, never blocks opening
     await monitor('workspace:load:success', { cwd: info.cwd, count: info.files.length })
     return true
   } catch (e) {
