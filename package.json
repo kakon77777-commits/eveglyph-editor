@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "mcp": "node mcp-server.js",
     "mcp:remote": "node mcp-server-remote.js",
-    "test:publication": "node --test test/publication-*.test.mjs",
+    "test:publication": "node --test test/publication-*.test.mjs test/mcp-publication.test.mjs",
     "verify:dynamic-logic": "node scripts/verify_dynamic_logic.mjs",
     "verify:dynamic-rendering": "node scripts/verify_dynamic_rendering.mjs"
   },
