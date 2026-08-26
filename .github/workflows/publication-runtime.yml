@@ -25,9 +25,11 @@ jobs:
           node-version: '20'
           cache: npm
 
-      # This PR introduces a native optional-dependency package. Use npm install
-      # while the generated package-lock update is still pending; before merge,
-      # regenerate/commit package-lock.json and switch this back to npm ci.
+      # TEMPORARY FOR DRAFT PR #5 ONLY.
+      # The implementation adds @myriaddreamin/typst-ts-node-compiler@0.7.0,
+      # but this ChatGPT execution environment cannot run npm to regenerate the
+      # lockfile. Once package-lock.json is generated and committed by a real
+      # runner, change this step back to `npm ci` before taking the PR out of Draft.
       - name: Install dependencies
         run: npm install
 
