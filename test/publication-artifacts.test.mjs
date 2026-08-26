@@ -20,7 +20,7 @@ function baseInput(bytes = pdf) {
   }
 }
 
-test('artifact store records hash, PDF MIME type, and resource URI', () => {
+test('artifact store records hash, PDF MIME type, resource URI, and report byte size', () => {
   const store = createArtifactStore()
   const artifact = store.put(baseInput())
 
@@ -32,6 +32,7 @@ test('artifact store records hash, PDF MIME type, and resource URI', () => {
 
   const fetched = store.get(artifact.id)
   assert.equal(Buffer.compare(fetched.bytes, pdf), 0)
+  assert.equal(store.report(artifact.id).bytes, pdf.length)
 })
 
 test('artifact store distinguishes unknown and expired artifact IDs', () => {
