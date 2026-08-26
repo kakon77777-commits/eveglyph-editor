@@ -26,6 +26,8 @@ import { evaluateDocument, resolveRef } from './aimdc/graph.js'
 // inert placeholder delimiter that survives marked's tokenizer as plain text.
 const MATH_MARK = String.fromCharCode(0xE000)
 const MATH_RE = new RegExp(MATH_MARK + '(\\d+)' + MATH_MARK, 'g')
+const CODE_MARK = String.fromCharCode(0xE001)
+const CODE_RE = new RegExp(CODE_MARK + '(\\d+)' + CODE_MARK, 'g')
 
 // Typst markup-mode characters that are ALWAYS special, position-independent.
 // (`-`/`+`/`=`/digits are only special at line start — line-start collisions
@@ -52,11 +54,127 @@ function esc(s) {
 // breaks Typst's math parser (bare "begin"/"end" reads as implicit
 // variable multiplication, "b*e*g*i*n"). Normalize the alias before
 // handing TeX to the converter rather than waiting on an upstream fix.
+function readBalancedGroup(source, start, open, close) {
+  if (source[start] !== open) return null
+  let depth = 0
+  for (let i = start; i < source.length; i++) {
+    if (source[i] === '\\' && i + 1 < source.length) {
+      i += 1
+      continue
+    }
+    if (source[i] === open) depth += 1
+    else if (source[i] === close) {
+      depth -= 1
+      if (depth === 0) return { content: source.slice(start + 1, i), end: i + 1 }
+    }
+  }
+  return null
+}
+
+function rewriteExtensibleArrows(tex) {
+  let out = ''
+  let i = 0
+  while (i < tex.length) {
+    let command = null
+    if (tex.startsWith('\\xrightarrow', i)) command = '\\xrightarrow'
+    else if (tex.startsWith('\\xleftrightarrow', i)) command = '\\xleftrightarrow'
+    if (!command) {
+      out += tex[i++]
+      continue
+    }
+
+    let p = i + command.length
+    while (/\s/.test(tex[p] || '')) p += 1
+
+    if (command === '\\xrightarrow') {
+      const above = readBalancedGroup(tex, p, '{', '}')
+      if (!above) {
+        out += command
+        i += command.length
+        continue
+      }
+      out += `\\overset{${above.content}}{\\longrightarrow}`
+      i = above.end
+      continue
+    }
+
+    let below = null
+    if (tex[p] === '[') {
+      below = readBalancedGroup(tex, p, '[', ']')
+      if (!below) {
+        out += command
+        i += command.length
+        continue
+      }
+      p = below.end
+      while (/\s/.test(tex[p] || '')) p += 1
+    }
+    const above = readBalancedGroup(tex, p, '{', '}')
+    if (!above) {
+      out += command
+      i += command.length
+      continue
+    }
+    let replacement = `\\overset{${above.content}}{\\longleftrightarrow}`
+    if (below) replacement = `\\underset{${below.content}}{${replacement}}`
+    out += replacement
+    i = above.end
+  }
+  return out
+}
+
 function normalizeTexAliases(tex) {
-  return tex.replace(/\\begin\{split\}/g, '\\begin{aligned}').replace(/\\end\{split\}/g, '\\end{aligned}')
+  let out = tex.replace(/\\begin\{split\}/g, '\\begin{aligned}').replace(/\\end\{split\}/g, '\\end{aligned}')
+  // tex2typst 0.6.2 leaves these CSM-corpus commands as bare identifiers,
+  // which Typst then treats as unknown math variables. Rewrite them to
+  // equivalent LaTeX forms that tex2typst already translates correctly.
+  out = out.replace(/\\textbf\{/g, '\\text{')
+  return rewriteExtensibleArrows(out)
+}
+
+function unwrapSingleBracedCommand(tex, command) {
+  const trimmed = tex.trim()
+  if (!trimmed.startsWith(command)) return null
+  let p = command.length
+  while (/\s/.test(trimmed[p] || '')) p += 1
+  const group = readBalancedGroup(trimmed, p, '{', '}')
+  if (!group || trimmed.slice(group.end).trim()) return null
+  return group.content
+}
+
+function convertTexMath(tex) {
+  const normalized = normalizeTexAliases(tex)
+  // tex2typst 0.6.2 turns `\boxed{...}` into the invalid bare identifier
+  // `boxed ...`. Preserve a top-level boxed display as a real Typst content
+  // box. Rendering is finalized in restoreMath so a long box can remain
+  // unnumbered and avoid colliding with the academic equation-number gutter.
+  const boxed = unwrapSingleBracedCommand(normalized, '\\boxed')
+  if (boxed != null) return { body: tex2typst(boxed), boxed: true }
+  return { body: tex2typst(normalized), boxed: false }
+}
+
+function protectMarkdownCode(source) {
+  const stash = []
+  const stow = raw => {
+    const i = stash.push(raw) - 1
+    return CODE_MARK + i + CODE_MARK
+  }
+
+  // Protect fenced code first, then inline code spans. Math delimiters inside
+  // Markdown code are literal examples, not equations, and must reach marked
+  // unchanged. The placeholders are restored before marked.lexer().
+  let out = source.replace(/(^|\n)([ \t]{0,3})(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\2\3[ \t]*(?=\n|$)/g, m => stow(m))
+  out = out.replace(/(`+)([^\n]*?)\1/g, m => stow(m))
+  return { out, stash }
+}
+
+function restoreMarkdownCode(source, stash) {
+  return source.replace(CODE_RE, (_, idxStr) => stash[Number(idxStr)] ?? '')
 }
 
 function extractMath(source) {
+  const code = protectMarkdownCode(source)
+  source = code.out
   const stash = []
   const stow = (tex, block) => {
     const i = stash.push({ tex: tex.trim(), block }) - 1
@@ -64,15 +182,16 @@ function extractMath(source) {
   }
   let out = source.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => `\n\n${stow(tex, true)}\n\n`)
   out = out.replace(/\$([^\$\n]+?)\$/g, (_, tex) => stow(tex, false))
-  return { out, stash }
+  return { out: restoreMarkdownCode(out, code.stash), stash }
 }
 
 function restoreMath(typstText, stash) {
   return typstText.replace(MATH_RE, (_, idxStr) => {
     const entry = stash[Number(idxStr)]
     if (!entry) return ''
-    let body
-    try { body = tex2typst(normalizeTexAliases(entry.tex)) } catch { body = null }
+    let converted
+    try { converted = convertTexMath(entry.tex) } catch { converted = null }
+    const body = converted?.body ?? null
     // tex2typst silently leaves unsupported LaTeX environments/commands
     // untranslated rather than throwing — a literal `\begin{...}` reaching
     // Typst's math parser breaks it (and the resulting compiler warning is
@@ -81,6 +200,10 @@ function restoreMath(typstText, stash) {
     // math syntax it can't parse — an honest gap, not a silent break.
     if (body == null || /\\(begin|end)\{/.test(body)) {
       return `#text(fill: rgb("#999999"), style: "italic")[[math: ${esc(entry.tex)}]]`
+    }
+    if (converted.boxed) {
+      const boxed = `#rect(stroke: 0.8pt, inset: 3pt)[$${body}$]`
+      return entry.block ? `#align(center)[${boxed}]` : boxed
     }
     return entry.block ? `$ ${body} $` : `$${body}$`
   })
