@@ -33,8 +33,9 @@ export async function renderTypstToPdf(typstSource) {
     throw err
   }
 
+  const instance = getCompiler()
   try {
-    const bytes = getCompiler().pdf({ mainFileContent: typstSource })
+    const bytes = instance.pdf({ mainFileContent: typstSource })
     return {
       bytes: Buffer.from(bytes),
       diagnostics: [],
@@ -42,6 +43,10 @@ export async function renderTypstToPdf(typstSource) {
     }
   } catch (error) {
     throw normalizeCompileError(error)
+  } finally {
+    // typst.ts documents the global compilation cache as process-wide and
+    // recommends max_age=10 for ordinary non-watch tools.
+    instance.evictCache(10)
   }
 }
 
