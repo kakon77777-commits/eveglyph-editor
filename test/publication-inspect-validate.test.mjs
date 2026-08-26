@@ -71,6 +71,17 @@ test('validateDocument reports unbalanced display math and unclosed fences', () 
   assert.ok(result.errors.some(e => e.code === 'unclosed_code_fence'))
 })
 
+test('validateDocument reports an unmatched inline math delimiter outside code and display math', () => {
+  const result = validateDocument('# T\n\n正文 $x + 1')
+  assert.equal(result.ok, false)
+  assert.ok(result.errors.some(e => e.code === 'unbalanced_inline_math'))
+})
+
+test('validateDocument ignores dollar signs inside fenced code', () => {
+  const result = validateDocument('# T\n\n```js\nconst price = "$5"\n```')
+  assert.equal(result.ok, true)
+})
+
 test('validateDocument reports an unclosed EveGlyph block', () => {
   const result = validateDocument('::: theorem\ncontent')
   assert.equal(result.ok, false)
