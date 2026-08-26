@@ -119,8 +119,9 @@ export function createArtifactStore({
 
   function report(id) {
     const artifact = get(id)
+    const byteLength = artifact.bytes.length
     const { bytes, ...metadata } = artifact
-    return metadata
+    return { ...metadata, bytes: byteLength }
   }
 
   function limits() {
