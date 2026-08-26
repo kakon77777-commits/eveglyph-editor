@@ -65,7 +65,7 @@ function artifactSummary(metadata) {
   }
 }
 
-export function registerPublicationMcp(server) {
+export function registerPublicationMcp(server, { workspaceRoot } = {}) {
   server.registerTool('get_publication_capabilities', {
     title: 'Get EveGlyph publication capabilities',
     description: 'Describe the headless EveGlyph Publication Runtime, supported profiles and temporary artifact limits.',
@@ -110,7 +110,7 @@ export function registerPublicationMcp(server) {
 
   server.registerTool('render_document', {
     title: 'Render a publication document to PDF',
-    description: 'Render canonical UTF-8 EveGlyph/Markdown source to a temporary PDF artifact without modifying the workspace or source.',
+    description: 'Render canonical UTF-8 EveGlyph/Markdown source to a temporary PDF artifact without modifying the workspace or source. Relative images/assets resolve inside the selected MCP workspace.',
     inputSchema: {
       source: z.string(),
       source_format: z.enum(['eveglyph-md', 'markdown']).default('eveglyph-md'),
@@ -124,7 +124,7 @@ export function registerPublicationMcp(server) {
   }, async ({ source, profile, filename, theme, layout }) => {
     try {
       const prepared = preparePublication(source, { profile, theme, layout })
-      const rendered = await renderTypstToPdf(prepared.typstSource)
+      const rendered = await renderTypstToPdf(prepared.typstSource, { workspaceRoot })
       const metadata = publicationArtifactStore.put({
         bytes: rendered.bytes,
         filename: filename || 'document.pdf',
@@ -144,6 +144,7 @@ export function registerPublicationMcp(server) {
             uri: metadata.resourceUri,
             name: metadata.filename,
             mimeType: metadata.mimeType,
+            size: metadata.bytes,
             description: 'Temporary EveGlyph-rendered PDF artifact',
           },
         ],
