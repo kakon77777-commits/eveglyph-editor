@@ -7,14 +7,19 @@ const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(MODULE_DIR, '../..')
 const FONT_DIR = path.join(REPO_ROOT, 'public', 'fonts', 'typst')
 
-let compiler = null
+// A compiler is cached per absolute workspace root. This keeps relative image
+// and asset resolution anchored to the workspace selected when the MCP server
+// starts, instead of incorrectly resolving user assets from the EveGlyph repo.
+const compilers = new Map()
 
-function getCompiler() {
-  if (compiler) return compiler
-  compiler = NodeCompiler.create({
-    workspace: REPO_ROOT,
+function getCompiler(workspaceRoot = REPO_ROOT) {
+  const root = path.resolve(workspaceRoot)
+  if (compilers.has(root)) return compilers.get(root)
+  const compiler = NodeCompiler.create({
+    workspace: root,
     fontArgs: [{ fontPaths: [FONT_DIR] }],
   })
+  compilers.set(root, compiler)
   return compiler
 }
 
@@ -26,14 +31,14 @@ function normalizeCompileError(error) {
   return err
 }
 
-export async function renderTypstToPdf(typstSource) {
+export async function renderTypstToPdf(typstSource, { workspaceRoot = REPO_ROOT } = {}) {
   if (typeof typstSource !== 'string' || !typstSource.trim()) {
     const err = new Error('Typst source must be a non-empty string')
     err.code = 'invalid_source'
     throw err
   }
 
-  const instance = getCompiler()
+  const instance = getCompiler(workspaceRoot)
   try {
     const bytes = instance.pdf({ mainFileContent: typstSource })
     return {
@@ -53,6 +58,6 @@ export async function renderTypstToPdf(typstSource) {
 export const NODE_RENDERER_INFO = Object.freeze({
   backend: 'typst-node',
   version: RENDERER_VERSION,
-  workspace: REPO_ROOT,
+  defaultWorkspace: REPO_ROOT,
   fontDirectory: FONT_DIR,
 })
