@@ -43,3 +43,14 @@ test('explicit theme and layout override the selected profile without mutating a
     layout: 'long-form-book',
   })
 })
+
+test('unknown explicit theme or layout is rejected instead of silently falling back', () => {
+  assert.throws(
+    () => resolvePublicationSelection({ theme: 'not-a-theme' }),
+    /Unknown Typst theme "not-a-theme"/,
+  )
+  assert.throws(
+    () => resolvePublicationSelection({ layout: 'not-a-layout' }),
+    /Unknown Typst layout "not-a-layout"/,
+  )
+})
