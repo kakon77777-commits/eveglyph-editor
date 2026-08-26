@@ -1,9 +1,7 @@
 // ─── EveGlyph Editor — MCP server (local, stdio) ───────────────────────────
-// Thin stdio entry point. The actual tool set (list_files/read_file/
-// write_file/evaluate_aimdc/validate_world_ir) lives in mcp-tools.js, shared
-// with mcp-server-remote.js (the tunnel-reachable HTTP entry point) — the
-// two files differ only in *how* a client reaches this server, not in what
-// it can do.
+// Thin stdio entry point. Base workspace tools and the publication runtime
+// are composed by mcp-server-factory.js so local and remote transports expose
+// the same capability surface without duplicating tool implementations.
 //
 // Separate from vite-agent-bridge.js on purpose: the bridge is a Vite
 // dev-server plugin (HTTP, localhost-gated, only alive while `npm run dev` +
@@ -13,7 +11,7 @@
 // same "human in the loop" role the bridge's Accept/Reject diff view serves
 // for autonomous CLI agents.
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { createMcpServer, resolveWorkspaceRootOrExit } from './mcp-tools.js'
+import { createMcpServer, resolveWorkspaceRootOrExit } from './mcp-server-factory.js'
 
 const WORKSPACE_ROOT = await resolveWorkspaceRootOrExit(process.argv, 'usage: node mcp-server.js <workspace-root>')
 
