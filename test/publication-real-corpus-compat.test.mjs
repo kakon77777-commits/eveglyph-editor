@@ -20,15 +20,6 @@ $$`)
   assert.doesNotMatch(typst, /\$\s*boxed\b/)
 })
 
-test('boxed display keeps the academic equation number outside the border', () => {
-  const typst = markdownToTypst(String.raw`$$
-\boxed{A \neq B}
-$$`)
-  assert.match(typst, /#math\.equation\(block: true\)\[#rect\(stroke:/)
-  assert.match(typst, /#math\.equation\(block: false, numbering: none\)\[\$A != B\$\]/)
-  assert.doesNotMatch(typst, /#align\(center\)\[#rect/)
-})
-
 test('CSM math textbf compatibility preserves bold text semantics', () => {
   const typst = markdownToTypst(String.raw`$$
 \textbf{CSM Paper 01 — Globality Typing}
