@@ -123,12 +123,35 @@ function rewriteExtensibleArrows(tex) {
   return out
 }
 
+function rewriteTextBold(tex) {
+  let out = ''
+  let i = 0
+  const command = '\\textbf'
+  while (i < tex.length) {
+    if (!tex.startsWith(command, i)) {
+      out += tex[i++]
+      continue
+    }
+    let p = i + command.length
+    while (/\s/.test(tex[p] || '')) p += 1
+    const group = readBalancedGroup(tex, p, '{', '}')
+    if (!group) {
+      out += command
+      i += command.length
+      continue
+    }
+    out += `\\mathbf{\\text{${group.content}}}`
+    i = group.end
+  }
+  return out
+}
+
 function normalizeTexAliases(tex) {
   let out = tex.replace(/\\begin\{split\}/g, '\\begin{aligned}').replace(/\\end\{split\}/g, '\\end{aligned}')
   // tex2typst 0.6.2 leaves these CSM-corpus commands as bare identifiers,
   // which Typst then treats as unknown math variables. Rewrite them to
   // equivalent LaTeX forms that tex2typst already translates correctly.
-  out = out.replace(/\\textbf\{/g, '\\text{')
+  out = rewriteTextBold(out)
   return rewriteExtensibleArrows(out)
 }
 
