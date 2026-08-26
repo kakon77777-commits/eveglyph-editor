@@ -31,6 +31,20 @@ function hasUnclosedEveGlyphBlock(source) {
   return depth !== 0
 }
 
+function countUnescapedInlineDelimiters(source) {
+  // Display math is removed first so each `$$` pair is not mistaken for two
+  // inline delimiters. A backslash escapes a literal dollar in prose.
+  const withoutDisplay = source.replace(/\$\$[\s\S]*?\$\$/g, '')
+  let count = 0
+  for (let i = 0; i < withoutDisplay.length; i++) {
+    if (withoutDisplay[i] !== '$') continue
+    let backslashes = 0
+    for (let j = i - 1; j >= 0 && withoutDisplay[j] === '\\'; j--) backslashes += 1
+    if (backslashes % 2 === 0) count += 1
+  }
+  return count
+}
+
 export function validateDocument(source, { profile } = {}) {
   const errors = []
   const warnings = []
@@ -59,6 +73,10 @@ export function validateDocument(source, { profile } = {}) {
   const displayDelimiterCount = (prose.match(/\$\$/g) || []).length
   if (displayDelimiterCount % 2 !== 0) {
     errors.push(error('unbalanced_display_math', 'document contains an unmatched $$ display-math delimiter'))
+  }
+
+  if (displayDelimiterCount % 2 === 0 && countUnescapedInlineDelimiters(prose) % 2 !== 0) {
+    errors.push(error('unbalanced_inline_math', 'document contains an unmatched $ inline-math delimiter'))
   }
 
   if (!errors.some(e => e.code === 'unclosed_code_fence' || e.code === 'unclosed_eveglyph_block')) {
