@@ -16,8 +16,17 @@ test('CSM boxed display math becomes a real Typst content box', () => {
   const typst = markdownToTypst(String.raw`$$
 \boxed{\text{Observed Proof Space} \neq \text{Admissible Proof Space}.}
 $$`)
-  assert.match(typst, /#align\(center\)\[#rect\(stroke:/)
+  assert.match(typst, /#rect\(stroke:/)
   assert.doesNotMatch(typst, /\$\s*boxed\b/)
+})
+
+test('boxed display keeps the academic equation number outside the border', () => {
+  const typst = markdownToTypst(String.raw`$$
+\boxed{A \neq B}
+$$`)
+  assert.match(typst, /#math\.equation\(block: true\)\[#rect\(stroke:/)
+  assert.match(typst, /#math\.equation\(block: false, numbering: none\)\[\$A != B\$\]/)
+  assert.doesNotMatch(typst, /#align\(center\)\[#rect/)
 })
 
 test('CSM math textbf compatibility preserves bold text semantics', () => {
