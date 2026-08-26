@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "mcp": "node mcp-server.js",
     "mcp:remote": "node mcp-server-remote.js",
+    "test:publication": "node --test test/publication-profiles.test.mjs test/publication-inspect-validate.test.mjs test/publication-artifacts.test.mjs test/publication-node-renderer.test.mjs test/mcp-publication.test.mjs",
     "verify:dynamic-logic": "node scripts/verify_dynamic_logic.mjs",
     "verify:dynamic-rendering": "node scripts/verify_dynamic_rendering.mjs"
   },
@@ -32,6 +33,7 @@
     "@lezer/highlight": "^1.2.1",
     "@mathjax/src": "^4.1.3",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@myriaddreamin/typst-ts-node-compiler": "0.7.0",
     "@myriaddreamin/typst-ts-renderer": "^0.7.0",
     "@myriaddreamin/typst-ts-web-compiler": "^0.7.0",
     "@myriaddreamin/typst.ts": "^0.7.0",

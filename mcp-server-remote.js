@@ -1,30 +1,20 @@
 // ─── EveGlyph Editor — MCP server (remote, HTTP + bearer token) ────────────
-// Same tool set as mcp-server.js (see mcp-tools.js), reachable over HTTP
-// instead of stdio — so a client that isn't on this machine (a remote MCP
-// connector, a cheap chat client, etc.) can reach it too, per Neo's request
-// (2026-07-22): "遠端連線要做的" (remote connectivity needs to be built).
+// Same capability set as mcp-server.js, reachable over HTTP instead of stdio.
+// Base workspace tools and publication tools are composed by
+// mcp-server-factory.js so transports cannot drift apart.
 //
 // This process only ever binds to 127.0.0.1 — it is never directly
 // internet-facing. Reachability from outside this machine comes from
 // tunneling a public hostname to this port yourself (e.g. `cloudflared
-// tunnel --url http://127.0.0.1:8787`), the same "don't bind 0.0.0.0"
-// discipline vite-agent-bridge.js's own SECURITY.md already documents for
-// the dev server (--host caveat) — the tunnel is the one intended path in,
-// not an open listener.
+// tunnel --url http://127.0.0.1:8787`).
 //
-// Bearer-token auth is REQUIRED (the process refuses to start without
-// EVEGLYPH_MCP_TOKEN set) — unlike stdio mode, anyone who reaches this port
-// isn't already implied to be "you, on your own machine": once tunneled,
-// the URL is internet-reachable, so the token is the only thing standing
-// between "an MCP client you configured" and "anyone who finds the URL."
-// There is still no diff-review layer (same reasoning as mcp-server.js) —
-// worth remembering that a leaked token now means direct, un-reviewed
-// remote file writes, a real trade-off documented in SECURITY.md, not
-// glossed over.
+// Bearer-token auth is REQUIRED. Once tunneled, a leaked token means direct
+// access to every MCP capability exposed for the selected workspace, so keep
+// the token secret and review SECURITY.md before remote use.
 import http from 'node:http'
 import crypto from 'node:crypto'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import { createMcpServer, resolveWorkspaceRootOrExit } from './mcp-tools.js'
+import { createMcpServer, resolveWorkspaceRootOrExit } from './mcp-server-factory.js'
 
 const WORKSPACE_ROOT = await resolveWorkspaceRootOrExit(process.argv, 'usage: node mcp-server-remote.js <workspace-root>')
 
@@ -53,8 +43,6 @@ function rpcError(res, status, code, message) {
   res.end(JSON.stringify({ jsonrpc: '2.0', error: { code, message }, id: null }))
 }
 
-// Constant-time compare so a wrong-length or wrong-content guess can't be
-// timed to narrow down the real token.
 function tokenMatches(presented) {
   const a = Buffer.from(String(presented))
   const b = Buffer.from(TOKEN)
@@ -77,10 +65,10 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
-  // Stateless mode, one fresh server+transport per request (mirrors the
-  // SDK's own simpleStatelessStreamableHttp example): this is a
-  // single-tunnel, single-user deployment, not a multi-session service —
-  // no session map to manage or leak.
+  // Stateless HTTP transport: one server instance per request. Publication
+  // artifacts live in a module/process-scoped store, not inside this server
+  // instance, so a later resources/read request can retrieve a prior render
+  // while this MCP process remains alive.
   let server, transport
   try {
     const body = await readJsonBody(req)

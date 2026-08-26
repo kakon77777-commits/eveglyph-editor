@@ -1,0 +1,41 @@
+name: Publication Runtime
+
+on:
+  push:
+    branches:
+      - feat/mcp-publication-runtime-mvp
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  publication-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publication tests
+        run: npm run test:publication
+
+      - name: Build
+        run: npm run build
+
+      - name: Dynamic logic regression
+        run: npm run verify:dynamic-logic
+
+      - name: Dynamic rendering regression
+        run: npm run verify:dynamic-rendering
