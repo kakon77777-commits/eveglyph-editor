@@ -5,6 +5,6 @@ export { resolveWorkspaceRootOrExit }
 
 export function createMcpServer(workspaceRoot) {
   const server = createBaseMcpServer(workspaceRoot)
-  registerPublicationMcp(server)
+  registerPublicationMcp(server, { workspaceRoot })
   return server
 }
