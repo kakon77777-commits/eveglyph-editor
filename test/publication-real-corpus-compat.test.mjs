@@ -20,6 +20,13 @@ $$`)
   assert.doesNotMatch(typst, /\$\s*boxed\b/)
 })
 
+test('CSM math textbf compatibility preserves bold text semantics', () => {
+  const typst = markdownToTypst(String.raw`$$
+\textbf{CSM Paper 01 — Globality Typing}
+$$`)
+  assert.match(typst, /upright\(bold\("CSM Paper 01 — Globality Typing"\)\)/)
+})
+
 test('CSM extensible arrow and textbf aliases compile without unknown variables', async () => {
   const source = String.raw`# CSM real-corpus compatibility
 
