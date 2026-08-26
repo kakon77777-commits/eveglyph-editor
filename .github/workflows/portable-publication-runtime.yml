@@ -1,0 +1,124 @@
+name: Portable Publication Runtime Artifact
+
+on:
+  push:
+    branches:
+      - test/eveglyph-portable-publication-runtime
+
+permissions:
+  contents: read
+
+jobs:
+  package-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Assemble portable publication runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          R=portable-runtime
+          rm -rf "$R"
+          mkdir -p "$R/src/publication" "$R/src/typst" "$R/src/aimdc" "$R/public/fonts/typst"
+
+          cp src/publication/*.js "$R/src/publication/"
+          cp src/typst/*.js "$R/src/typst/"
+          cp src/typstconvert.js src/frontmatter.js src/config.js "$R/src/"
+          cp src/aimdc/parser.js src/aimdc/graph.js src/aimdc/evaluator.js src/aimdc/types.js src/aimdc/ledger.js "$R/src/aimdc/"
+          cp public/fonts/typst/* "$R/public/fonts/typst/"
+          cp test/fixtures/publication-zh.md "$R/self-test.md"
+
+          cat > "$R/package.json" <<'JSON'
+          {
+            "name": "eveglyph-portable-publication-runtime",
+            "version": "0.1.0",
+            "private": true,
+            "type": "module",
+            "engines": { "node": ">=18" },
+            "dependencies": {
+              "@myriaddreamin/typst-ts-node-compiler": "0.7.0",
+              "js-yaml": "^4.1.0",
+              "marked": "^9.1.6",
+              "tex2typst": "^0.6.2"
+            }
+          }
+          JSON
+
+          cat > "$R/run-eveglyph-publication.mjs" <<'JS'
+          import fs from 'node:fs'
+          import path from 'node:path'
+          import crypto from 'node:crypto'
+          import { preparePublication } from './src/publication/prepare.js'
+          import { renderTypstToPdf } from './src/publication/node-renderer.js'
+
+          function sha256(bytes) {
+            return crypto.createHash('sha256').update(bytes).digest('hex')
+          }
+
+          const [inputArg, outputArg, profile = 'evemiss-whitepaper-v1'] = process.argv.slice(2)
+          if (!inputArg || !outputArg) {
+            console.error('usage: node run-eveglyph-publication.mjs <input.md> <output.pdf> [profile]')
+            process.exit(2)
+          }
+
+          const input = path.resolve(inputArg)
+          const output = path.resolve(outputArg)
+          const sourceBytesBefore = fs.readFileSync(input)
+          const source = sourceBytesBefore.toString('utf8')
+          const prepared = preparePublication(source, { profile })
+          const rendered = await renderTypstToPdf(prepared.typstSource, {
+            workspaceRoot: path.dirname(input),
+          })
+          fs.mkdirSync(path.dirname(output), { recursive: true })
+          fs.writeFileSync(output, rendered.bytes)
+          const sourceBytesAfter = fs.readFileSync(input)
+
+          const report = {
+            input,
+            output,
+            profile: prepared.profile,
+            theme: prepared.theme,
+            layout: prepared.layout,
+            validation: prepared.validation,
+            renderer: rendered.renderer,
+            source_sha256_before: sha256(sourceBytesBefore),
+            source_sha256_after: sha256(sourceBytesAfter),
+            source_unchanged: Buffer.compare(sourceBytesBefore, sourceBytesAfter) === 0,
+            artifact_sha256: sha256(rendered.bytes),
+            artifact_bytes: rendered.bytes.length,
+            pdf_magic: rendered.bytes.subarray(0, 5).toString('ascii'),
+          }
+          fs.writeFileSync(`${output}.report.json`, JSON.stringify(report, null, 2))
+          console.log(JSON.stringify(report, null, 2))
+          JS
+
+          cd "$R"
+          npm install --omit=dev --no-audit --no-fund
+          node run-eveglyph-publication.mjs self-test.md self-test.pdf evemiss-academic-v1 > self-test.report.stdout.json
+          test "$(head -c 5 self-test.pdf)" = "%PDF-"
+          test -s self-test.pdf.report.json
+
+      - name: Package portable ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd portable-runtime
+          zip -qr ../EveGlyph_Portable_Publication_Runtime.zip .
+          cd ..
+          ls -lh EveGlyph_Portable_Publication_Runtime.zip
+
+      - name: Upload portable runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EveGlyph_Portable_Publication_Runtime
+          path: EveGlyph_Portable_Publication_Runtime.zip
+          if-no-files-found: error
+          retention-days: 3
