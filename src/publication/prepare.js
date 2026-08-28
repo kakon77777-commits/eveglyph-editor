@@ -10,9 +10,9 @@ function publicationError(code, message, details = undefined) {
   return err
 }
 
-export function preparePublication(source, { profile, theme, layout } = {}) {
+export function preparePublication(source, { profile, theme, layout, actor } = {}) {
   const selection = resolvePublicationSelection({ profile, theme, layout })
-  const validation = validateDocument(source, { profile: selection.profile })
+  const validation = validateDocument(source, { profile: selection.profile, actor })
   if (!validation.ok) {
     throw publicationError('invalid_source', 'document failed publication preflight validation', validation.errors)
   }
@@ -26,7 +26,7 @@ export function preparePublication(source, { profile, theme, layout } = {}) {
 
   let typstSource
   try {
-    typstSource = markdownToTypst(renderSource)
+    typstSource = markdownToTypst(renderSource, { actor })
   } catch (e) {
     throw publicationError('conversion_error', e?.message || String(e))
   }

@@ -20,6 +20,9 @@ It is the editor half of **EveGlyph-MD**, a semantic-first Markdown format/proto
 - **EveGlyph-MD frontmatter** — a lightweight `type` / `status` / `tags` classification with a status-bar chip and preview badges; the active document's class is handed to the agent as sanitized, non-instruction metadata.
 - **World Studio draft generation** — opt in with **Settings → Enable World Studio**. The **Studio** tab asks the configured cloud AI for a bounded state-machine draft containing states, variables, optional controlled random ranges, events, language instructions, responses, and transitions. State Machine Preview provides direct visual buffer editing for those records and Runtime mapping review. The result is parsed and validated locally before it can be applied to the editor; **Check with Runtime** can send it to the Runtime's read-only World IR importer, edit the returned mapping draft, and validate it again. It never writes Runtime State or saves a file automatically.
 - **Workspace memory (`.eveglyph/`)** — per-workspace `rules.md` / `glossary.md` / `memory/*` injected into every agent run; a back-stage **Monitor** tab reads the diagnostic stream.
+- **Capability sandbox foundation** — AIMD-C entry points run through a deny-by-default `document-only` authority profile. Document computation receives only current-document read, bounded compute, and ephemeral-output capability; workspace, network, process, host-environment, Google, GitHub, OAuth-token, and other connector authority are absent unless a caller supplies an explicit resource-scoped grant. Allow/deny decisions carry actor-aware audit evidence.
+- **GitHub Connector (read-only MVP)** — a GitHub App user-OAuth + PKCE flow keeps access/refresh credentials in Node process memory, binds the GitHub user as actor identity, and still requires a separate repository-scoped **Grant read for this session** before EveGlyph can read a GitHub Contents file. OAuth identity does not imply repository authority, and no GitHub write surface is exposed. See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md).
+- **Google Drive Connector (read-only MVP)** — Google web-server OAuth + PKCE keeps access/refresh credentials in the same Node-side broker model, but OAuth still grants zero EveGlyph Drive authority. Metadata browsing requires an explicit session grant; each file then needs its own exact read grant. Stored UTF-8 text is downloaded through Drive v3 and Google Docs are exported as `text/markdown`. No Drive write surface is exposed. See [`docs/GOOGLE-DRIVE-CONNECTOR.md`](docs/GOOGLE-DRIVE-CONNECTOR.md).
 - **MCP server** (`mcp-server.js`) — a standalone stdio [MCP](https://modelcontextprotocol.io) server so any MCP-capable client (Claude Desktop, Claude Code, etc.) can read/write a workspace and run AIMD-C/World-IR logic directly, no browser needed. See [below](#mcp-server-for-ai-clients).
 
 ## Quick start
@@ -48,14 +51,116 @@ Then open <http://localhost:5173>.
 - Local agent: choose the agent, set an **absolute workspace path** (the browser cannot expose the picked folder's real path to the agent), and an optional command override.
 - **Default encoding** — fallback used when auto-detection is uncertain, and the encoding applied to newly created files.
 - **Enable World Studio** — reveals the advanced Runtime, World, Studio, and editable World IR views. It is off by default so the normal surface remains an AI-native Markdown editor; source files remain plain YAML and disk Save is always explicit.
+- **GitHub Connector** — when the server-side GitHub App environment is configured, Settings can connect a GitHub identity, explicitly grant one repository read authority for the current session, and read one UTF-8 text file through the GitHub Contents API. Tokens/client secrets are never entered in Settings.
+- **Google Drive Connector** — when the server-side Google OAuth environment is configured, Settings can connect a Google identity, explicitly grant Drive metadata browsing for the session, list files, and explicitly grant/read one selected file. OAuth access/refresh tokens and the Google client secret are never entered in Settings.
+
+## GitHub Connector quickstart
+
+This connector uses a **GitHub App** rather than a legacy OAuth App. For this MVP, configure the GitHub App with:
+
+```text
+Repository permissions
+  Contents: Read-only
+```
+
+Register the normal local callback URL:
+
+```text
+http://localhost:5173/api/connectors/github/callback
+```
+
+Set these environment variables before starting EveGlyph:
+
+```text
+EVEGLYPH_GITHUB_CLIENT_ID
+EVEGLYPH_GITHUB_CLIENT_SECRET
+```
+
+Optional callback override:
+
+```text
+EVEGLYPH_GITHUB_REDIRECT_URI
+```
+
+Then start/restart the dev server and open **Settings → GitHub Connector**.
+
+The user flow is deliberately two-stage:
+
+```text
+Connect GitHub
+→ identity established, zero repository grants
+→ enter owner/repo
+→ Grant read for this session
+→ enter path/ref
+→ Read file
+```
+
+The provider credential remains inside EveGlyph’s shared credential runtime. In the default `system` mode it is persisted in the OS keyring; after restart GitHub identity can be restored but repository grants return to zero and must be granted again. The credential runtime is still not shared with the separate MCP server processes.
+
+See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md) and [`SECURITY.md`](SECURITY.md) for the complete trust model.
+
+## Google Drive Connector quickstart
+
+Create a Google Cloud project, enable the **Google Drive API**, configure the OAuth consent screen, and create a **Web application** OAuth client.
+
+Register this exact local redirect URI (or your exact Vite localhost variant):
+
+```text
+http://localhost:5173/api/connectors/google/callback
+```
+
+Set these environment variables before starting EveGlyph:
+
+```text
+EVEGLYPH_GOOGLE_CLIENT_ID
+EVEGLYPH_GOOGLE_CLIENT_SECRET
+```
+
+Optional callback override:
+
+```text
+EVEGLYPH_GOOGLE_REDIRECT_URI
+```
+
+Then restart the dev server and open **Settings → Google Drive Connector**.
+
+The user flow intentionally has three authority stages:
+
+```text
+Connect Google
+→ identity established, zero EveGlyph Drive grants
+→ Grant metadata browse for this session
+→ List Drive files
+→ select one file
+→ Grant read for selected file
+→ Read selected file
+```
+
+PR-C requests `openid email profile` plus `https://www.googleapis.com/auth/drive.readonly`. The provider credential can therefore read Drive content, but EveGlyph's broker still requires the explicit internal grants above before it will call Drive. Google currently treats broad Drive scopes such as `drive.readonly` as restricted for production applications; public deployment can require OAuth verification and, depending on how restricted data is handled, a security assessment. This local MVP does not claim that production approval has been completed.
+
+Google Docs are exported through Drive v3 as `text/markdown`; other Google Workspace object types currently fail closed rather than guessing an export format. Stored text and exported Markdown are capped at 1 MiB and decoded as strict UTF-8.
+
+See [`docs/GOOGLE-DRIVE-CONNECTOR.md`](docs/GOOGLE-DRIVE-CONNECTOR.md) and [`SECURITY.md`](SECURITY.md) for the complete trust model.
+
+## Persistent credential vault and delegation
+
+Connector credentials now use a provider-neutral credential runtime. The default `EVEGLYPH_CREDENTIAL_STORE=system` stores GitHub/Google OAuth credential envelopes in the operating-system keyring through `@napi-rs/keyring`; `EVEGLYPH_CREDENTIAL_STORE=memory` is the only supported explicit non-persistent fallback. Keyring failure fails closed — EveGlyph does not silently write tokens to plaintext files, browser storage, the workspace, or `.eveglyph/`.
+
+Restart restoration brings back provider identity only. GitHub repository grants and Google Drive metadata/file grants remain session-only and must be explicitly granted again.
+
+PR-D adds short-lived, exact provider/operation/capability/resource delegation tickets and a local `node:net` IPC operation boundary. PR-E now lets MCP use three read-only connector operations through that boundary without receiving GitHub/Google credentials or the persistent broker. Raw tickets are not stored (only SHA-256 hashes), default to one use / 60 seconds, and every delegated execution re-checks the live connector-session grant.
+
+See [`docs/CREDENTIAL-VAULT-AND-DELEGATION.md`](docs/CREDENTIAL-VAULT-AND-DELEGATION.md) and [`SECURITY.md`](SECURITY.md).
 
 ## How it works
 
 - **Frontend** — vanilla ES modules + CodeMirror, with all mutable state in a single `S` singleton (`src/`).
 - **Bridge** — a **dev-only** Vite plugin (`vite-agent-bridge.js`) exposing `/api/*` for filesystem I/O, encoding detection, git diff-review, and agent spawning. It runs only under `npm run dev` (`apply: 'serve'`), and every endpoint is gated to local requests.
+- **GitHub connector bridge** — `vite-github-connector.js` is a separate local Node/Vite plugin. It uses the shared provider-neutral credential runtime for GitHub OAuth custody; browser Settings receives only redacted account/grant/read data.
+- **Google Drive connector bridge** — `vite-google-drive-connector.js` is another separate local Node/Vite plugin using the same broker/capability vocabulary. Browser Settings receives only redacted identity, grants, bounded Drive metadata, and read results.
 
-```
-browser frontend  ⇄  vite-agent-bridge (/api)  ⇄  filesystem · git · CLI agent
+```text
+browser frontend  ⇄  Vite local bridges  ⇄  filesystem · git · CLI agent · GitHub · Google Drive
 ```
 
 ## MCP server (for AI clients)
@@ -64,8 +169,12 @@ browser frontend  ⇄  vite-agent-bridge (/api)  ⇄  filesystem · git · CLI a
 
 - `list_files` — every text file in the workspace
 - `read_file` / `write_file` — read/write a file by relative path (encoding-aware on read)
-- `evaluate_aimdc` — parse and evaluate a document's AIMD-C blocks (same engine as the live preview / PDF export)
+- `evaluate_aimdc` — parse and evaluate a document's AIMD-C blocks through the `document-only` capability profile; the result includes sandbox/audit evidence
 - `validate_world_ir` — validate a World IR YAML document (state machine / entity / entity list)
+
+The capability control plane also defines transport-neutral mappings for these base tools and the publication tools. The mapping is groundwork for later identity-aware MCP authorization; **the capability-foundation PR does not silently put existing workspace MCP tools behind a new grant-acquisition flow**, and the remote HTTP transport still uses its existing bearer-token compatibility mode.
+
+The GitHub and Google Drive connector credentials are deliberately **not** shared into these MCP processes. When `EVEGLYPH_DELEGATION_ENDPOINT` is configured, PR-E conditionally registers `github_read_file_delegated`, `google_drive_list_files_delegated`, and `google_drive_read_file_delegated`. Those tools carry a short-lived one-use ticket over local IPC; raw provider tokens, keyring objects, and the persistent credential broker never enter MCP. See [`docs/MCP-DELEGATED-CONNECTORS.md`](docs/MCP-DELEGATED-CONNECTORS.md).
 
 Run it directly:
 
@@ -111,11 +220,17 @@ Settings ⚙ → **Enable remote MCP server** does the same `mcp-server-remote.j
 
 ## Security
 
-Local-agent mode runs a CLI **with auto-approve** and lets it read, create, edit, and delete files in the workspace folder. Every file, git, and agent operation is confined server-side to the one folder you opened. You stay in control through a per-workspace confirmation and a git-snapshot **diff review** (Accept / Reject).
+AIMD-C document computation in the live preview and MCP `evaluate_aimdc` enters through `src/capabilities/document-runtime.js`. Its default `document-only` profile grants only `document.read.self` on `document:self`, `document.compute` on `document:self`, and `ephemeral.output` on `execution:*`. It has no filesystem, network, process, host-environment, OAuth credential, Google, or GitHub object to call. External access must be represented as an explicit capability request and authorized against a resource-scoped grant before a connector broker performs the action.
+
+The GitHub connector follows that rule directly: OAuth creates actor identity plus an opaque server-side credential handle, not repository authority. A matching `connector.github.repository.contents.read` grant is required before token access/network fetch, and the current service has no GitHub write method.
+
+The Google Drive connector follows the same control-plane ordering. Google OAuth creates identity plus an opaque credential, but no EveGlyph Drive grants. Metadata listing requires `connector.google.drive.metadata.list`; reading requires an exact `connector.google.drive.file.read` grant for the selected `fileId`. Capability denial occurs before broker credential access and provider network I/O. The current service has no Drive write method.
+
+Local-agent mode is a separate, intentionally broader trust boundary: it runs a CLI **with auto-approve** and lets it read, create, edit, and delete files in the workspace folder. Every file, git, and agent operation is confined server-side to the one folder you opened. You stay in control through a per-workspace confirmation and a git-snapshot **diff review** (Accept / Reject).
 
 If a workspace contains a **`.eveglyph/rules.md`**, EveGlyph Editor injects it into every agent run with elevated authority (plus `.eveglyph/glossary.md` and the `.eveglyph/memory/*` notes) — review it before running an agent in an unfamiliar workspace.
 
-Read **[SECURITY.md](SECURITY.md)** for the full trust model — localhost gating, the `--host` caveat, plaintext API-key storage, and the `.eveglyph/` risk — before enabling local-agent mode.
+Read **[SECURITY.md](SECURITY.md)** for the full trust model — capability boundaries, connector credential custody, localhost gating, the `--host` caveat, plaintext AI-provider API-key storage, and the `.eveglyph/` risk — before enabling local-agent mode or remote MCP.
 
 ## Status
 

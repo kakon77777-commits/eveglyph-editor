@@ -6,6 +6,133 @@ EveGlyph Editor is a **local-first developer tool**: it runs on your own machine
 
 The bridge is dev-only and localhost-gated. The biggest risk is **by design**: local-agent mode lets a CLI edit your files with auto-approve. You stay in control through a per-workspace confirmation and git-based diff review.
 
+## Capability sandbox foundation
+
+AIMD-C document computation now enters through a provider-neutral capability control plane before the existing pure graph evaluator runs. The default profile is **`document-only`** and contains only:
+
+- `document.read.self` on `document:self`;
+- `document.compute` on `document:self`;
+- `ephemeral.output` on `execution:*`.
+
+The document runtime does **not** receive filesystem handles, network clients, process-spawn APIs, host environment objects, OAuth credentials, Google credentials, GitHub credentials, or connector clients. Those authorities are represented separately and are denied by default. If a future caller needs authority outside the document boundary, it must make an explicit capability request and obtain a matching resource-scoped grant first.
+
+Capability requests carry a capability id, resource, lifetime, reason, and inert context metadata. Grants require an exact capability match and either an exact resource or a single trailing-`*` prefix scope. Read does not imply write. Unknown capabilities and unknown sandbox profiles fail closed. Expired grants do not authorize, and an explicit `once` grant is consumed after its first successful authorization.
+
+Every allow/deny decision made by a capability session records actor-aware audit evidence: event id, timestamp, actor context, sandbox profile, request, decision, reason, and matching grant source. The actor context can carry the human principal, client, agent, document, and session independently; authentication identity alone is not treated as an execution sandbox.
+
+`src/aimdc/graph.js` intentionally remains a low-level pure evaluator rather than owning security policy. The browser preview and MCP `evaluate_aimdc` call the authority-aware document wrapper. Dynamic Logic projections passed to AIMD-C remain read-only, same-document runtime data and do not become network/provider authority.
+
+`src/capabilities/mcp-map.js` also records the authority requirements of the current base/publication MCP tools. That mapping is **control-plane groundwork**, not a silent behavior change to all existing MCP calls: PR-A does not yet provide a user-facing grant-acquisition/OAuth flow, so workspace tools retain their current transport-level behavior. Remote MCP still uses the bearer-token compatibility model described below. Later OAuth/connector middleware must consume this same capability model rather than introducing a second authorization vocabulary.
+
+This foundation is not itself an OS/process sandbox and does not claim to make arbitrary native code safe. Wasmtime/WASI, Deno permissions, Linux sandbox primitives, gVisor/Firecracker, credential brokerage, and Google/GitHub connectors are separate layers attached behind the capability boundary.
+
+## Persistent credential vault and delegation boundary
+
+GitHub and Google connector credentials can now persist through a provider-neutral OS-keyring broker. `system` is the default credential-store mode; `memory` must be selected explicitly. A system-keyring outage fails closed as `credential_vault_unavailable` and is mapped to a redacted HTTP 503. There is no automatic plaintext, workspace, browser-storage, or in-memory downgrade.
+
+Persistence applies to provider credential envelopes only. EveGlyph connector capability grants are never restored: after restart, provider identity may be restored but GitHub repository and Google Drive metadata/file authority return to zero until the user grants them again.
+
+The delegation broker issues opaque 32-byte tickets but stores only SHA-256 ticket hashes. Tickets exact-match provider, operation, capability and resource; default to one use / 60 seconds; and are bounded to 10 uses / 300 seconds. The local IPC boundary is limited to 16 KiB requests and blocks credential-shaped results. PR-E permits MCP to use only the credential-free local IPC client for three read-only delegated connector operations; MCP still remains outside credential custody and receives no keyring, persistent broker, access token, refresh token, or provider OAuth client.
+
+See [`docs/CREDENTIAL-VAULT-AND-DELEGATION.md`](docs/CREDENTIAL-VAULT-AND-DELEGATION.md) for the complete operator and trust-boundary contract.
+
+## MCP delegated connector boundary
+
+PR-E adds exactly three read-only delegated MCP tools: `github_read_file_delegated`, `google_drive_list_files_delegated`, and `google_drive_read_file_delegated`. They are registered only when `EVEGLYPH_DELEGATION_ENDPOINT` points to the live local delegation server owned by EveGlyph.
+
+A delegated execution requires both a valid short-lived ticket and the matching live connector-session grant. The IPC handler normalizes the tool input again and recomputes the canonical resource before calling the live connector service, preventing a ticket issued for file A from being paired with input for file B. The connector service then performs its normal capability decision again before credential access or provider network I/O.
+
+The MCP process may import the credential-free delegated-operation contract and local IPC client. It must not import or receive the OS keyring, persistent credential broker, provider OAuth clients, access tokens, refresh tokens, client secrets, or credential envelopes. Settings may show a newly issued one-use ticket in live DOM state, but EveGlyph does not persist it. Third-party MCP hosts may log tool arguments, so tickets should be treated as temporary operation authority.
+
+Remote MCP keeps its existing bearer-token transport authentication; PR-E does not upgrade it to OAuth. See [`docs/MCP-DELEGATED-CONNECTORS.md`](docs/MCP-DELEGATED-CONNECTORS.md) for the operator flow and full boundary.
+
+## GitHub connector credential boundary
+
+The GitHub connector is the first external-service implementation attached to the capability control plane. Its central rule is:
+
+```text
+GitHub OAuth authentication
+!=
+EveGlyph repository authorization
+```
+
+A successful GitHub App user-OAuth callback establishes a GitHub user identity and stores the resulting credential in a Node-side broker. It grants **zero repository authority**. The user must separately choose **Grant read for this session** for a specific `owner/repo` before the connector can read a file from that repository.
+
+The connector uses the empty-baseline `connector-session` profile. Repository access is supplied only by explicit session grants such as:
+
+```text
+connector.github.repository.contents.read
+on github:repository:<owner>/<repo>:contents:*
+```
+
+A repository A grant cannot authorize repository B, and read never implies write.
+
+### Credential custody
+
+GitHub credentials are held by the provider-neutral credential runtime. In default `system` mode, the credential envelope is persisted only through the OS keyring and is hot-cached in the Node process. Raw access tokens, refresh tokens, the GitHub client secret, OAuth authorization codes, PKCE verifiers, and Authorization headers are not returned to the browser and are not persisted to:
+
+- `localStorage`;
+- `sessionStorage`;
+- workspace files;
+- `.eveglyph/` files;
+- Git history;
+- publication artifacts;
+- MCP payloads.
+
+The broker exposes redacted descriptions plus a server-side callback interface for trusted connector code; it does not expose a public `getToken()` API. In default `system` mode, restarting the Vite dev process can restore GitHub identity from the keyring, but connector-session grants are reset to zero. In explicit `memory` mode, restart still requires authentication again.
+
+The GitHub client id/secret are read from server-side environment variables:
+
+```text
+EVEGLYPH_GITHUB_CLIENT_ID
+EVEGLYPH_GITHUB_CLIENT_SECRET
+```
+
+An optional callback override may be set through:
+
+```text
+EVEGLYPH_GITHUB_REDIRECT_URI
+```
+
+There is deliberately no GitHub client-secret/access-token field in Settings.
+
+### OAuth replay protection and refresh
+
+Authentication start creates a cryptographically random `state` plus an S256 PKCE challenge. Pending state expires after 10 minutes and is consumed before token exchange, so the same state cannot be replayed even if exchange fails.
+
+If GitHub returns expiring user access tokens, EveGlyph refreshes them server-side when within 30 seconds of expiry. Missing/expired refresh authority fails closed as `github_reauthentication_required`; token values are never placed in public error messages.
+
+### Repository read boundary
+
+The current GitHub connector supports regular UTF-8 text files obtained through the GitHub Contents API only. Every read follows:
+
+```text
+validate owner/repo and path
+→ require connected GitHub identity
+→ require matching EveGlyph repository read grant
+→ refresh credential if necessary
+→ access credential inside broker callback
+→ perform GitHub Contents request
+→ validate file/base64 response
+→ enforce 1 MiB decoded limit
+→ strict UTF-8 decode
+→ return content + capability evidence
+```
+
+The capability decision occurs **before credential access and before network fetch**. A denied request therefore cannot use the GitHub credential to probe another repository.
+
+Paths reject leading `/`, empty segments, `.`/`..` traversal segments, and NUL characters. Directories, non-file resources, unsupported encodings, invalid UTF-8, and files larger than 1 MiB fail explicitly.
+
+PR-B exposes **no GitHub write/create/update/delete/commit/generic-authenticated-request surface**. Configure the GitHub App with **Contents: Read-only** for this implementation as defense in depth.
+
+### Local bridge and MCP separation
+
+The GitHub connector routes live in a separate local Vite plugin, `vite-github-connector.js`, rather than the filesystem/CLI agent bridge. They retain the same localhost Host/Origin posture and bounded JSON request bodies.
+
+The persistent credential broker is **not shared with `mcp-server.js` or `mcp-server-remote.js`**. Those are separate processes. PR-E registers only three read-only delegated MCP operations when a local delegation endpoint is configured. MCP sends a short-lived ticket plus canonical operation input to the local broker; the credential-owning process recomputes the resource, consumes the ticket, re-checks the live connector grant, and performs the provider request. Raw credentials are never copied across the process boundary.
+
+See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md) for operator setup, callback configuration, and the complete read-only flow.
+
 ## The local bridge
 
 - The `/api/*` bridge (`vite-agent-bridge.js`) is a Vite plugin declared **`apply: 'serve'`** — it exists only under `npm run dev`, never in a production build.
@@ -39,7 +166,7 @@ A separate trust model from the bridge above — read this before pointing an MC
 - **stdio only, no network exposure.** The server communicates over stdin/stdout with whatever process spawned it (your MCP client) — it never opens a TCP port, so there is no localhost-gating story to get right or wrong, and no LAN-exposure risk analogous to the bridge's `--host` caveat. This is deliberately the v1 scope (Neo's call, 2026-07-22): local stdio only, no remote/tunnel reachability — that would need its own, separate security design (real authentication, not just "the process is local") before being built.
 - **Workspace root is explicit and required.** The server refuses to start without a workspace-root argument (`node mcp-server.js <path>`) — there is no implicit "confine to cwd" fallback. Every file operation resolves the target path against that root and rejects anything that would escape it (mirrors the bridge's `resolveInside`), verified with an explicit `../../..` escape-attempt test during development.
 - **No diff-review layer of its own.** Unlike local-agent mode, `write_file` here does not snapshot/diff/require an Accept step — it writes immediately. This is intentional, not an oversight: an MCP host (Claude Desktop, Claude Code, etc.) already gates each tool call through its own human-approval UI before it runs, which fills the same "a human sees this before it happens" role the bridge's Accept/Reject view fills for an autonomous CLI agent. If the workspace is a git repo, your normal `git diff`/`git log` still works exactly as before — nothing about this server changes how git sees the files.
-- **`evaluate_aimdc` runs on untrusted expression text**, same as the in-app preview — it uses the same closed-grammar, no-`eval`/`Function` evaluator (`src/aimdc/evaluator.js`), so a malformed or adversarial AIMD-C block can only produce a parse/type error, never arbitrary code execution.
+- **`evaluate_aimdc` runs on untrusted expression text**, same as the in-app preview — it uses the same closed-grammar, no-`eval`/`Function` evaluator (`src/aimdc/evaluator.js`) and now enters through the `document-only` capability wrapper first. A malformed or adversarial AIMD-C block can only produce a parse/type error within the evaluator; it is not handed workspace/network/process/credential authority.
 - **Known, not-applicable advisory**: `npm audit` flags a moderate path-traversal issue in `@hono/node-server` (a transitive dependency of `@modelcontextprotocol/sdk`'s HTTP-transport code, `GHSA-frvp-7c67-39w9`). The specific vulnerable export is Hono's `serve-static` middleware; the SDK's `StreamableHTTPServerTransport` only imports `getRequestListener` (a plain Node↔Web-standard request/response adapter) — confirmed by reading the SDK's own source, not assumed — so the vulnerable code path is never loaded by either `mcp-server.js` or `mcp-server-remote.js` below. Noted here rather than silently ignored, not treated as urgent.
 
 ## The remote MCP server (`mcp-server-remote.js`)

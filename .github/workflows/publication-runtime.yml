@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - feat/mcp-publication-runtime-mvp
+      - feat/github-connector-broker
+      - feat/google-drive-connector-broker
+      - feat/persistent-credential-delegation-broker
+      - feat/mcp-delegated-connector-operations
   pull_request:
     branches:
       - main
@@ -28,14 +32,55 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: MCP delegation tests
+        run: npm run test:mcp-delegation
+
+      - name: Credential broker tests
+        run: npm run test:credential-broker
+
+      - name: Credential vault HTTP tests
+        run: node --test test/credential-vault-http.test.mjs
+
+      - name: Google connector tests
+        run: npm run test:google-connector
+
+      - name: GitHub connector tests
+        run: npm run test:github-connector
+
+      - name: Capability sandbox tests
+        run: npm run test:capabilities
+
       - name: Publication tests
         run: npm run test:publication
 
       - name: Build
         run: npm run build
 
+      - name: Verify built GitHub connector client
+        run: node scripts/verify_github_connector_build.mjs
+
+      - name: Verify built Google Drive connector client
+        run: node scripts/verify_google_drive_connector_build.mjs
+
+      - name: Verify credential boundary
+        run: node scripts/verify_credential_boundary.mjs
+
+      - name: Verify MCP delegation boundary
+        run: node scripts/verify_mcp_delegation_boundary.mjs
+
       - name: Dynamic logic regression
         run: npm run verify:dynamic-logic
 
       - name: Dynamic rendering regression
         run: npm run verify:dynamic-rendering
+
+      - name: Package verified PR source
+        run: git archive --format=zip --output=eveglyph-mcp-delegated-connector-operations.zip HEAD
+
+      - name: Upload verified PR source
+        uses: actions/upload-artifact@v4
+        with:
+          name: eveglyph-mcp-delegated-connector-operations
+          path: eveglyph-mcp-delegated-connector-operations.zip
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,57 @@
+const GITHUB_SETTINGS_HTML = `
+            <!-- GitHub Connector — identity and capability grants are separate. -->
+            <div id="s-github-wrap" style="display:flex; flex-direction:column; gap:12px">
+              <div class="sg">
+                <label>GitHub Connector</label>
+                <span id="s-github-status" style="font-size:11px;color:var(--t3)">Checking…</span>
+                <div class="agent-row" style="margin-top:6px">
+                  <button class="btn-p" id="btn-github-connect">Connect GitHub</button>
+                  <button class="btn-s" id="btn-github-disconnect" disabled>Disconnect</button>
+                </div>
+                <span style="font-size:10px;color:var(--t3)">OAuth connects identity only. Repository access still requires an explicit read grant for this session.</span>
+              </div>
+
+              <div class="sg">
+                <label>Repository <span style="color:var(--t3)">(owner/repo)</span></label>
+                <div class="agent-row">
+                  <input type="text" id="s-github-repository" placeholder="owner/repository" autocomplete="off">
+                  <button class="btn-s" id="btn-github-grant-read" disabled>Grant read for this session</button>
+                </div>
+              </div>
+
+              <div class="sg">
+                <label>Read repository file</label>
+                <input type="text" id="s-github-path" placeholder="README.md" autocomplete="off">
+                <input type="text" id="s-github-ref" placeholder="main (optional)" autocomplete="off" style="margin-top:6px">
+                <div class="agent-row" style="margin-top:6px">
+                  <button class="btn-s" id="btn-github-read" disabled>Read file</button>
+                  <button class="btn-s" id="btn-github-issue-mcp-read" disabled>Issue MCP read ticket</button>
+                </div>
+                <pre id="s-github-read-result" style="margin-top:6px;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--t2)"></pre>
+                <pre id="s-github-delegation-result" style="margin-top:6px;max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--t2)"></pre>
+                <span style="font-size:10px;color:var(--t3)">MCP delegation tickets are short-lived and one-use. EveGlyph does not persist them; a third-party MCP host may log tool arguments.</span>
+              </div>
+            </div>
+`
+
+const MODULE_SCRIPT = '<script type="module" src="/src/githubsettings.js"></script>'
+const MCP_SETTINGS_ANCHOR = '<div id="s-mcp-wrap"'
+
+function transformSettingsHtml(html) {
+  if (!html.includes(MCP_SETTINGS_ANCHOR)) throw new Error('GitHub Settings insertion point not found')
+  let next = html.replace(MCP_SETTINGS_ANCHOR, `${GITHUB_SETTINGS_HTML}\n            ${MCP_SETTINGS_ANCHOR}`)
+  if (!next.includes('/src/githubsettings.js')) {
+    if (!next.includes('</body>')) throw new Error('GitHub Settings module insertion point not found')
+    next = next.replace('</body>', `${MODULE_SCRIPT}\n</body>`)
+  }
+  return next
+}
+
+export function githubSettingsUi() {
+  return {
+    name: 'eveglyph-github-settings-ui',
+    transformIndexHtml: { order: 'pre', handler: transformSettingsHtml },
+  }
+}
+
+export { GITHUB_SETTINGS_HTML, transformSettingsHtml }

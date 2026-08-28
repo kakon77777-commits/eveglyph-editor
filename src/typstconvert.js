@@ -20,7 +20,8 @@ import { tex2typst } from 'tex2typst'
 import { parseFrontmatter } from './frontmatter.js'
 import { buildPreamble } from './typst/preamble.js'
 import { isAimdcType, parseAimdcBlock } from './aimdc/parser.js'
-import { evaluateDocument, resolveRef } from './aimdc/graph.js'
+import { resolveRef } from './aimdc/graph.js'
+import { evaluateDocumentInSandbox } from './capabilities/document-runtime.js'
 
 // Private-use-area code point built at runtime (never typed literally) — an
 // inert placeholder delimiter that survives marked's tokenizer as plain text.
@@ -589,13 +590,21 @@ function convertBody(md) {
 // match the pre-Phase-4 hardcoded preamble exactly — a document with no
 // opinion on this renders the same PDF as before this phase, not a
 // surprise change.
-export function markdownToTypst(source) {
+export function markdownToTypst(source, {
+  actor = { client: 'eveglyph-typst', document: 'inline:markdown-to-typst' },
+  requestedCapabilities = [],
+} = {}) {
   const { data, body } = parseFrontmatter(source)
   const preamble = buildPreamble(data.typst_theme, data.typst_layout)
   pendingAimdcBlocks = []
   let typst = convertBody(body)
   if (pendingAimdcBlocks.length) {
-    const aimdcDoc = evaluateDocument(pendingAimdcBlocks)
+    // Routed through the document-only capability sandbox, same as the live
+    // preview and evaluate_aimdc — this evaluator has no fs/network/process
+    // primitives either way, but every AIMD-C entry point should produce the
+    // same audit evidence and go through the same authority check, so a
+    // future capability never gets wired in through only some of them.
+    const aimdcDoc = evaluateDocumentInSandbox(pendingAimdcBlocks, { actor, requestedCapabilities })
     typst = typst.replace(/AIMDC_TYPST_PLACEHOLDER_(\d+)/g, (_, i) => renderAimdcBlockTypst(pendingAimdcBlocks[Number(i)], aimdcDoc))
     // {{ id.field }} inline references — resolved from the SAME evaluated
     // graph as the block rendering above, so a PDF export shows identical

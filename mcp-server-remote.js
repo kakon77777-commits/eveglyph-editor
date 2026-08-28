@@ -1,22 +1,11 @@
 // ─── EveGlyph Editor — MCP server (remote, HTTP + bearer token) ────────────
-// Same capability set as mcp-server.js, reachable over HTTP instead of stdio.
-// Base workspace tools and publication tools are composed by
-// mcp-server-factory.js so transports cannot drift apart.
-//
-// This process only ever binds to 127.0.0.1 — it is never directly
-// internet-facing. Reachability from outside this machine comes from
-// tunneling a public hostname to this port yourself (e.g. `cloudflared
-// tunnel --url http://127.0.0.1:8787`).
-//
-// Bearer-token auth is REQUIRED. Once tunneled, a leaked token means direct
-// access to every MCP capability exposed for the selected workspace, so keep
-// the token secret and review SECURITY.md before remote use.
 import http from 'node:http'
 import crypto from 'node:crypto'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { createMcpServer, resolveWorkspaceRootOrExit } from './mcp-server-factory.js'
 
 const WORKSPACE_ROOT = await resolveWorkspaceRootOrExit(process.argv, 'usage: node mcp-server-remote.js <workspace-root>')
+const DELEGATION_ENDPOINT = String(process.env.EVEGLYPH_DELEGATION_ENDPOINT || '').trim() || null
 
 const TOKEN = process.env.EVEGLYPH_MCP_TOKEN
 if (!TOKEN || TOKEN.length < 16) {
@@ -65,14 +54,10 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
-  // Stateless HTTP transport: one server instance per request. Publication
-  // artifacts live in a module/process-scoped store, not inside this server
-  // instance, so a later resources/read request can retrieve a prior render
-  // while this MCP process remains alive.
   let server, transport
   try {
     const body = await readJsonBody(req)
-    server = createMcpServer(WORKSPACE_ROOT)
+    server = createMcpServer(WORKSPACE_ROOT, { delegationEndpoint: DELEGATION_ENDPOINT })
     transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
     await server.connect(transport)
     await transport.handleRequest(req, res, body)

@@ -35,7 +35,9 @@ export async function exportActiveAsPdf() {
   const md = editorGet()
   await monitor('typst:export:start', { file: S.active, mdBytes: md.length })
   try {
-    const typstSource = markdownToTypst(md)
+    const typstSource = markdownToTypst(md, {
+      actor: { client: 'eveglyph-browser', document: S.active || 'inline:typst-export' },
+    })
     const pdfBytes = await compileTypstToPdf(typstSource)
     const base = S.active.replace(/^.*[\\/]/, '').replace(/\.md$/i, '') || 'document'
     downloadBytes(pdfBytes, `${base}.pdf`)

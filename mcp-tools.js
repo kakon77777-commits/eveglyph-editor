@@ -14,7 +14,7 @@ import jschardet from 'jschardet'
 import jsYaml from 'js-yaml'
 
 import { isAimdcType, parseAimdcBlock } from './src/aimdc/parser.js'
-import { evaluateDocument } from './src/aimdc/graph.js'
+import { evaluateDocumentInSandbox } from './src/capabilities/document-runtime.js'
 import { validateStateMachine, validateEntity, validateEntityList } from './src/validate.js'
 
 function isTextFile(name) {
@@ -139,14 +139,21 @@ export function createMcpServer(workspaceRoot) {
 
   server.registerTool('evaluate_aimdc', {
     title: 'Evaluate AIMD-C computable blocks',
-    description: 'Parse and evaluate every AIMD-C block (aimd-value/function/compute/assert/table/view) in a piece of EveGlyph-MD content, returning computed results, the dependency-evaluation ledger, and any type/reference errors — the same engine the live preview and PDF export use. Pass document content directly (use read_file first if it lives on disk).',
+    description: 'Parse and evaluate every AIMD-C block (aimd-value/function/compute/assert/table/view) through EveGlyph\'s document-only capability profile, returning computed results, the dependency-evaluation ledger, capability evidence, and any type/reference errors. Pass document content directly (use read_file first if it lives on disk).',
     inputSchema: { content: z.string().describe('EveGlyph-MD document content, or just the relevant ::: aimd-* ::: blocks') },
   }, async ({ content }) => {
     try {
       const blocks = extractAimdcBlocks(content)
-      if (!blocks.length) return jsonResult({ blocks: 0, results: {}, issues: [], ledger: [] })
-      const doc = evaluateDocument(blocks)
-      return jsonResult({ blocks: blocks.length, results: mapToObject(doc.results), issues: doc.issues, ledger: doc.ledger })
+      const doc = evaluateDocumentInSandbox(blocks, {
+        actor: { client: 'eveglyph-mcp', document: 'inline:evaluate_aimdc' },
+      })
+      return jsonResult({
+        blocks: blocks.length,
+        results: mapToObject(doc.results),
+        issues: doc.issues,
+        ledger: doc.ledger,
+        sandbox: doc.sandbox,
+      })
     } catch (e) { return errorResult(e) }
   })
 
