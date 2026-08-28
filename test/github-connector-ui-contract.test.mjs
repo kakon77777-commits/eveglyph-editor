@@ -7,6 +7,7 @@ async function readOrEmpty(url) {
   catch { return '' }
 }
 
+const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8')
 const uiPlugin = await readOrEmpty(new URL('../vite-github-settings-ui.js', import.meta.url))
 const githubSettings = await readOrEmpty(new URL('../src/githubsettings.js', import.meta.url))
 const viteConfig = await readFile(new URL('../vite.config.js', import.meta.url), 'utf8')
@@ -81,4 +82,17 @@ test('GitHub Settings module wires every connector control and is loaded by Vite
   assert.match(githubSettings, /githubRefreshStatus\(\)/)
   assert.match(uiPlugin, /src\/githubsettings\.js/)
   assert.match(viteConfig, /githubSettingsUi/)
+})
+
+test('GitHub Settings HTML transform survives removal of non-structural MCP comments', async () => {
+  const { githubSettingsUi } = await import('../vite-github-settings-ui.js')
+  const commentStripped = indexHtml.replace(/<!-- MCP server[\s\S]*?-->/, '')
+  assert.match(commentStripped, /id="s-mcp-wrap"/)
+
+  const transformed = githubSettingsUi().transformIndexHtml(commentStripped)
+  assert.match(transformed, /id="s-github-wrap"/)
+  assert.ok(
+    transformed.indexOf('id="s-github-wrap"') < transformed.indexOf('id="s-mcp-wrap"'),
+    'GitHub Settings block must remain before the MCP Settings block',
+  )
 })
