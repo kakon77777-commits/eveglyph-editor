@@ -16,6 +16,7 @@
     "mcp": "node mcp-server.js",
     "mcp:remote": "node mcp-server-remote.js",
     "test:github-connector": "node --test test/github-credential-broker.test.mjs test/github-connector.test.mjs test/github-connector-http.test.mjs test/github-connector-ui-contract.test.mjs",
+    "test:google-connector": "node --test test/google-oauth-broker.test.mjs test/google-drive-connector.test.mjs",
     "test:capabilities": "node --test test/capability-foundation.test.mjs test/mcp-capability-sandbox.test.mjs",
     "test:publication": "node --test test/publication-profiles.test.mjs test/publication-inspect-validate.test.mjs test/publication-artifacts.test.mjs test/publication-node-renderer.test.mjs test/publication-real-corpus-compat.test.mjs test/mcp-publication.test.mjs",
     "verify:dynamic-logic": "node scripts/verify_dynamic_logic.mjs",
