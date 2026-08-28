@@ -89,6 +89,9 @@ jobs:
       - name: Verify built Google Drive connector client
         run: node scripts/verify_google_drive_connector_build.mjs
 
+      - name: Verify credential boundary
+        run: node scripts/verify_credential_boundary.mjs
+
       - name: Dynamic logic regression
         run: npm run verify:dynamic-logic
 
