@@ -47,6 +47,7 @@ test('Wasmtime argv applies exact bounded wasm controls with no ambient WASI aut
     '-W', 'max-instances=1',
     '-W', 'max-memories=1',
     '-W', 'max-tables=1',
+    '-W', 'trap-on-grow-failure=y',
     '-W', 'timeout=2000ms',
     'module.wasm',
   ])
