@@ -65,6 +65,9 @@ jobs:
       - name: Credential broker tests
         run: npm run test:credential-broker
 
+      - name: Credential vault HTTP tests
+        run: node --test test/credential-vault-http.test.mjs
+
       - name: Google connector tests
         run: npm run test:google-connector
 
