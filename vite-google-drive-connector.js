@@ -90,8 +90,9 @@ export function googleDriveConnectorBridge({
   clientId = process.env.EVEGLYPH_GOOGLE_CLIENT_ID || '',
   clientSecret = process.env.EVEGLYPH_GOOGLE_CLIENT_SECRET || '',
   fetchImpl = globalThis.fetch,
+  broker: injectedBroker = null,
 } = {}) {
-  const broker = createMemoryCredentialBroker()
+  const broker = injectedBroker || createMemoryCredentialBroker()
   const oauth = createGoogleOAuth({ clientId, clientSecret, fetchImpl })
   const service = createGoogleDriveConnectorService({ broker, oauth, fetchImpl })
   const controller = createGoogleDriveConnectorHttpController({ service })
@@ -100,6 +101,18 @@ export function googleDriveConnectorBridge({
     name: 'eveglyph-google-drive-connector',
     apply: 'serve',
     configureServer(server) {
+      // Persistent identity restoration is provider-scoped and intentionally
+      // restores no metadata/file session grants.
+      if (typeof broker.restoreActive === 'function') {
+        try {
+          const restored = broker.restoreActive('google')
+          if (restored?.credential_id) service.restoreAuth({ credentialId: restored.credential_id })
+        } catch (error) {
+          const code = typeof error?.code === 'string' ? error.code : 'credential_restore_failed'
+          console.warn(`[EveGlyph] Google credential restore unavailable (${code})`)
+        }
+      }
+
       server.middlewares.use(async (req, res, next) => {
         const parsed = new URL(req.url || '/', 'http://localhost')
         if (!parsed.pathname.startsWith(ROUTE_PREFIX)) return next()
