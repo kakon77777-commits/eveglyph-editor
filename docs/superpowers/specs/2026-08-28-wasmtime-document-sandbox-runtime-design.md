@@ -243,6 +243,8 @@ sandbox_import_denied
 sandbox_entrypoint_missing
 ```
 
+Because Node performs the static validation step, PR-F accepts only core Wasm binaries understood by both Node's WebAssembly validator and Wasmtime 48.0.0. Wasm components or proposal features rejected by Node are outside this MVP and fail as `sandbox_invalid_module`.
+
 ## 6. Capability authorization
 
 ### 6.1 Policy profile
@@ -266,7 +268,7 @@ The order is:
 ```text
 normalize request
 -> require document capability session
--> validate module bytes/imports/entrypoint
+-> validate module encoding/bytes/imports/entrypoint
 -> validate requested resource limits
 -> resolve/verify Wasmtime runtime
 -> stage private module
@@ -441,7 +443,7 @@ stdin/stdout/stderr connected only to EveGlyph pipes
 
 The generated argv is itself unit tested as a security contract.
 
-### 9.2 Dual interruption
+### 9.2 Interruption and error precedence
 
 PR-F does not rely on one termination mechanism.
 
@@ -451,19 +453,27 @@ Execution is bounded by:
 2. Wasmtime timeout/resource controls;
 3. an independent Node wall-clock timer.
 
-If Node's timer fires, EveGlyph kills the Wasmtime child and reports:
+Classification precedence for conditions EveGlyph observes directly is:
 
 ```text
-sandbox_timeout
+stdout cap exceeded
+-> sandbox_output_too_large
+stderr cap exceeded
+-> sandbox_stderr_too_large
+Node wall-clock timer fired
+-> sandbox_timeout
+otherwise classify Wasmtime exit/trap
 ```
 
-An out-of-fuel trap is classified as:
+An out-of-fuel trap maps to:
 
 ```text
 sandbox_fuel_exhausted
 ```
 
-Memory/stack/resource traps are mapped to stable sandbox error codes rather than returning arbitrary Wasmtime stderr verbatim.
+Memory/stack/resource traps map to stable sandbox error codes rather than returning arbitrary Wasmtime stderr verbatim.
+
+Tests configure limits so fuel-exhaustion and host-timeout cases are independently deterministic; a single test must not accept either outcome interchangeably.
 
 ## 10. Child-process host exposure reduction
 
@@ -478,7 +488,7 @@ directory mode 0700
 module mode    0600
 ```
 
-The staged module is written as a fixed non-user-controlled filename such as:
+The staged module is written as a fixed non-user-controlled filename:
 
 ```text
 module.wasm
@@ -488,11 +498,30 @@ No user-supplied filesystem path is used.
 
 Cleanup runs in `finally` on success, trap, timeout, cancellation, malformed output, or spawn failure.
 
-### 10.2 Minimal child environment
+### 10.2 Exact child environment allowlist
 
 Wasmtime must not inherit the full EveGlyph process environment.
 
-The adapter constructs a minimal environment containing only operating-system variables needed to launch the process safely. It must not forward:
+After the executable has been resolved, runtime execution uses this canonical child environment.
+
+POSIX:
+
+```text
+TMPDIR=<private execution directory>
+```
+
+Windows:
+
+```text
+SystemRoot=<parent SystemRoot, only if present>
+WINDIR=<parent WINDIR, only if present>
+TEMP=<private execution directory>
+TMP=<private execution directory>
+```
+
+No `PATH` is required for execution because the adapter resolves the Wasmtime executable before spawn. Runtime discovery may read the parent `PATH`; the Wasmtime child execution does not inherit it.
+
+The child environment must not contain:
 
 ```text
 EVEGLYPH_GITHUB_CLIENT_ID
@@ -507,13 +536,12 @@ GITHUB_TOKEN
 SSH_*
 AWS_*
 AZURE_*
-HOME/USERPROFILE unless proven required
+HOME
+USERPROFILE
 arbitrary parent env vars
 ```
 
-A private temp directory may be supplied through `TMPDIR`/`TMP`/`TEMP` as required.
-
-Windows may preserve required OS bootstrap variables such as `SystemRoot`/`WINDIR` if necessary for process startup. The exact allowlist is documented and tested.
+If a supported platform proves that an additional OS bootstrap variable is strictly required to launch the pinned Wasmtime executable, adding it is a design change that must be explicit and covered by the child-env verifier rather than silently forwarding `process.env`.
 
 ### 10.3 Honest boundary
 
@@ -635,6 +663,32 @@ Input shape:
 
 `limits` is optional.
 
+### 13.1 Module Base64 contract
+
+`module_base64` must be canonical RFC 4648 Base64 with no whitespace and valid padding.
+
+Before decoding, its string length must be no more than:
+
+```text
+1,398,104 characters
+```
+
+which is the maximum canonical Base64 length for a 1 MiB decoded payload.
+
+After decoding, the resulting module bytes must be no more than 1 MiB.
+
+Malformed/non-canonical Base64 fails before module validation or process spawn as:
+
+```text
+sandbox_invalid_module_encoding
+```
+
+Decoded bytes that exceed the module limit fail as:
+
+```text
+sandbox_invalid_module
+```
+
 The tool intentionally does not accept:
 
 ```text
@@ -651,7 +705,7 @@ connector ticket
 credential handle
 ```
 
-The MCP tool passes module bytes directly to `document-wasm-service` and returns the service result/evidence.
+The MCP tool passes decoded module bytes directly to `document-wasm-service` and returns the service result/evidence.
 
 Both stdio and remote MCP reuse the existing server factory, so this tool must be registered once in the shared MCP implementation.
 
@@ -670,6 +724,7 @@ Public stable codes include at least:
 ```text
 sandbox_runtime_unavailable
 sandbox_runtime_version_mismatch
+sandbox_invalid_module_encoding
 sandbox_invalid_module
 sandbox_import_denied
 sandbox_entrypoint_missing
@@ -733,41 +788,57 @@ Imports from `env` or another unknown module.
 
 Expected: `sandbox_import_denied` before spawn.
 
-### 16.5 Infinite-loop fixture
+### 16.5 Fuel-exhaustion fixture
 
-Consumes execution indefinitely.
+Runs an instruction-consuming infinite loop with a deliberately low fuel limit and a sufficiently long host timeout.
 
-Expected termination by fuel and/or wall-clock limit with no hung test process.
+Expected:
 
-### 16.6 Memory-growth fixture
+```text
+sandbox_fuel_exhausted
+```
+
+### 16.6 Host-timeout fixture
+
+Runs an instruction-consuming loop with a high allowed fuel limit and a deliberately very short host timeout.
+
+Expected:
+
+```text
+sandbox_timeout
+```
+
+The test must verify the child is terminated and the test process does not hang.
+
+### 16.7 Memory-growth fixture
 
 Attempts to grow memory beyond the configured bound.
 
 Expected stable memory/resource failure; host process remains healthy.
 
-### 16.7 Output bomb fixture
+### 16.8 Output bomb fixture
 
 Writes beyond 1 MiB to stdout.
 
 Expected child termination and `sandbox_output_too_large`.
 
-### 16.8 Stderr bomb fixture
+### 16.9 Stderr bomb fixture
 
 Writes beyond 64 KiB to stderr.
 
 Expected child termination and `sandbox_stderr_too_large`.
 
-### 16.9 Invalid JSON fixture
+### 16.10 Invalid JSON fixture
 
 Exits successfully after writing non-JSON stdout.
 
 Expected `sandbox_output_invalid_json`.
 
-### 16.10 Non-zero exit fixture
+### 16.11 Non-zero exit fixture
 
 Calls `proc_exit` with non-zero status.
 
-Expected `sandbox_guest_exit_nonzero`, unless the exit is already classified as a stricter runtime limit/trap condition.
+Expected `sandbox_guest_exit_nonzero`, unless the exit is already classified by a directly observed higher-precedence condition from Section 9.2.
 
 ## 17. TDD sequence
 
@@ -826,6 +897,7 @@ The physical-sandbox verifier must mechanically assert at least:
 - no workspace path input in MCP sandbox tool;
 - no connector/keyring/persistent-broker imports in sandbox modules;
 - no provider credential environment copied into Wasmtime child env;
+- child execution environment matches the exact POSIX/Windows allowlist;
 - only the canonical WASI import allowlist is accepted;
 - temporary execution directories are cleanup-owned by the runtime;
 - the MCP tool does not accept arbitrary host capability objects.
