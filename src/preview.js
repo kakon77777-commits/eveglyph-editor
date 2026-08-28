@@ -12,7 +12,7 @@ import { wireStateMachineInteractions } from './smview.js'
 import { mathDiagnosticsReset, mathDiagnosticsScan, mathDiagnosticsRenderPanels, mathDiagnosticsAttemptFallback, mathRewriteRecord } from './mathdiagnostics.js'
 import { prepareFormula } from './math/capability.js'
 import { isAimdcType, parseAimdcBlock } from './aimdc/parser.js'
-import { evaluateDocument } from './aimdc/graph.js'
+import { evaluateDocumentInSandbox } from './capabilities/document-runtime.js'
 import { renderBlock as renderAimdcBlockHtml, substituteInlineRefs } from './aimdc/render.js'
 import { isDynamicLogicType, parseDynamicLogicBlock } from './dynamiclogic/parser.js'
 import { evaluateDynamicDocument } from './dynamiclogic/runtime.js'
@@ -72,7 +72,7 @@ export function previewUpdate() {
     // map saying which external ref changed, so formula views can visibly react
     // without learning anything about claims/evidence/replay themselves.
     annotateDynamicMotion(dynamicDoc)
-    const aimdcDoc = evaluateDocument(pendingAimdcBlocks, dynamicDoc.refs)
+    const aimdcDoc = evaluateDocumentInSandbox(pendingAimdcBlocks, { externalRefs: dynamicDoc.refs })
     aimdcDoc.externalTransitions = dynamicDoc.refTransitions
 
     let html = el.innerHTML
