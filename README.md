@@ -95,7 +95,7 @@ Connect GitHub
 → Read file
 ```
 
-The access/refresh token remains in the Node-side process-memory credential broker. Restarting the Vite dev server disconnects GitHub and requires authentication again. This first broker is not shared with the separate MCP server processes.
+The provider credential remains inside EveGlyph’s shared credential runtime. In the default `system` mode it is persisted in the OS keyring; after restart GitHub identity can be restored but repository grants return to zero and must be granted again. The credential runtime is still not shared with the separate MCP server processes.
 
 See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md) and [`SECURITY.md`](SECURITY.md) for the complete trust model.
 
@@ -156,7 +156,7 @@ See [`docs/CREDENTIAL-VAULT-AND-DELEGATION.md`](docs/CREDENTIAL-VAULT-AND-DELEGA
 
 - **Frontend** — vanilla ES modules + CodeMirror, with all mutable state in a single `S` singleton (`src/`).
 - **Bridge** — a **dev-only** Vite plugin (`vite-agent-bridge.js`) exposing `/api/*` for filesystem I/O, encoding detection, git diff-review, and agent spawning. It runs only under `npm run dev` (`apply: 'serve'`), and every endpoint is gated to local requests.
-- **GitHub connector bridge** — `vite-github-connector.js` is a separate local Node/Vite plugin. It owns GitHub OAuth callback handling and a process-memory credential broker; browser Settings receives only redacted account/grant/read data.
+- **GitHub connector bridge** — `vite-github-connector.js` is a separate local Node/Vite plugin. It uses the shared provider-neutral credential runtime for GitHub OAuth custody; browser Settings receives only redacted account/grant/read data.
 - **Google Drive connector bridge** — `vite-google-drive-connector.js` is another separate local Node/Vite plugin using the same broker/capability vocabulary. Browser Settings receives only redacted identity, grants, bounded Drive metadata, and read results.
 
 ```text
@@ -174,7 +174,7 @@ browser frontend  ⇄  Vite local bridges  ⇄  filesystem · git · CLI agent �
 
 The capability control plane also defines transport-neutral mappings for these base tools and the publication tools. The mapping is groundwork for later identity-aware MCP authorization; **the capability-foundation PR does not silently put existing workspace MCP tools behind a new grant-acquisition flow**, and the remote HTTP transport still uses its existing bearer-token compatibility mode.
 
-The GitHub and Google Drive connector process-memory credentials are deliberately **not** shared into these MCP processes. A later broker IPC/keychain or unified authenticated gateway must define that boundary explicitly rather than copying raw tokens between processes.
+The GitHub and Google Drive connector credentials are deliberately **not** shared into these MCP processes. PR-D now provides hash-only delegation tickets plus a local operation-IPC primitive, but no connector operation is registered with MCP yet; raw provider tokens are never copied into MCP processes.
 
 Run it directly:
 

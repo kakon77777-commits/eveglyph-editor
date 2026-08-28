@@ -59,7 +59,7 @@ A repository A grant cannot authorize repository B, and read never implies write
 
 ### Credential custody
 
-GitHub credentials are kept in a process-scoped in-memory Node broker. Raw access tokens, refresh tokens, the GitHub client secret, OAuth authorization codes, PKCE verifiers, and Authorization headers are not returned to the browser and are not persisted to:
+GitHub credentials are held by the provider-neutral credential runtime. In default `system` mode, the credential envelope is persisted only through the OS keyring and is hot-cached in the Node process. Raw access tokens, refresh tokens, the GitHub client secret, OAuth authorization codes, PKCE verifiers, and Authorization headers are not returned to the browser and are not persisted to:
 
 - `localStorage`;
 - `sessionStorage`;
@@ -69,7 +69,7 @@ GitHub credentials are kept in a process-scoped in-memory Node broker. Raw acces
 - publication artifacts;
 - MCP payloads.
 
-The broker exposes redacted descriptions plus a server-side callback interface for trusted connector code; it does not expose a public `getToken()` API. Restarting the Vite dev process destroys the broker state and requires GitHub authentication again.
+The broker exposes redacted descriptions plus a server-side callback interface for trusted connector code; it does not expose a public `getToken()` API. In default `system` mode, restarting the Vite dev process can restore GitHub identity from the keyring, but connector-session grants are reset to zero. In explicit `memory` mode, restart still requires authentication again.
 
 The GitHub client id/secret are read from server-side environment variables:
 
@@ -119,7 +119,7 @@ PR-B exposes **no GitHub write/create/update/delete/commit/generic-authenticated
 
 The GitHub connector routes live in a separate local Vite plugin, `vite-github-connector.js`, rather than the filesystem/CLI agent bridge. They retain the same localhost Host/Origin posture and bounded JSON request bodies.
 
-The process-memory GitHub credential broker is **not shared with `mcp-server.js` or `mcp-server-remote.js`**. Those are separate processes. Raw credentials are not copied across that boundary merely to make MCP calls work. A later design may introduce deliberate broker IPC/keychain storage or place remote MCP behind the same authenticated gateway.
+The persistent credential broker is **not shared with `mcp-server.js` or `mcp-server-remote.js`**. Those are separate processes. PR-D adds a local delegation-ticket/IPC primitive but registers no connector operation with MCP, so raw credentials are not copied across that boundary merely to make MCP calls work.
 
 See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md) for operator setup, callback configuration, and the complete read-only flow.
 
