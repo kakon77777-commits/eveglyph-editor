@@ -99,6 +99,7 @@ test('repository A grant permits A and does not authorize repository B', async (
   })
   assert.equal(allowed.content, 'hello')
   assert.equal(allowed.capability_evidence.decision, 'allow')
+  assert.equal(allowed.capability_evidence.profile, 'connector-session')
   assert.equal(calls.length, 1)
   assert.equal(calls[0].options.headers.Authorization, 'Bearer ghu_initial_secret')
 
