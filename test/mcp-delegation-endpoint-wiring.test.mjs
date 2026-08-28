@@ -9,11 +9,14 @@ test('remote MCP lifecycle receives delegation endpoint explicitly without provi
   const config = await read('vite.config.js')
 
   assert.match(bridge, /export function agentBridge\(\{[\s\S]*?delegationEndpoint/)
-  assert.match(bridge, /EVEGLYPH_DELEGATION_ENDPOINT/)
   assert.match(config, /agentBridge\(\{\s*delegationEndpoint:\s*delegationRuntime\.endpoint\s*\}\)/)
 
-  const remoteSpawn = bridge.match(/spawn\(process\.execPath, \[scriptPath, cwd\],[\s\S]{0,1200}?\n\s*\}\)/)?.[0] || ''
+  const start = bridge.indexOf("const scriptPath = path.join(BRIDGE_DIR, 'mcp-server-remote.js')")
+  assert.notEqual(start, -1, 'remote MCP spawn block must exist')
+  const remoteSpawn = bridge.slice(start, start + 1400)
+  assert.match(remoteSpawn, /const childEnv = \{/)
   assert.match(remoteSpawn, /EVEGLYPH_DELEGATION_ENDPOINT/)
+  assert.match(remoteSpawn, /spawn\(process\.execPath, \[scriptPath, cwd\], \{ env: childEnv \}\)/)
   assert.doesNotMatch(remoteSpawn, /accessToken|refreshToken|credential_id|EVEGLYPH_GITHUB_CLIENT_SECRET|EVEGLYPH_GOOGLE_CLIENT_SECRET/)
 })
 
