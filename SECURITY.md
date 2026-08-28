@@ -26,6 +26,30 @@ Every allow/deny decision made by a capability session records actor-aware audit
 
 This foundation is not itself an OS/process sandbox and does not claim to make arbitrary native code safe. Wasmtime/WASI, Deno permissions, Linux sandbox primitives, gVisor/Firecracker, credential brokerage, and Google/GitHub connectors are separate layers attached behind the capability boundary.
 
+## Wasmtime physical document sandbox boundary
+
+PR-F adds the first physical execution boundary for untrusted document programs. It does **not** replace the capability control plane. Successful execution requires the existing `document-only` grants for `document.read.self`, `document.compute` and `ephemeral.output` **and** successful confinement by the Wasmtime runtime.
+
+The only guest profile is `wasi-stdio-json`. Before spawning Wasmtime, EveGlyph validates the binary with `WebAssembly.Module` for metadata inspection only, then accepts only these function imports:
+
+```text
+wasi_snapshot_preview1.fd_read
+wasi_snapshot_preview1.fd_write
+wasi_snapshot_preview1.proc_exit
+```
+
+The guest must export `_start`. Filesystem imports such as `path_open`, environment imports such as `environ_get`, socket/network imports, `env::*` and arbitrary host imports fail closed before process creation. The module is never instantiated through V8.
+
+Wasmtime 48.0.0 runs as a separate child process with `shell:false`, pipe-only stdio, a private per-execution cwd and fixed `module.wasm` staging name. No directory is preopened; guest environment/network inheritance is not enabled. The child receives a minimal explicit environment rather than the full EveGlyph process environment, so provider secrets, MCP tokens, HOME/USERPROFILE, SSH/AWS/Azure/OpenAI values and arbitrary parent variables are not forwarded.
+
+Execution is bounded by Wasmtime fuel and resource controls plus an independent Node wall-clock timer. PR-F validates memory growth with `trap-on-grow-failure=y`, caps decoded module/input/stdout/stderr sizes, and removes private staging in a `finally` path. Stable public error codes are used instead of forwarding raw Wasmtime stderr, process environment, staging paths or host stack traces.
+
+The shared MCP tool `execute_wasm_document` accepts only `module_base64`, JSON `input` and bounded `limits`. It has no module/workspace path, preopen, environment, network, command, shell, credential or delegation-ticket field. Its control-plane mapping matches the same three document capability requests enforced by the document-Wasm service.
+
+This boundary protects against ambient host authority through normal WebAssembly/WASI execution. It does **not** claim containment after a hypothetical full Wasmtime/JIT/native-code escape. OS-level process isolation is a separate future layer.
+
+See [`docs/WASMTIME-DOCUMENT-SANDBOX.md`](docs/WASMTIME-DOCUMENT-SANDBOX.md) for operator setup, exact limits, ABI and failure semantics.
+
 ## Persistent credential vault and delegation boundary
 
 GitHub and Google connector credentials can now persist through a provider-neutral OS-keyring broker. `system` is the default credential-store mode; `memory` must be selected explicitly. A system-keyring outage fails closed as `credential_vault_unavailable` and is mapped to a redacted HTTP 503. There is no automatic plaintext, workspace, browser-storage, or in-memory downgrade.

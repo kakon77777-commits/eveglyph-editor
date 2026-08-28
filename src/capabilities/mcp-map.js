@@ -35,6 +35,11 @@ const BASE_TOOL_REQUEST_BUILDERS = {
     ['document.compute', 'document:self'],
     ['ephemeral.output', 'execution:aimdc'],
   ],
+  execute_wasm_document: () => [
+    ['document.read.self', 'document:self'],
+    ['document.compute', 'document:self'],
+    ['ephemeral.output', 'execution:wasm'],
+  ],
   validate_world_ir: () => [
     ['document.read.self', 'document:self'],
     ['document.compute', 'document:self'],

@@ -152,6 +152,38 @@ PR-D adds short-lived, exact provider/operation/capability/resource delegation t
 
 See [`docs/CREDENTIAL-VAULT-AND-DELEGATION.md`](docs/CREDENTIAL-VAULT-AND-DELEGATION.md) and [`SECURITY.md`](SECURITY.md).
 
+## Wasmtime physical document sandbox
+
+PR-F adds a separate physical execution path for **untrusted WebAssembly document programs**. Existing AIMD-C stays on its closed JavaScript grammar/evaluator; arbitrary Wasm goes through the server-side Wasmtime boundary instead.
+
+The execution rule is:
+
+```text
+Policy Allow
+AND
+Wasmtime Physical Sandbox
+```
+
+The canonical runtime is **Wasmtime 48.0.0**. EveGlyph never downloads it automatically: install it manually and either place `wasmtime` on `PATH` or set `EVEGLYPH_WASMTIME_BIN` to the absolute executable path.
+
+The only guest profile is `wasi-stdio-json`. A guest receives UTF-8 JSON on stdin, returns one UTF-8 JSON value on stdout, exports `_start`, and may import only:
+
+```text
+wasi_snapshot_preview1.fd_read
+wasi_snapshot_preview1.fd_write
+wasi_snapshot_preview1.proc_exit
+```
+
+Filesystem preopens, guest environment inheritance, network inheritance, connector/credential host calls, arbitrary host imports, shell execution and workspace/module host paths are not exposed. Static import inspection rejects denied authority **before Wasmtime is spawned**.
+
+The runtime also applies fuel, memory, Wasm-stack, instance/memory/table-count, stdout/stderr and independent wall-clock limits. Each execution uses a private temporary cwd, a fixed `module.wasm` staging name, `shell:false`, pipe stdio and a minimal child environment; staging is removed in a `finally` path.
+
+The shared MCP tool is `execute_wasm_document`, which accepts only Base64 module bytes, JSON input and bounded limit overrides. Successful results include the module SHA-256 plus physical-sandbox and capability evidence.
+
+This is a WebAssembly/WASI **guest boundary**, not a claim that a fully compromised Wasmtime/JIT process is OS-contained. Windows Job Object/AppContainer, Linux namespace/seccomp/bubblewrap/gVisor or equivalent platform isolation remains a later layer.
+
+See [`docs/WASMTIME-DOCUMENT-SANDBOX.md`](docs/WASMTIME-DOCUMENT-SANDBOX.md) and [`SECURITY.md`](SECURITY.md) for the complete contract.
+
 ## How it works
 
 - **Frontend** — vanilla ES modules + CodeMirror, with all mutable state in a single `S` singleton (`src/`).
@@ -171,6 +203,7 @@ browser frontend  ⇄  Vite local bridges  ⇄  filesystem · git · CLI agent �
 - `read_file` / `write_file` — read/write a file by relative path (encoding-aware on read)
 - `evaluate_aimdc` — parse and evaluate a document's AIMD-C blocks through the `document-only` capability profile; the result includes sandbox/audit evidence
 - `validate_world_ir` — validate a World IR YAML document (state machine / entity / entity list)
+- `execute_wasm_document` — execute a Base64 WebAssembly module through the document-only policy plus Wasmtime physical sandbox
 
 The capability control plane also defines transport-neutral mappings for these base tools and the publication tools. The mapping is groundwork for later identity-aware MCP authorization; **the capability-foundation PR does not silently put existing workspace MCP tools behind a new grant-acquisition flow**, and the remote HTTP transport still uses its existing bearer-token compatibility mode.
 
