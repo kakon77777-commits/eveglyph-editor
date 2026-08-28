@@ -176,6 +176,27 @@ export function createGitHubConnectorService({
     return getStatus()
   }
 
+  function restoreAuth({ credentialId: restoredCredentialId } = {}) {
+    const description = broker.describe(restoredCredentialId)
+    if (description.provider !== 'github') {
+      throw codedError('credential_provider_mismatch', 'restored credential provider is not GitHub')
+    }
+    const accountId = Number(description.account?.id)
+    const login = typeof description.account?.login === 'string' ? description.account.login.trim() : ''
+    if (!Number.isFinite(accountId) || !login) {
+      throw codedError('github_identity_failed', 'restored GitHub account metadata is incomplete')
+    }
+    credentialId = description.credential_id
+    actor = createActorContext({
+      humanPrincipal: `github:user:${accountId}`,
+      client: 'eveglyph-editor',
+      session: `github:${credentialId}`,
+    })
+    // Persisted identity never restores prior session grants.
+    grants = []
+    return getStatus()
+  }
+
   function disconnect() {
     if (!credentialId) {
       actor = null
@@ -316,6 +337,7 @@ export function createGitHubConnectorService({
     getStatus,
     startAuth,
     completeAuth,
+    restoreAuth,
     disconnect,
     grantRepositoryRead,
     readRepositoryFile,
