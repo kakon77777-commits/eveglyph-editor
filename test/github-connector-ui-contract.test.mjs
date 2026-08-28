@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8')
 const settings = await readFile(new URL('../src/settings.js', import.meta.url), 'utf8')
 const main = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
+const settingsSurface = `${html}\n${settings}`
 
 const REQUIRED_IDS = [
   's-github-status',
@@ -27,20 +28,20 @@ const REQUIRED_EXPORTS = [
 ]
 
 test('Settings exposes GitHub identity, explicit repository read grant, and read-only file controls', () => {
-  assert.match(html, /GitHub Connector/)
-  assert.match(html, /OAuth connects identity only/i)
-  assert.match(html, /Grant read for this session/i)
+  assert.match(settingsSurface, /GitHub Connector/)
+  assert.match(settingsSurface, /OAuth connects identity only/i)
+  assert.match(settingsSurface, /Grant read for this session/i)
   for (const id of REQUIRED_IDS) {
-    assert.match(html, new RegExp(`id=["']${id}["']`), `missing Settings control ${id}`)
+    assert.match(settingsSurface, new RegExp(`id=[\\"']${id}[\\"']`), `missing Settings control ${id}`)
   }
-  assert.match(html, /<(pre|textarea)[^>]+id=["']s-github-read-result["']/i)
+  assert.match(settingsSurface, /<(pre|textarea)[^>]+id=[\\"']s-github-read-result[\\"']/i)
 })
 
-test('Settings HTML contains no GitHub access-token or client-secret input', () => {
-  const inputs = [...html.matchAll(/<input\b[^>]*>/gi)].map(match => match[0])
+test('GitHub Settings surface contains no access-token or client-secret input', () => {
+  const inputs = [...settingsSurface.matchAll(/<input\b[^>]*>/gi)].map(match => match[0])
   const dangerous = inputs.filter(input => /github[^>]*(access[-_ ]?token|client[-_ ]?secret)|(access[-_ ]?token|client[-_ ]?secret)[^>]*github/i.test(input))
   assert.deepEqual(dangerous, [])
-  assert.equal(/id=["'][^"']*github[^"']*(token|secret)[^"']*["']/i.test(html), false)
+  assert.equal(/id=[\\"'][^\\"']*github[^\\"']*(token|secret)[^\\"']*[\\"']/i.test(settingsSurface), false)
 })
 
 test('settings module exports the five GitHub connector actions', () => {
