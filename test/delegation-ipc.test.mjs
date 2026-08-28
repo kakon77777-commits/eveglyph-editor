@@ -130,6 +130,40 @@ test('one-use ticket survives a genuine concurrent-dispatch race: exactly one of
   }
 })
 
+test('sensitive-result filter catches key spellings the original exact-match list missed', async () => {
+  // Regression test for a real finding: the original filter was an
+  // exact-match Set of 8 literal key names (accessToken, refreshToken,
+  // clientSecret, access_token, refresh_token, client_secret,
+  // authorization, credentialEnvelope). A differently-cased or differently
+  // -spelled key sailed through untouched — including 'Authorization'
+  // (capital A, the actual HTTP header casing this codebase's own fetch
+  // calls use) and any key name not on that exact list at all (apiKey,
+  // bearerToken, githubClientSecret, ...). Currently no real handler
+  // returns credential-shaped data (nothing in PR#8/#9's connector reads
+  // does), so this was inert-but-fragile, not a live leak — this proves
+  // the broadened, case/separator-insensitive substring match closes the
+  // specific gap the exact-match list left open.
+  const { createDelegationBroker, createDelegationIpcServer } = await requireModules()
+  for (const badKey of ['Authorization', 'apiKey', 'bearerToken', 'GITHUB_CLIENT_SECRET', 'api-key']) {
+    const broker = createDelegationBroker()
+    const issued = broker.issue(claim)
+    const endpoint = endpointForTest()
+    const server = createDelegationIpcServer({
+      delegationBroker: broker,
+      endpoint,
+      handlers: { 'github:read-file': async () => ({ [badKey]: 'must-not-return' }) },
+    })
+    await server.start()
+    try {
+      const result = await invoke(endpoint, { method: 'invoke', ticket: issued.ticket, ...claim, input: {} })
+      assert.equal(result.ok, false, `key '${badKey}' should have been blocked, got ${JSON.stringify(result)}`)
+      assert.equal(result.error.code, 'ipc_sensitive_result_blocked')
+    } finally {
+      await server.stop()
+    }
+  }
+})
+
 test('IPC rejects malformed or oversized requests before handler execution and never exposes stack/credential fields', async () => {
   const { createDelegationBroker, createDelegationIpcServer } = await requireModules()
   let calls = 0

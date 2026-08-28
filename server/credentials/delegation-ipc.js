@@ -4,9 +4,29 @@ import os from 'node:os'
 import path from 'node:path'
 
 const DEFAULT_MAX_REQUEST_BYTES = 16 * 1024
-const SENSITIVE_KEYS = new Set([
-  'accessToken', 'refreshToken', 'clientSecret', 'access_token', 'refresh_token', 'client_secret', 'authorization', 'credentialEnvelope',
-])
+// Substring match against a normalized (lowercased, separators stripped) key
+// name — not an exact-match Set. The original exact-match list (accessToken,
+// refreshToken, clientSecret, ...) only caught a result whose key spelling,
+// case, and separator style matched one of 8 hardcoded literals exactly:
+// 'Authorization' (capital A — the actual HTTP header casing this codebase's
+// own fetch calls use), 'API_KEY', 'bearerToken', or any array element/bare
+// string value all sailed through untouched. Nothing in this codebase
+// currently returns credential-shaped data through a delegated result (the
+// GitHub/Google connector reads only ever return { content, size, ... }), so
+// this filter is a backstop against a future mistake, not a fix for a live
+// leak — but it's the sole safety net for that invariant, so it should catch
+// the whole shape family, not one exact spelling of it.
+const SENSITIVE_KEY_PATTERNS = [
+  'token', 'secret', 'password', 'passwd', 'bearer', 'authorization',
+  'privatekey', 'credential', 'apikey', 'clientid',
+]
+function normalizeKeyForSensitivityCheck(key) {
+  return String(key).toLowerCase().replace(/[_\-\s]/g, '')
+}
+function isSensitiveKey(key) {
+  const normalized = normalizeKeyForSensitivityCheck(key)
+  return SENSITIVE_KEY_PATTERNS.some(pattern => normalized.includes(pattern))
+}
 
 function codedError(code, message) {
   const error = new Error(message)
@@ -52,7 +72,13 @@ const PUBLIC_MESSAGES = Object.freeze({
 })
 
 function stableError(error) {
-  const code = typeof error?.code === 'string' && error.code in PUBLIC_MESSAGES
+  // Object.hasOwn, not the `in` operator — `in` also walks the prototype
+  // chain, so error.code === 'constructor' would resolve PUBLIC_MESSAGES's
+  // inherited Object.prototype.constructor instead of failing to the
+  // ipc_internal_error fallback. Not independently exploitable (this only
+  // controls which fixed, non-secret message string gets echoed back), but
+  // the same anti-pattern already fixed in src/capabilities/registry.js.
+  const code = typeof error?.code === 'string' && Object.hasOwn(PUBLIC_MESSAGES, error.code)
     ? error.code
     : 'ipc_internal_error'
   return { ok: false, error: { code, message: PUBLIC_MESSAGES[code] } }
@@ -64,7 +90,7 @@ function containsSensitiveKey(value, seen = new Set()) {
   seen.add(value)
   if (Array.isArray(value)) return value.some(item => containsSensitiveKey(item, seen))
   for (const [key, child] of Object.entries(value)) {
-    if (SENSITIVE_KEYS.has(key)) return true
+    if (isSensitiveKey(key)) return true
     if (containsSensitiveKey(child, seen)) return true
   }
   return false
