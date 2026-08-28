@@ -38,6 +38,9 @@ jobs:
       - name: Connector delegation issuance tests
         run: node --test test/connector-delegation-issuance.test.mjs
 
+      - name: Connector delegation runtime tests
+        run: node --test test/connector-delegation-runtime.test.mjs
+
       - name: Credential broker tests
         run: npm run test:credential-broker
 
