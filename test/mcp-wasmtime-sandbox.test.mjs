@@ -6,6 +6,7 @@ import path from 'node:path'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { resolveMcpToolCapabilityRequests } from '../src/capabilities/mcp-map.js'
 
 const fixture = name => readFile(path.resolve('.tmp/wasmtime-fixtures', `${name}.wasm`))
 
@@ -14,6 +15,17 @@ function textJson(result) {
   assert.ok(text, 'tool result must contain JSON text')
   return JSON.parse(text)
 }
+
+test('execute_wasm_document capability metadata matches the document Wasm service baseline', () => {
+  assert.deepEqual(
+    resolveMcpToolCapabilityRequests('execute_wasm_document').map(request => [request.capability, request.resource]),
+    [
+      ['document.read.self', 'document:self'],
+      ['document.compute', 'document:self'],
+      ['ephemeral.output', 'execution:wasm'],
+    ],
+  )
+})
 
 test('stdio MCP exposes one Wasmtime document tool with no host-path/capability injection surface', async () => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), 'eveglyph-mcp-wasmtime-'))
