@@ -197,6 +197,24 @@ export function createGoogleDriveConnectorService({
     return getStatus()
   }
 
+  function restoreAuth({ credentialId: restoredCredentialId } = {}) {
+    const description = broker.describe(restoredCredentialId)
+    if (description.provider !== 'google') {
+      throw codedError('credential_provider_mismatch', 'restored credential provider is not Google')
+    }
+    const sub = typeof description.account?.sub === 'string' ? description.account.sub.trim() : ''
+    if (!sub) throw codedError('google_identity_failed', 'restored Google account metadata is incomplete')
+    credentialId = description.credential_id
+    actor = createActorContext({
+      humanPrincipal: `google:account:${sub}`,
+      client: 'eveglyph-editor',
+      session: `google:${credentialId}`,
+    })
+    // Persisted identity never restores prior session grants.
+    grants = []
+    return getStatus()
+  }
+
   function disconnect() {
     if (!credentialId) {
       actor = null
@@ -381,6 +399,7 @@ export function createGoogleDriveConnectorService({
     getStatus,
     startAuth,
     completeAuth,
+    restoreAuth,
     disconnect,
     grantMetadataList,
     listDriveFiles,
