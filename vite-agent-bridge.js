@@ -751,7 +751,7 @@ async function getAgentsInfo(force = false) {
   return agentsCache
 }
 
-export function agentBridge() {
+export function agentBridge({ delegationEndpoint = null } = {}) {
   return {
     name: 'eveglyph-agent-bridge',
     apply: 'serve',
@@ -1167,11 +1167,15 @@ export function agentBridge() {
         }
 
         const scriptPath = path.join(BRIDGE_DIR, 'mcp-server-remote.js')
+        const childEnv = {
+          ...process.env,
+          EVEGLYPH_MCP_TOKEN: token,
+          EVEGLYPH_MCP_PORT: String(port),
+          ...(delegationEndpoint ? { EVEGLYPH_DELEGATION_ENDPOINT: delegationEndpoint } : {}),
+        }
         let child
         try {
-          child = spawn(process.execPath, [scriptPath, cwd], {
-            env: { ...process.env, EVEGLYPH_MCP_TOKEN: token, EVEGLYPH_MCP_PORT: String(port) },
-          })
+          child = spawn(process.execPath, [scriptPath, cwd], { env: childEnv })
         } catch (e) {
           emitMonitor('mcp:error', { cwd, port, error: String(e?.message || e) })
           res.statusCode = 500; return res.end(String(e?.message || e))
