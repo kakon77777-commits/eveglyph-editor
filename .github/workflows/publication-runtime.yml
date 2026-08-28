@@ -8,6 +8,7 @@ on:
       - feat/google-drive-connector-broker
       - feat/persistent-credential-delegation-broker
       - feat/mcp-delegated-connector-operations
+      - feat/wasmtime-document-sandbox-runtime
   pull_request:
     branches:
       - main
@@ -31,6 +32,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Wasmtime import-policy tests
+        run: node --test test/wasmtime-import-policy.test.mjs
 
       - name: MCP delegation tests
         run: npm run test:mcp-delegation
