@@ -6,6 +6,26 @@ EveGlyph Editor is a **local-first developer tool**: it runs on your own machine
 
 The bridge is dev-only and localhost-gated. The biggest risk is **by design**: local-agent mode lets a CLI edit your files with auto-approve. You stay in control through a per-workspace confirmation and git-based diff review.
 
+## Capability sandbox foundation
+
+AIMD-C document computation now enters through a provider-neutral capability control plane before the existing pure graph evaluator runs. The default profile is **`document-only`** and contains only:
+
+- `document.read.self` on `document:self`;
+- `document.compute` on `document:self`;
+- `ephemeral.output` on `execution:*`.
+
+The document runtime does **not** receive filesystem handles, network clients, process-spawn APIs, host environment objects, OAuth credentials, Google credentials, GitHub credentials, or connector clients. Those authorities are represented separately and are denied by default. If a future caller needs authority outside the document boundary, it must make an explicit capability request and obtain a matching resource-scoped grant first.
+
+Capability requests carry a capability id, resource, lifetime, reason, and inert context metadata. Grants require an exact capability match and either an exact resource or a single trailing-`*` prefix scope. Read does not imply write. Unknown capabilities and unknown sandbox profiles fail closed. Expired grants do not authorize, and an explicit `once` grant is consumed after its first successful authorization.
+
+Every allow/deny decision made by a capability session records actor-aware audit evidence: event id, timestamp, actor context, sandbox profile, request, decision, reason, and matching grant source. The actor context can carry the human principal, client, agent, document, and session independently; authentication identity alone is not treated as an execution sandbox.
+
+`src/aimdc/graph.js` intentionally remains a low-level pure evaluator rather than owning security policy. The browser preview and MCP `evaluate_aimdc` call the authority-aware document wrapper. Dynamic Logic projections passed to AIMD-C remain read-only, same-document runtime data and do not become network/provider authority.
+
+`src/capabilities/mcp-map.js` also records the authority requirements of the current base/publication MCP tools. That mapping is **control-plane groundwork**, not a silent behavior change to all existing MCP calls: PR-A does not yet provide a user-facing grant-acquisition/OAuth flow, so workspace tools retain their current transport-level behavior. Remote MCP still uses the bearer-token compatibility model described below. Later OAuth/connector middleware must consume this same capability model rather than introducing a second authorization vocabulary.
+
+This foundation is not itself an OS/process sandbox and does not claim to make arbitrary native code safe. Wasmtime/WASI, Deno permissions, Linux sandbox primitives, gVisor/Firecracker, credential brokerage, and Google/GitHub connectors are separate later layers that can be attached behind the capability boundary.
+
 ## The local bridge
 
 - The `/api/*` bridge (`vite-agent-bridge.js`) is a Vite plugin declared **`apply: 'serve'`** — it exists only under `npm run dev`, never in a production build.
@@ -39,7 +59,7 @@ A separate trust model from the bridge above — read this before pointing an MC
 - **stdio only, no network exposure.** The server communicates over stdin/stdout with whatever process spawned it (your MCP client) — it never opens a TCP port, so there is no localhost-gating story to get right or wrong, and no LAN-exposure risk analogous to the bridge's `--host` caveat. This is deliberately the v1 scope (Neo's call, 2026-07-22): local stdio only, no remote/tunnel reachability — that would need its own, separate security design (real authentication, not just "the process is local") before being built.
 - **Workspace root is explicit and required.** The server refuses to start without a workspace-root argument (`node mcp-server.js <path>`) — there is no implicit "confine to cwd" fallback. Every file operation resolves the target path against that root and rejects anything that would escape it (mirrors the bridge's `resolveInside`), verified with an explicit `../../..` escape-attempt test during development.
 - **No diff-review layer of its own.** Unlike local-agent mode, `write_file` here does not snapshot/diff/require an Accept step — it writes immediately. This is intentional, not an oversight: an MCP host (Claude Desktop, Claude Code, etc.) already gates each tool call through its own human-approval UI before it runs, which fills the same "a human sees this before it happens" role the bridge's Accept/Reject view fills for an autonomous CLI agent. If the workspace is a git repo, your normal `git diff`/`git log` still works exactly as before — nothing about this server changes how git sees the files.
-- **`evaluate_aimdc` runs on untrusted expression text**, same as the in-app preview — it uses the same closed-grammar, no-`eval`/`Function` evaluator (`src/aimdc/evaluator.js`), so a malformed or adversarial AIMD-C block can only produce a parse/type error, never arbitrary code execution.
+- **`evaluate_aimdc` runs on untrusted expression text**, same as the in-app preview — it uses the same closed-grammar, no-`eval`/`Function` evaluator (`src/aimdc/evaluator.js`) and now enters through the `document-only` capability wrapper first. A malformed or adversarial AIMD-C block can only produce a parse/type error within the evaluator; it is not handed workspace/network/process/credential authority.
 - **Known, not-applicable advisory**: `npm audit` flags a moderate path-traversal issue in `@hono/node-server` (a transitive dependency of `@modelcontextprotocol/sdk`'s HTTP-transport code, `GHSA-frvp-7c67-39w9`). The specific vulnerable export is Hono's `serve-static` middleware; the SDK's `StreamableHTTPServerTransport` only imports `getRequestListener` (a plain Node↔Web-standard request/response adapter) — confirmed by reading the SDK's own source, not assumed — so the vulnerable code path is never loaded by either `mcp-server.js` or `mcp-server-remote.js` below. Noted here rather than silently ignored, not treated as urgent.
 
 ## The remote MCP server (`mcp-server-remote.js`)
