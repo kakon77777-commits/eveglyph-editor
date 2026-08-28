@@ -107,6 +107,9 @@ jobs:
       - name: Verify MCP delegation boundary
         run: node scripts/verify_mcp_delegation_boundary.mjs
 
+      - name: Verify Wasmtime physical sandbox boundary
+        run: npm run verify:wasmtime-sandbox
+
       - name: Dynamic logic regression
         run: npm run verify:dynamic-logic
 
