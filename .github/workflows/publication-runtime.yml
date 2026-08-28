@@ -5,6 +5,7 @@ on:
     branches:
       - feat/mcp-publication-runtime-mvp
       - feat/github-connector-broker
+      - feat/google-drive-connector-broker
   pull_request:
     branches:
       - main
@@ -29,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Google connector tests
+        run: npm run test:google-connector
+
       - name: GitHub connector tests
         run: npm run test:github-connector
 
@@ -51,12 +55,12 @@ jobs:
         run: npm run verify:dynamic-rendering
 
       - name: Package verified PR source
-        run: git archive --format=zip --output=eveglyph-github-connector-broker.zip HEAD
+        run: git archive --format=zip --output=eveglyph-google-drive-connector-broker.zip HEAD
 
       - name: Upload verified PR source
         uses: actions/upload-artifact@v4
         with:
-          name: eveglyph-github-connector-broker
-          path: eveglyph-github-connector-broker.zip
+          name: eveglyph-google-drive-connector-broker
+          path: eveglyph-google-drive-connector-broker.zip
           if-no-files-found: error
           retention-days: 14
