@@ -1,6 +1,7 @@
 const ERROR_STATUS = Object.freeze({
   github_not_configured: 503,
   credential_vault_unavailable: 503,
+  delegation_unavailable: 503,
   github_invalid_oauth_state: 400,
   github_oauth_state_expired: 400,
   github_oauth_exchange_failed: 502,
@@ -21,6 +22,7 @@ const ERROR_STATUS = Object.freeze({
 const PUBLIC_MESSAGES = Object.freeze({
   github_not_configured: 'GitHub App OAuth is not configured on this EveGlyph server.',
   credential_vault_unavailable: 'Credential vault is unavailable. Unlock or restore the system credential store and try again.',
+  delegation_unavailable: 'Connector delegation runtime is unavailable.',
   github_invalid_oauth_state: 'GitHub OAuth state is invalid or was already used.',
   github_oauth_state_expired: 'GitHub OAuth state expired. Start authentication again.',
   github_oauth_exchange_failed: 'GitHub OAuth token exchange failed.',
@@ -126,6 +128,17 @@ export function createGitHubConnectorHttpController({ service } = {}) {
     }
   }
 
+  function issueDelegatedRead({ repository, path, ref } = {}) {
+    try {
+      return Object.freeze({
+        status: 200,
+        body: service.issueRepositoryFileDelegation({ repository, path, ref }),
+      })
+    } catch (error) {
+      return publicError(error)
+    }
+  }
+
   async function readFile({ repository, path, ref } = {}) {
     try {
       const result = await service.readRepositoryFile({ repository, path, ref })
@@ -141,6 +154,7 @@ export function createGitHubConnectorHttpController({ service } = {}) {
     callback,
     disconnect,
     grantRead,
+    issueDelegatedRead,
     readFile,
   })
 }
