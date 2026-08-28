@@ -62,11 +62,11 @@ jobs:
       - name: Wasmtime real runtime tests
         run: node --test test/wasmtime-real-runtime.test.mjs
 
-      - name: Diagnose exact Wasmtime 48 traps
-        run: node scripts/diagnose_wasmtime_traps.mjs
-
       - name: Wasmtime resource-limit tests
         run: node --test test/wasmtime-resource-limits.test.mjs
+
+      - name: Document Wasm service tests
+        run: node --test test/document-wasm-service.test.mjs
 
       - name: MCP delegation tests
         run: npm run test:mcp-delegation
