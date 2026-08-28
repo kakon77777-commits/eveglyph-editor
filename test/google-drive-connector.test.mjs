@@ -254,6 +254,66 @@ test('Drive read rejects oversized or non-UTF-8 content and unsupported Google W
   }
 })
 
+test('an oversized Google Doc export is rejected without buffering the full body first', async () => {
+  // Regression test for a real finding: readTextBytes() only pre-checked
+  // size via Content-Length or Drive's file.size metadata. Google Docs
+  // exports (files.export) have neither — the export is generated on the
+  // fly with no advertised length, and Drive's file metadata never
+  // populates `size` for native Workspace documents. So exactly the file
+  // type most likely to lack both signals also skipped the pre-flight size
+  // check entirely, and got fully buffered into memory before the
+  // post-hoc byte-length check finally rejected it. Still failed closed
+  // (no oversized content was ever returned) — this was a resource-
+  // exhaustion gap, not a confidentiality leak — but it contradicted the
+  // connector's own "1 MiB enforced before buffering" claim for this path.
+  const { MAX_DRIVE_TEXT_BYTES } = await requireDriveService()
+  const chunkSize = 64 * 1024
+  const totalBytes = MAX_DRIVE_TEXT_BYTES * 4 // a lot more than the limit
+  let bytesPulled = 0
+  let cancelled = false
+  const { service } = await connectedService({
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url))
+      if (!parsed.pathname.endsWith('/export')) {
+        // Deliberately no `size` field — matches what Drive's real
+        // metadata response for a native Google Doc actually looks like.
+        return jsonResponse({ id: 'doc_oversized123456', name: 'huge doc', mimeType: 'application/vnd.google-apps.document' })
+      }
+      // No Content-Length header either — matches a real export response.
+      let sent = 0
+      const body = new ReadableStream({
+        pull(controller) {
+          if (sent >= totalBytes) { controller.close(); return }
+          const size = Math.min(chunkSize, totalBytes - sent)
+          const chunk = new Uint8Array(size).fill(0x61)
+          sent += size
+          bytesPulled += size
+          controller.enqueue(chunk)
+        },
+        cancel() { cancelled = true },
+      })
+      return { ok: true, status: 200, headers: new Headers(), body }
+    },
+  })
+
+  service.grantFileRead({ fileId: 'doc_oversized123456' })
+  await assert.rejects(
+    service.readDriveFile({ fileId: 'doc_oversized123456' }),
+    error => error?.code === 'google_drive_file_too_large',
+  )
+  // The real assertion: readTextBytes must abort as soon as the running
+  // total crosses the limit, not after draining all totalBytes (4x the
+  // limit) into memory first. The exact stop point isn't pinned to a
+  // single chunk: ReadableStream's default queuing strategy lets the
+  // producer buffer a little ahead of what the consumer has actually
+  // read via reader.read(), so a small multi-chunk margin is expected
+  // stream behavior, not a bug — the bound below (4 chunks) is generous
+  // enough to absorb that while still being nowhere near totalBytes.
+  assert.ok(bytesPulled < totalBytes, `expected an early abort, but all ${totalBytes} bytes were pulled from the stream`)
+  assert.ok(bytesPulled <= MAX_DRIVE_TEXT_BYTES + (chunkSize * 4), `expected to stop close to the limit, pulled ${bytesPulled} bytes (limit ${MAX_DRIVE_TEXT_BYTES})`)
+  assert.equal(cancelled, true, 'the underlying stream reader should be cancelled once the limit is exceeded')
+})
+
 test('expiring Google token refreshes before Drive API access', async () => {
   let refreshCount = 0
   const seenAuth = []

@@ -94,6 +94,55 @@ async function readJsonResponse(response, code = 'google_drive_api_error') {
   catch { throw codedError(code, 'Google Drive API returned invalid JSON') }
 }
 
+// Reads the body incrementally and aborts as soon as the byte count exceeds
+// the limit, instead of buffering the whole response first and checking
+// afterward. This matters specifically for Google Docs exports
+// (files.export): they're generated on the fly with no Content-Length
+// header, and Drive's files.get metadata doesn't report a `size` for native
+// Workspace documents either — so the pre-flight metadata/header checks
+// both no-op for exactly this file type, and an oversized export used to
+// get fully buffered into memory (still rejected afterward, never returned
+// to the caller, but only after paying the full allocation).
+async function readBoundedBody(response, maxBytes) {
+  const reader = response.body?.getReader?.()
+  if (!reader) {
+    // No streaming body available (e.g. a test double that only implements
+    // arrayBuffer()) — fall back to buffer-then-check. Every real fetch()
+    // Response has a streaming .body, so this path is test-only.
+    let buffer
+    try { buffer = await response.arrayBuffer() }
+    catch { throw codedError('google_drive_api_error', 'Google Drive content response could not be read') }
+    const bytes = new Uint8Array(buffer)
+    if (bytes.byteLength > maxBytes) {
+      throw codedError('google_drive_file_too_large', 'Google Drive file exceeds the 1 MiB connector limit')
+    }
+    return bytes
+  }
+
+  const chunks = []
+  let total = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {})
+        throw codedError('google_drive_file_too_large', 'Google Drive file exceeds the 1 MiB connector limit')
+      }
+      chunks.push(value)
+    }
+  } catch (e) {
+    if (e?.code === 'google_drive_file_too_large') throw e
+    throw codedError('google_drive_api_error', 'Google Drive content response could not be read')
+  }
+
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength }
+  return bytes
+}
+
 async function readTextBytes(response) {
   if (!response?.ok) throw codedError('google_drive_api_error', `Google Drive content request failed (HTTP ${response?.status ?? 'unknown'})`)
   const announced = responseContentLength(response)
@@ -101,13 +150,7 @@ async function readTextBytes(response) {
     throw codedError('google_drive_file_too_large', 'Google Drive file exceeds the 1 MiB connector limit')
   }
 
-  let buffer
-  try { buffer = await response.arrayBuffer() }
-  catch { throw codedError('google_drive_api_error', 'Google Drive content response could not be read') }
-  const bytes = new Uint8Array(buffer)
-  if (bytes.byteLength > MAX_DRIVE_TEXT_BYTES) {
-    throw codedError('google_drive_file_too_large', 'Google Drive file exceeds the 1 MiB connector limit')
-  }
+  const bytes = await readBoundedBody(response, MAX_DRIVE_TEXT_BYTES)
 
   let content
   try { content = new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
