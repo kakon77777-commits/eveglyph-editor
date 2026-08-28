@@ -44,33 +44,52 @@ for (const file of publicSettings) {
 }
 
 const browserFiles = await collectFiles(path.join(root, 'src'), file => file.endsWith('.js'))
-const rootEntries = await readdir(root, { withFileTypes: true })
-const mcpFiles = rootEntries
-  .filter(entry => entry.isFile() && /^mcp-.*\.js$/.test(entry.name))
-  .map(entry => path.join(root, entry.name))
-const boundaryFiles = [...browserFiles, ...mcpFiles]
-const forbiddenCredentialInternals = [
-  '@napi-rs/keyring',
-  'system-keyring-vault',
-  'persistent-broker',
-  'server/credentials/',
-  'server\\credentials\\',
-]
-
-for (const file of boundaryFiles) {
+for (const file of browserFiles) {
   const source = await readFile(file, 'utf8')
-  for (const needle of forbiddenCredentialInternals) {
+  for (const needle of [
+    '@napi-rs/keyring',
+    'system-keyring-vault',
+    'persistent-broker',
+    'server/credentials/',
+    'server\\credentials\\',
+  ]) {
     assert.equal(source.includes(needle), false, `${relative(file)} imports or references credential-vault internals: ${needle}`)
   }
 }
 
-// PR-D creates delegation primitives but deliberately does not wire connector
-// delegation into the standalone MCP entry points yet.
+const rootEntries = await readdir(root, { withFileTypes: true })
+const mcpFiles = rootEntries
+  .filter(entry => entry.isFile() && /^mcp-.*\.js$/.test(entry.name))
+  .map(entry => path.join(root, entry.name))
+
+// PR-E deliberately permits one credential-free local delegation IPC client,
+// but MCP must still remain outside credential custody and provider OAuth.
+const forbiddenMcpCredentialInternals = [
+  '@napi-rs/keyring',
+  'system-keyring-vault',
+  'persistent-broker',
+  'memory-broker',
+  'credentials/runtime',
+  'credentialRuntime',
+  'credential_id',
+  'credentialEnvelope',
+  'createGitHubAppOAuth',
+  'createGoogleOAuth',
+]
 for (const file of mcpFiles) {
   const source = await readFile(file, 'utf8')
-  for (const needle of ['delegation-broker', 'delegation-ipc']) {
-    assert.equal(source.includes(needle), false, `${relative(file)} prematurely wires MCP delegation: ${needle}`)
+  for (const needle of forbiddenMcpCredentialInternals) {
+    assert.equal(source.includes(needle), false, `${relative(file)} crosses credential custody boundary: ${needle}`)
   }
+}
+
+const delegatedMcp = path.join(root, 'mcp-connectors.js')
+assert.equal(await exists(delegatedMcp), true, 'mcp-connectors.js is required for PR-E')
+const delegatedSource = await readFile(delegatedMcp, 'utf8')
+assert.match(delegatedSource, /delegation-ipc-client\.js/, 'delegated MCP must use the credential-free local IPC client')
+assert.match(delegatedSource, /delegated-contracts\.js/, 'delegated MCP must use the canonical operation contract')
+for (const pattern of [/\baccessToken\b/, /\brefreshToken\b/, /\bclientSecret\b/]) {
+  assert.equal(pattern.test(delegatedSource), false, `mcp-connectors.js exposes raw credential property ${pattern}`)
 }
 
 const distRoot = path.join(root, 'dist')
@@ -91,4 +110,4 @@ for (const file of builtFiles) {
   }
 }
 
-console.log(`Credential boundary verification PASS (${boundaryFiles.length} source files, ${builtFiles.length} built files checked)`)
+console.log(`Credential boundary verification PASS (${browserFiles.length + mcpFiles.length} source files, ${builtFiles.length} built files checked)`)
