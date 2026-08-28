@@ -7,6 +7,7 @@ on:
       - feat/github-connector-broker
       - feat/google-drive-connector-broker
       - feat/persistent-credential-delegation-broker
+      - feat/mcp-delegated-connector-operations
   pull_request:
     branches:
       - main
@@ -30,6 +31,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: MCP delegated contract tests
+        run: node --test test/mcp-delegated-contracts.test.mjs
 
       - name: Credential broker tests
         run: npm run test:credential-broker
@@ -68,12 +72,12 @@ jobs:
         run: npm run verify:dynamic-rendering
 
       - name: Package verified PR source
-        run: git archive --format=zip --output=eveglyph-persistent-credential-delegation-broker.zip HEAD
+        run: git archive --format=zip --output=eveglyph-mcp-delegated-connector-operations.zip HEAD
 
       - name: Upload verified PR source
         uses: actions/upload-artifact@v4
         with:
-          name: eveglyph-persistent-credential-delegation-broker
-          path: eveglyph-persistent-credential-delegation-broker.zip
+          name: eveglyph-mcp-delegated-connector-operations
+          path: eveglyph-mcp-delegated-connector-operations.zip
           if-no-files-found: error
           retention-days: 14
