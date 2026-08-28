@@ -1,6 +1,7 @@
 const ERROR_STATUS = Object.freeze({
   google_not_configured: 503,
   credential_vault_unavailable: 503,
+  delegation_unavailable: 503,
   google_invalid_oauth_state: 400,
   google_oauth_state_expired: 400,
   google_oauth_exchange_failed: 502,
@@ -21,6 +22,7 @@ const ERROR_STATUS = Object.freeze({
 const PUBLIC_MESSAGES = Object.freeze({
   google_not_configured: 'Google OAuth is not configured on this EveGlyph server.',
   credential_vault_unavailable: 'Credential vault is unavailable. Unlock or restore the system credential store and try again.',
+  delegation_unavailable: 'Connector delegation runtime is unavailable.',
   google_invalid_oauth_state: 'Google OAuth state is invalid or was already used.',
   google_oauth_state_expired: 'Google OAuth state expired. Start authentication again.',
   google_oauth_exchange_failed: 'Google OAuth token exchange failed.',
@@ -85,18 +87,10 @@ export function createGoogleDriveConnectorHttpController({ service } = {}) {
   async function callback({ code, state } = {}) {
     try {
       await service.completeAuth({ code, state })
-      return Object.freeze({
-        status: 200,
-        contentType: 'text/html; charset=utf-8',
-        body: callbackHtml({ ok: true }),
-      })
+      return Object.freeze({ status: 200, contentType: 'text/html; charset=utf-8', body: callbackHtml({ ok: true }) })
     } catch (error) {
       const codeValue = errorCode(error)
-      return Object.freeze({
-        status: ERROR_STATUS[codeValue] || 500,
-        contentType: 'text/html; charset=utf-8',
-        body: callbackHtml({ ok: false, code: codeValue }),
-      })
+      return Object.freeze({ status: ERROR_STATUS[codeValue] || 500, contentType: 'text/html; charset=utf-8', body: callbackHtml({ ok: false, code: codeValue }) })
     }
   }
 
@@ -112,6 +106,11 @@ export function createGoogleDriveConnectorHttpController({ service } = {}) {
     catch (error) { return publicError(error) }
   }
 
+  function issueDelegatedList({ pageToken = null } = {}) {
+    try { return Object.freeze({ status: 200, body: service.issueMetadataListDelegation({ pageToken }) }) }
+    catch (error) { return publicError(error) }
+  }
+
   async function listFiles({ pageToken = null } = {}) {
     try { return Object.freeze({ status: 200, body: await service.listDriveFiles({ pageToken }) }) }
     catch (error) { return publicError(error) }
@@ -119,6 +118,11 @@ export function createGoogleDriveConnectorHttpController({ service } = {}) {
 
   function grantFileRead({ fileId } = {}) {
     try { return Object.freeze({ status: 200, body: service.grantFileRead({ fileId }) }) }
+    catch (error) { return publicError(error) }
+  }
+
+  function issueDelegatedFileRead({ fileId } = {}) {
+    try { return Object.freeze({ status: 200, body: service.issueFileReadDelegation({ fileId }) }) }
     catch (error) { return publicError(error) }
   }
 
@@ -133,8 +137,10 @@ export function createGoogleDriveConnectorHttpController({ service } = {}) {
     callback,
     disconnect,
     grantMetadata,
+    issueDelegatedList,
     listFiles,
     grantFileRead,
+    issueDelegatedFileRead,
     readFile,
   })
 }
