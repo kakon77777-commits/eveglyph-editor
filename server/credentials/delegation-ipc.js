@@ -126,7 +126,9 @@ export function createDelegationIpcServer({
   async function start() {
     if (server) return endpoint
     removeStaleSocket()
-    server = net.createServer(onConnection)
+    // Keep the server's writable side open after a client half-closes its
+    // request stream. The protocol reads until client FIN, then replies.
+    server = net.createServer({ allowHalfOpen: true }, onConnection)
     await new Promise((resolve, reject) => {
       server.once('error', reject)
       server.listen(endpoint, () => {
