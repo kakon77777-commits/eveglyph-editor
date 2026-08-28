@@ -23,8 +23,13 @@ const GITHUB_SETTINGS_HTML = `
                 <label>Read repository file</label>
                 <input type="text" id="s-github-path" placeholder="README.md" autocomplete="off">
                 <input type="text" id="s-github-ref" placeholder="main (optional)" autocomplete="off" style="margin-top:6px">
-                <button class="btn-s" id="btn-github-read" disabled style="margin-top:6px">Read file</button>
+                <div class="agent-row" style="margin-top:6px">
+                  <button class="btn-s" id="btn-github-read" disabled>Read file</button>
+                  <button class="btn-s" id="btn-github-issue-mcp-read" disabled>Issue MCP read ticket</button>
+                </div>
                 <pre id="s-github-read-result" style="margin-top:6px;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--t2)"></pre>
+                <pre id="s-github-delegation-result" style="margin-top:6px;max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--t2)"></pre>
+                <span style="font-size:10px;color:var(--t3)">MCP delegation tickets are short-lived and one-use. EveGlyph does not persist them; a third-party MCP host may log tool arguments.</span>
               </div>
             </div>
 `
@@ -33,12 +38,7 @@ const MODULE_SCRIPT = '<script type="module" src="/src/githubsettings.js"></scri
 const MCP_SETTINGS_ANCHOR = '<div id="s-mcp-wrap"'
 
 function transformSettingsHtml(html) {
-  // Anchor to a semantic element id, not a comment. Vite (and other HTML
-  // transforms) may remove or rewrite comments, while the Settings container
-  // id is a runtime contract that must survive.
-  if (!html.includes(MCP_SETTINGS_ANCHOR)) {
-    throw new Error('GitHub Settings insertion point not found')
-  }
+  if (!html.includes(MCP_SETTINGS_ANCHOR)) throw new Error('GitHub Settings insertion point not found')
   let next = html.replace(MCP_SETTINGS_ANCHOR, `${GITHUB_SETTINGS_HTML}\n            ${MCP_SETTINGS_ANCHOR}`)
   if (!next.includes('/src/githubsettings.js')) {
     if (!next.includes('</body>')) throw new Error('GitHub Settings module insertion point not found')
@@ -50,13 +50,7 @@ function transformSettingsHtml(html) {
 export function githubSettingsUi() {
   return {
     name: 'eveglyph-github-settings-ui',
-    // This must run before Vite's core HTML pipeline. Otherwise the injected
-    // source-module script survives into dist/index.html as /src/... instead of
-    // being discovered, bundled and rewritten to a hashed build asset.
-    transformIndexHtml: {
-      order: 'pre',
-      handler: transformSettingsHtml,
-    },
+    transformIndexHtml: { order: 'pre', handler: transformSettingsHtml },
   }
 }
 
