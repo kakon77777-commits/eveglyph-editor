@@ -32,20 +32,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: MCP delegated contract tests
-        run: node --test test/mcp-delegated-contracts.test.mjs
-
-      - name: Connector delegation issuance tests
-        run: node --test test/connector-delegation-issuance.test.mjs
-
-      - name: Connector delegation runtime tests
-        run: node --test test/connector-delegation-runtime.test.mjs
-
-      - name: MCP delegated connector tests
-        run: node --test test/mcp-delegated-connectors.test.mjs
-
-      - name: MCP delegation endpoint and Settings tests
-        run: node --test test/mcp-delegation-endpoint-wiring.test.mjs
+      - name: MCP delegation tests
+        run: npm run test:mcp-delegation
 
       - name: Credential broker tests
         run: npm run test:credential-broker
@@ -76,6 +64,9 @@ jobs:
 
       - name: Verify credential boundary
         run: node scripts/verify_credential_boundary.mjs
+
+      - name: Verify MCP delegation boundary
+        run: node scripts/verify_mcp_delegation_boundary.mjs
 
       - name: Dynamic logic regression
         run: npm run verify:dynamic-logic
