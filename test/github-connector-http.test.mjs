@@ -6,8 +6,12 @@ async function requireController() {
   catch (error) { assert.fail(`GitHub HTTP controller is not implemented: ${error?.message || error}`) }
 }
 
+function serialize(value) {
+  return typeof value === 'string' ? value : JSON.stringify(value)
+}
+
 function secretFree(value) {
-  const text = typeof value === 'string' ? value : JSON.stringify(value)
+  const text = serialize(value)
   for (const secret of ['ghu_fake_secret', 'ghr_fake_refresh', 'client-secret-value', 'oauth-code-secret', 'pkce-verifier-secret']) {
     assert.equal(text.includes(secret), false, `serialized response leaked ${secret}`)
   }
@@ -128,7 +132,8 @@ test('controller maps connector failures to stable redacted public errors', asyn
 
   for (const [response, status, code] of cases) {
     assert.equal(response.status, status)
-    assert.match(String(response.body), new RegExp(code))
-    secretFree(response.body)
+    const serialized = serialize(response.body)
+    assert.match(serialized, new RegExp(code))
+    secretFree(serialized)
   }
 })
