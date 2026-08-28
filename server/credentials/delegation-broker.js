@@ -88,6 +88,20 @@ export function createDelegationBroker({
     return Object.freeze({ ticket, delegation: publicRecord(record) })
   }
 
+  // INVARIANT: this function must stay fully synchronous — no `await`
+  // anywhere in its body, and callers must invoke it with no `await` between
+  // "a request for this ticket arrived" and "this function runs". The
+  // one-use guarantee (records.delete / remainingUses-- below) relies
+  // entirely on Node's run-to-completion model making the whole
+  // lookup-check-decrement sequence atomic; it is not enforced by a lock.
+  // Two calls racing this function concurrently (e.g. because a future
+  // change makes ticket lookup hit an async store, or a caller adds an
+  // `await` before invoking this) would both read `record` before either
+  // writes back `remainingUses`, and a "one-use" ticket could be consumed
+  // twice. No test in this repo can catch that regression by construction —
+  // see the comment on the concurrent-dispatch test in
+  // test/delegation-ipc.test.mjs for why real socket-level concurrency
+  // doesn't reliably expose it — so this must hold by code review, not by CI.
   function consume({ ticket, provider, operation, capability, resource } = {}) {
     const hash = ticketHash(ticket)
     const record = records.get(hash)

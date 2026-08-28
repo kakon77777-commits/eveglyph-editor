@@ -71,6 +71,14 @@ function containsSensitiveKey(value, seen = new Set()) {
 }
 
 function write(socket, payload) {
+  // Server-initiated full close after writing, never a client-side half-close —
+  // Windows named pipes do not reliably support allowHalfOpen's "write then
+  // shutdown(SHUT_WR), keep reading" pattern (confirmed empirically: the
+  // client's own .end() fires its local 'end'/'close' immediately with zero
+  // bytes received, and the server never sees a matching 'end' to respond to).
+  // A full bidirectional close initiated by whichever side is actually done
+  // (here, the server, once it has written its one response line) works on
+  // every platform because it isn't relying on half-duplex shutdown semantics.
   socket.end(`${JSON.stringify(payload)}\n`)
 }
 
@@ -109,34 +117,49 @@ export function createDelegationIpcServer({
   }
 
   function onConnection(socket) {
+    // One newline-delimited JSON request per connection. End-of-request is
+    // detected from the framing byte (the first '\n'), never from the client
+    // half-closing its write side — see the comment on write() above for why.
+    // The client keeps writing/reading on a single still-open connection; the
+    // server is the only side that ever calls .end(), after it has a full
+    // response to send.
     let bytes = 0
     let tooLarge = false
-    const chunks = []
+    let settled = false
+    let buffered = ''
     socket.setEncoding('utf8')
+
+    async function respond(payload) {
+      if (settled) return
+      settled = true
+      write(socket, payload)
+    }
+
     socket.on('data', chunk => {
-      if (tooLarge) return
+      if (settled || tooLarge) return
       bytes += Buffer.byteLength(chunk)
       if (bytes > maxRequestBytes) {
         tooLarge = true
-        chunks.length = 0
+        buffered = ''
+        respond(stableError(codedError('ipc_request_too_large', 'too large')))
         return
       }
-      chunks.push(chunk)
-    })
-    socket.on('end', async () => {
-      if (tooLarge) {
-        write(socket, stableError(codedError('ipc_request_too_large', 'too large')))
-        return
-      }
-      const text = chunks.join('').trim()
+      buffered += chunk
+      const newlineIndex = buffered.indexOf('\n')
+      if (newlineIndex === -1) return
+      const line = buffered.slice(0, newlineIndex).trim()
       let request
-      try { request = JSON.parse(text) }
+      try { request = JSON.parse(line) }
       catch {
-        write(socket, stableError(codedError('ipc_invalid_json', 'invalid json')))
+        respond(stableError(codedError('ipc_invalid_json', 'invalid json')))
         return
       }
-      try { write(socket, await handleRequest(request)) }
-      catch (error) { write(socket, stableError(error)) }
+      handleRequest(request).then(respond, error => respond(stableError(error)))
+    })
+    socket.on('end', () => {
+      // Client closed before sending a complete newline-terminated line —
+      // an incomplete/empty request, not a valid one to parse.
+      if (!settled) respond(stableError(codedError('ipc_invalid_json', 'invalid json')))
     })
     socket.on('error', () => {})
   }

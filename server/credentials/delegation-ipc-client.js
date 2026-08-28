@@ -36,15 +36,16 @@ export function invokeDelegatedOperation({
       reject(error)
     }
 
-    const finishResponse = () => {
+    const finishResponse = line => {
       if (settled) return
       settled = true
       let payload
-      try { payload = JSON.parse(text.trim()) }
+      try { payload = JSON.parse(line.trim()) }
       catch {
         reject(codedError('delegation_invalid_response', 'Delegation IPC returned an invalid response.'))
         return
       }
+      try { socket.destroy() } catch {}
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
         reject(codedError('delegation_invalid_response', 'Delegation IPC returned an invalid response.'))
         return
@@ -59,8 +60,16 @@ export function invokeDelegatedOperation({
     }
 
     socket.setEncoding('utf8')
+    // Write the request and keep reading on the SAME still-open connection —
+    // never half-close (socket.end() on write). The server is the one that
+    // ends the connection, once it has a full response; end-of-response is
+    // recognized from the newline framing byte, not from a half-duplex
+    // shutdown. See the matching comment in delegation-ipc.js for why: a
+    // client-side half-close does not reliably signal "done writing, still
+    // reading" over a Windows named pipe the way it does over a Unix domain
+    // socket or TCP.
     socket.on('connect', () => {
-      try { socket.end(`${JSON.stringify(request)}\n`) }
+      try { socket.write(`${JSON.stringify(request)}\n`) }
       catch { finishReject(codedError('delegation_endpoint_unavailable', 'Delegation endpoint is unavailable.')) }
     })
     socket.on('data', chunk => {
@@ -71,8 +80,10 @@ export function invokeDelegatedOperation({
         return
       }
       text += chunk
+      const newlineIndex = text.indexOf('\n')
+      if (newlineIndex !== -1) finishResponse(text.slice(0, newlineIndex))
     })
-    socket.on('end', finishResponse)
+    socket.on('end', () => finishReject(codedError('delegation_invalid_response', 'Delegation IPC returned an invalid response.')))
     socket.on('error', () => finishReject(codedError('delegation_endpoint_unavailable', 'Delegation endpoint is unavailable.')))
   })
 }

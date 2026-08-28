@@ -74,6 +74,62 @@ test('local IPC consumes delegation before handler execution and one-use ticket 
   }
 })
 
+test('one-use ticket survives a genuine concurrent-dispatch race: exactly one of N simultaneous invocations succeeds', async () => {
+  // Sequential issue-then-consume-then-consume-again (the test above) proves
+  // ordering but not concurrency safety. This test fires real, independent
+  // socket connections at the same ticket concurrently (a realistic surface
+  // — e.g. a caller's retry racing its own original request) and confirms
+  // the single-use guarantee still holds through the actual IPC stack, not
+  // just against a mocked/direct broker call.
+  //
+  // What this test does NOT prove: consume() itself (delegation-broker.js)
+  // is currently fully synchronous with no internal await, which is what
+  // actually makes it atomic under Node's run-to-completion model — not
+  // careful locking. I verified by deliberately inserting an await
+  // immediately before the consume() call in delegation-ipc.js and
+  // re-running this exact test: it still passed every time, because Node's
+  // real socket/pipe accept-and-read scheduling in this environment does not
+  // reliably interleave separate connections finely enough to expose that
+  // specific regression. So this test is real regression coverage for the
+  // shipped IPC path, but it is NOT a tripwire for "someone made consume()
+  // internally async" — see the comment on consume() itself in
+  // delegation-broker.js for the invariant that actually guards against that.
+  const { createDelegationBroker, createDelegationIpcServer } = await requireModules()
+  let calls = 0
+  const broker = createDelegationBroker()
+  const issued = broker.issue(claim)
+  const endpoint = endpointForTest()
+  const server = createDelegationIpcServer({
+    delegationBroker: broker,
+    endpoint,
+    handlers: {
+      'github:read-file': async ({ delegation, input }) => {
+        calls += 1
+        // Widen the async window between consume() and handler completion so
+        // a real regression (e.g. an await inserted before consume()) has a
+        // realistic chance of being caught by a race this size, not just a
+        // theoretical one.
+        await new Promise(resolve => setImmediate(resolve))
+        assert.equal(delegation.capability, claim.capability)
+        return { ok: true, content: input.path }
+      },
+    },
+  })
+  await server.start()
+  try {
+    const request = { method: 'invoke', ticket: issued.ticket, ...claim, input: { path: 'README.md' } }
+    const CONCURRENCY = 10
+    const results = await Promise.all(Array.from({ length: CONCURRENCY }, () => invoke(endpoint, request)))
+    const succeeded = results.filter(r => r.ok === true)
+    const denied = results.filter(r => r.ok === false && r.error?.code === 'delegation_not_found')
+    assert.equal(succeeded.length, 1, `expected exactly 1 success among ${CONCURRENCY} concurrent attempts, got ${succeeded.length}`)
+    assert.equal(denied.length, CONCURRENCY - 1)
+    assert.equal(calls, 1, 'handler must run exactly once even under concurrent dispatch')
+  } finally {
+    await server.stop()
+  }
+})
+
 test('IPC rejects malformed or oversized requests before handler execution and never exposes stack/credential fields', async () => {
   const { createDelegationBroker, createDelegationIpcServer } = await requireModules()
   let calls = 0
