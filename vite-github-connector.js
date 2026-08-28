@@ -11,16 +11,12 @@ function isLocalHost(hostname) {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]'
 }
 
-// Same trust posture as vite-agent-bridge.js: the connector is a local dev
-// surface, never a public listener. GitHub redirects are top-level navigations
-// and usually carry no Origin header, so Host remains the primary callback gate.
 function isLocalRequest(req) {
   const rawHost = String(req.headers.host || '')
   let hostname = ''
   try { hostname = new URL(`http://${rawHost}`).hostname }
   catch { hostname = rawHost.split(':')[0] }
   if (!isLocalHost(hostname)) return false
-
   const origin = req.headers.origin
   if (!origin) return true
   try { return isLocalHost(new URL(origin).hostname) }
@@ -94,19 +90,20 @@ export function githubConnectorBridge({
   clientSecret = process.env.EVEGLYPH_GITHUB_CLIENT_SECRET || '',
   fetchImpl = globalThis.fetch,
   broker: injectedBroker = null,
+  delegationBroker = null,
+  delegationRuntime = null,
 } = {}) {
   const broker = injectedBroker || createMemoryCredentialBroker()
+  const activeDelegationBroker = delegationRuntime?.broker || delegationBroker
   const oauth = createGitHubAppOAuth({ clientId, clientSecret, fetchImpl })
-  const service = createGitHubConnectorService({ broker, oauth, fetchImpl })
+  const service = createGitHubConnectorService({ broker, delegationBroker: activeDelegationBroker, oauth, fetchImpl })
   const controller = createGitHubConnectorHttpController({ service })
+  if (delegationRuntime?.attachGitHubService) delegationRuntime.attachGitHubService(service)
 
   return {
     name: 'eveglyph-github-connector',
     apply: 'serve',
     configureServer(server) {
-      // Persistent brokers can restore provider identity at process startup.
-      // Session capability grants are intentionally not persisted by the
-      // service, so restoreAuth always comes back with grants=[].
       if (typeof broker.restoreActive === 'function') {
         try {
           const restored = broker.restoreActive('github')
@@ -120,7 +117,6 @@ export function githubConnectorBridge({
       server.middlewares.use(async (req, res, next) => {
         const parsed = new URL(req.url || '/', 'http://localhost')
         if (!parsed.pathname.startsWith(ROUTE_PREFIX)) return next()
-
         if (!isLocalRequest(req)) {
           writeJson(res, 403, { error: { code: 'local_request_required', message: 'GitHub connector API is local-only.' } })
           return
@@ -131,12 +127,10 @@ export function githubConnectorBridge({
             if (req.method !== 'GET') return methodNotAllowed(res)
             return writeControllerResponse(res, controller.status())
           }
-
           if (parsed.pathname === '/api/connectors/github/auth/start') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             return writeControllerResponse(res, controller.startAuth({ redirectUri: requestRedirectUri(req) }))
           }
-
           if (parsed.pathname === '/api/connectors/github/callback') {
             if (req.method !== 'GET') return methodNotAllowed(res)
             return writeControllerResponse(res, await controller.callback({
@@ -144,18 +138,24 @@ export function githubConnectorBridge({
               state: parsed.searchParams.get('state') || '',
             }))
           }
-
           if (parsed.pathname === '/api/connectors/github/disconnect') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             return writeControllerResponse(res, controller.disconnect())
           }
-
           if (parsed.pathname === '/api/connectors/github/grant-read') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             const body = await readJsonBody(req)
             return writeControllerResponse(res, controller.grantRead({ repository: body.repository }))
           }
-
+          if (parsed.pathname === '/api/connectors/github/delegation/read-file') {
+            if (req.method !== 'POST') return methodNotAllowed(res)
+            const body = await readJsonBody(req)
+            return writeControllerResponse(res, controller.issueDelegatedRead({
+              repository: body.repository,
+              path: body.path,
+              ref: body.ref,
+            }))
+          }
           if (parsed.pathname === '/api/connectors/github/read-file') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             const body = await readJsonBody(req)
@@ -165,7 +165,6 @@ export function githubConnectorBridge({
               ref: body.ref,
             }))
           }
-
           writeJson(res, 404, { error: { code: 'not_found', message: 'GitHub connector route not found.' } })
         } catch (error) {
           if (error?.code === 'request_body_too_large') {
