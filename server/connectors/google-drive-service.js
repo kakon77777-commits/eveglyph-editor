@@ -5,6 +5,7 @@ import {
   createCapabilitySession,
   createGrant,
 } from '../../src/capabilities/index.js'
+import { resolveDelegatedOperation } from './delegated-contracts.js'
 
 const GOOGLE_API = 'https://www.googleapis.com'
 const METADATA_CAPABILITY = 'connector.google.drive.metadata.list'
@@ -116,6 +117,7 @@ async function readTextBytes(response) {
 
 export function createGoogleDriveConnectorService({
   broker,
+  delegationBroker = null,
   oauth,
   fetchImpl = globalThis.fetch,
   now = () => new Date(),
@@ -123,6 +125,9 @@ export function createGoogleDriveConnectorService({
 } = {}) {
   if (!broker || typeof broker.store !== 'function' || typeof broker.describe !== 'function' || typeof broker.withCredential !== 'function') {
     throw new TypeError('credential broker is required')
+  }
+  if (delegationBroker != null && typeof delegationBroker.issue !== 'function') {
+    throw new TypeError('delegation broker must expose issue()')
   }
   if (!oauth || typeof oauth.configured !== 'function' || typeof oauth.start !== 'function' || typeof oauth.complete !== 'function') {
     throw new TypeError('Google OAuth client is required')
@@ -192,7 +197,6 @@ export function createGoogleDriveConnectorService({
       client: 'eveglyph-editor',
       session: `google:${completed.credentialId}`,
     })
-    // Provider authentication binds identity only. Drive authority starts empty.
     grants = []
     return getStatus()
   }
@@ -210,7 +214,6 @@ export function createGoogleDriveConnectorService({
       client: 'eveglyph-editor',
       session: `google:${credentialId}`,
     })
-    // Persisted identity never restores prior session grants.
     grants = []
     return getStatus()
   }
@@ -259,6 +262,57 @@ export function createGoogleDriveConnectorService({
     })
     grants.push(grant)
     return publicGrant(grant)
+  }
+
+  function issueMetadataListDelegation({ pageToken = null } = {}) {
+    requireConnected()
+    if (!delegationBroker) throw codedError('delegation_unavailable', 'connector delegation runtime is unavailable')
+    const operation = resolveDelegatedOperation('google_drive_list_files_delegated', {
+      ...(pageToken ? { page_token: pageToken } : {}),
+    })
+    capabilitySession().require({
+      capability: operation.capability,
+      resource: operation.resource,
+      lifetime: 'once',
+      reason: 'Issue MCP delegated Google Drive metadata list',
+      context: Object.freeze({ provider: 'google', service: 'drive', operation: 'list-files' }),
+    })
+    return delegationBroker.issue({
+      provider: operation.provider,
+      operation: operation.operation,
+      capability: operation.capability,
+      resource: operation.resource,
+      actor: actor.humanPrincipal,
+      ttlMs: 60 * 1000,
+      maxUses: 1,
+    })
+  }
+
+  function issueFileReadDelegation({ fileId } = {}) {
+    requireConnected()
+    if (!delegationBroker) throw codedError('delegation_unavailable', 'connector delegation runtime is unavailable')
+    const operation = resolveDelegatedOperation('google_drive_read_file_delegated', { file_id: fileId })
+    capabilitySession().require({
+      capability: operation.capability,
+      resource: operation.resource,
+      lifetime: 'once',
+      reason: 'Issue MCP delegated Google Drive file read',
+      context: Object.freeze({
+        provider: 'google',
+        service: 'drive',
+        operation: 'read-file',
+        file_id: operation.input.file_id,
+      }),
+    })
+    return delegationBroker.issue({
+      provider: operation.provider,
+      operation: operation.operation,
+      capability: operation.capability,
+      resource: operation.resource,
+      actor: actor.humanPrincipal,
+      ttlMs: 60 * 1000,
+      maxUses: 1,
+    })
   }
 
   function needsRefresh(description) {
@@ -402,8 +456,10 @@ export function createGoogleDriveConnectorService({
     restoreAuth,
     disconnect,
     grantMetadataList,
+    issueMetadataListDelegation,
     listDriveFiles,
     grantFileRead,
+    issueFileReadDelegation,
     readDriveFile,
   })
 }
