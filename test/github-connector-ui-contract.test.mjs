@@ -2,10 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
-const html = await readFile(new URL('../index.html', import.meta.url), 'utf8')
-const settings = await readFile(new URL('../src/settings.js', import.meta.url), 'utf8')
-const main = await readFile(new URL('../src/main.js', import.meta.url), 'utf8')
-const settingsSurface = `${html}\n${settings}`
+async function readOrEmpty(url) {
+  try { return await readFile(url, 'utf8') }
+  catch { return '' }
+}
+
+const uiPlugin = await readOrEmpty(new URL('../vite-github-settings-ui.js', import.meta.url))
+const githubSettings = await readOrEmpty(new URL('../src/githubsettings.js', import.meta.url))
+const viteConfig = await readFile(new URL('../vite.config.js', import.meta.url), 'utf8')
+const settingsSurface = `${uiPlugin}\n${githubSettings}`
 
 const REQUIRED_IDS = [
   's-github-status',
@@ -44,23 +49,22 @@ test('GitHub Settings surface contains no access-token or client-secret input', 
   assert.equal(/id=[\\"'][^\\"']*github[^\\"']*(token|secret)[^\\"']*[\\"']/i.test(settingsSurface), false)
 })
 
-test('settings module exports the five GitHub connector actions', () => {
+test('GitHub Settings module exports and implements the five connector actions', () => {
   for (const name of REQUIRED_EXPORTS) {
-    assert.match(settings, new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\b`), `missing export ${name}`)
+    assert.match(githubSettings, new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\b`), `missing export ${name}`)
   }
-  assert.match(settings, /\/api\/connectors\/github\/status/)
-  assert.match(settings, /\/api\/connectors\/github\/auth\/start/)
-  assert.match(settings, /\/api\/connectors\/github\/grant-read/)
-  assert.match(settings, /\/api\/connectors\/github\/read-file/)
-  assert.match(settings, /textContent\s*=/, 'file preview must use textContent, not HTML injection')
+  assert.match(githubSettings, /\/api\/connectors\/github\/status/)
+  assert.match(githubSettings, /\/api\/connectors\/github\/auth\/start/)
+  assert.match(githubSettings, /\/api\/connectors\/github\/grant-read/)
+  assert.match(githubSettings, /\/api\/connectors\/github\/read-file/)
+  assert.match(githubSettings, /textContent\s*=/, 'file preview must use textContent, not HTML injection')
 })
 
-test('main module imports and wires every GitHub Settings control', () => {
-  for (const name of REQUIRED_EXPORTS) {
-    assert.match(main, new RegExp(`\\b${name}\\b`), `main.js does not reference ${name}`)
-  }
+test('GitHub Settings module wires every connector control and is loaded by Vite', () => {
   for (const id of ['btn-github-connect', 'btn-github-disconnect', 'btn-github-grant-read', 'btn-github-read']) {
-    assert.match(main, new RegExp(`getElementById\\(['"]${id}['"]\\)`), `main.js does not wire ${id}`)
+    assert.match(githubSettings, new RegExp(`getElementById\\(['"]${id}['"]\\)`), `GitHub Settings module does not wire ${id}`)
   }
-  assert.match(main, /githubRefreshStatus\(\)/)
+  assert.match(githubSettings, /githubRefreshStatus\(\)/)
+  assert.match(uiPlugin, /src\/githubsettings\.js/)
+  assert.match(viteConfig, /githubSettingsUi/)
 })
