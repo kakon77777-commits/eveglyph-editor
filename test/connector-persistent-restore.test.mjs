@@ -58,7 +58,7 @@ test('Google restored credential recreates identity but grants zero metadata or 
   assert.equal(status.account.sub, 'google-77')
   assert.deepEqual(status.grants, [])
   await assert.rejects(() => service.listDriveFiles(), { code: 'capability_denied' })
-  await assert.rejects(() => service.readDriveFile({ fileId: 'file-a' }), { code: 'capability_denied' })
+  await assert.rejects(() => service.readDriveFile({ fileId: 'file-a-valid-id' }), { code: 'capability_denied' })
   assert.equal(fetchCalls, 0)
 })
 
