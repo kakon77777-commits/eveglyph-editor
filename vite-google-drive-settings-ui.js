@@ -16,6 +16,7 @@ const GOOGLE_DRIVE_SETTINGS_HTML = `
                 <div class="agent-row">
                   <button class="btn-s" id="btn-google-grant-metadata" disabled>Grant metadata browse for this session</button>
                   <button class="btn-s" id="btn-google-list-files" disabled>List Drive files</button>
+                  <button class="btn-s" id="btn-google-issue-mcp-list" disabled>Issue MCP list ticket</button>
                 </div>
               </div>
 
@@ -27,8 +28,11 @@ const GOOGLE_DRIVE_SETTINGS_HTML = `
                 <div class="agent-row" style="margin-top:6px">
                   <button class="btn-s" id="btn-google-grant-file-read" disabled>Grant read for selected file</button>
                   <button class="btn-s" id="btn-google-read" disabled>Read selected file</button>
+                  <button class="btn-s" id="btn-google-issue-mcp-file-read" disabled>Issue MCP file ticket</button>
                 </div>
                 <pre id="s-google-read-result" style="margin-top:6px;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--t2)"></pre>
+                <pre id="s-google-delegation-result" style="margin-top:6px;max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--t2)"></pre>
+                <span style="font-size:10px;color:var(--t3)">MCP delegation tickets are short-lived and one-use. EveGlyph does not persist them; a third-party MCP host may log tool arguments.</span>
               </div>
             </div>
 `
@@ -37,9 +41,7 @@ const MODULE_SCRIPT = '<script type="module" src="/src/googledrivesettings.js"><
 const MCP_SETTINGS_ANCHOR = '<div id="s-mcp-wrap"'
 
 function transformGoogleDriveSettingsHtml(html) {
-  if (!html.includes(MCP_SETTINGS_ANCHOR)) {
-    throw new Error('Google Drive Settings insertion point not found')
-  }
+  if (!html.includes(MCP_SETTINGS_ANCHOR)) throw new Error('Google Drive Settings insertion point not found')
   let next = html.replace(MCP_SETTINGS_ANCHOR, `${GOOGLE_DRIVE_SETTINGS_HTML}\n            ${MCP_SETTINGS_ANCHOR}`)
   if (!next.includes('/src/googledrivesettings.js')) {
     if (!next.includes('</body>')) throw new Error('Google Drive Settings module insertion point not found')
@@ -51,12 +53,7 @@ function transformGoogleDriveSettingsHtml(html) {
 export function googleDriveSettingsUi() {
   return {
     name: 'eveglyph-google-drive-settings-ui',
-    // Run before Vite's core HTML processing so the injected module is bundled
-    // into a hashed production asset instead of surviving as a raw /src path.
-    transformIndexHtml: {
-      order: 'pre',
-      handler: transformGoogleDriveSettingsHtml,
-    },
+    transformIndexHtml: { order: 'pre', handler: transformGoogleDriveSettingsHtml },
   }
 }
 
