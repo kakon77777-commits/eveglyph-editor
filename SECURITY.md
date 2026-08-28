@@ -32,9 +32,19 @@ GitHub and Google connector credentials can now persist through a provider-neutr
 
 Persistence applies to provider credential envelopes only. EveGlyph connector capability grants are never restored: after restart, provider identity may be restored but GitHub repository and Google Drive metadata/file authority return to zero until the user grants them again.
 
-The delegation broker issues opaque 32-byte tickets but stores only SHA-256 ticket hashes. Tickets exact-match provider, operation, capability and resource; default to one use / 60 seconds; and are bounded to 10 uses / 300 seconds. The local IPC boundary is limited to 16 KiB requests and blocks credential-shaped results. PR-D does not wire this IPC into MCP, so MCP remains outside the credential-owning process.
+The delegation broker issues opaque 32-byte tickets but stores only SHA-256 ticket hashes. Tickets exact-match provider, operation, capability and resource; default to one use / 60 seconds; and are bounded to 10 uses / 300 seconds. The local IPC boundary is limited to 16 KiB requests and blocks credential-shaped results. PR-E permits MCP to use only the credential-free local IPC client for three read-only delegated connector operations; MCP still remains outside credential custody and receives no keyring, persistent broker, access token, refresh token, or provider OAuth client.
 
 See [`docs/CREDENTIAL-VAULT-AND-DELEGATION.md`](docs/CREDENTIAL-VAULT-AND-DELEGATION.md) for the complete operator and trust-boundary contract.
+
+## MCP delegated connector boundary
+
+PR-E adds exactly three read-only delegated MCP tools: `github_read_file_delegated`, `google_drive_list_files_delegated`, and `google_drive_read_file_delegated`. They are registered only when `EVEGLYPH_DELEGATION_ENDPOINT` points to the live local delegation server owned by EveGlyph.
+
+A delegated execution requires both a valid short-lived ticket and the matching live connector-session grant. The IPC handler normalizes the tool input again and recomputes the canonical resource before calling the live connector service, preventing a ticket issued for file A from being paired with input for file B. The connector service then performs its normal capability decision again before credential access or provider network I/O.
+
+The MCP process may import the credential-free delegated-operation contract and local IPC client. It must not import or receive the OS keyring, persistent credential broker, provider OAuth clients, access tokens, refresh tokens, client secrets, or credential envelopes. Settings may show a newly issued one-use ticket in live DOM state, but EveGlyph does not persist it. Third-party MCP hosts may log tool arguments, so tickets should be treated as temporary operation authority.
+
+Remote MCP keeps its existing bearer-token transport authentication; PR-E does not upgrade it to OAuth. See [`docs/MCP-DELEGATED-CONNECTORS.md`](docs/MCP-DELEGATED-CONNECTORS.md) for the operator flow and full boundary.
 
 ## GitHub connector credential boundary
 
@@ -119,7 +129,7 @@ PR-B exposes **no GitHub write/create/update/delete/commit/generic-authenticated
 
 The GitHub connector routes live in a separate local Vite plugin, `vite-github-connector.js`, rather than the filesystem/CLI agent bridge. They retain the same localhost Host/Origin posture and bounded JSON request bodies.
 
-The persistent credential broker is **not shared with `mcp-server.js` or `mcp-server-remote.js`**. Those are separate processes. PR-D adds a local delegation-ticket/IPC primitive but registers no connector operation with MCP, so raw credentials are not copied across that boundary merely to make MCP calls work.
+The persistent credential broker is **not shared with `mcp-server.js` or `mcp-server-remote.js`**. Those are separate processes. PR-E registers only three read-only delegated MCP operations when a local delegation endpoint is configured. MCP sends a short-lived ticket plus canonical operation input to the local broker; the credential-owning process recomputes the resource, consumes the ticket, re-checks the live connector grant, and performs the provider request. Raw credentials are never copied across the process boundary.
 
 See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md) for operator setup, callback configuration, and the complete read-only flow.
 

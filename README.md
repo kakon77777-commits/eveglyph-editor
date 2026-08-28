@@ -148,7 +148,7 @@ Connector credentials now use a provider-neutral credential runtime. The default
 
 Restart restoration brings back provider identity only. GitHub repository grants and Google Drive metadata/file grants remain session-only and must be explicitly granted again.
 
-PR-D also adds short-lived, exact provider/operation/capability/resource delegation tickets and a local `node:net` IPC operation boundary. Raw tickets are not stored (only SHA-256 hashes), default to one use / 60 seconds, and are capped at 10 uses / 300 seconds. **MCP is not connected to this delegation path yet**, so standalone MCP processes still receive no GitHub/Google credentials or persistent broker.
+PR-D adds short-lived, exact provider/operation/capability/resource delegation tickets and a local `node:net` IPC operation boundary. PR-E now lets MCP use three read-only connector operations through that boundary without receiving GitHub/Google credentials or the persistent broker. Raw tickets are not stored (only SHA-256 hashes), default to one use / 60 seconds, and every delegated execution re-checks the live connector-session grant.
 
 See [`docs/CREDENTIAL-VAULT-AND-DELEGATION.md`](docs/CREDENTIAL-VAULT-AND-DELEGATION.md) and [`SECURITY.md`](SECURITY.md).
 
@@ -174,7 +174,7 @@ browser frontend  ⇄  Vite local bridges  ⇄  filesystem · git · CLI agent �
 
 The capability control plane also defines transport-neutral mappings for these base tools and the publication tools. The mapping is groundwork for later identity-aware MCP authorization; **the capability-foundation PR does not silently put existing workspace MCP tools behind a new grant-acquisition flow**, and the remote HTTP transport still uses its existing bearer-token compatibility mode.
 
-The GitHub and Google Drive connector credentials are deliberately **not** shared into these MCP processes. PR-D now provides hash-only delegation tickets plus a local operation-IPC primitive, but no connector operation is registered with MCP yet; raw provider tokens are never copied into MCP processes.
+The GitHub and Google Drive connector credentials are deliberately **not** shared into these MCP processes. When `EVEGLYPH_DELEGATION_ENDPOINT` is configured, PR-E conditionally registers `github_read_file_delegated`, `google_drive_list_files_delegated`, and `google_drive_read_file_delegated`. Those tools carry a short-lived one-use ticket over local IPC; raw provider tokens, keyring objects, and the persistent credential broker never enter MCP. See [`docs/MCP-DELEGATED-CONNECTORS.md`](docs/MCP-DELEGATED-CONNECTORS.md).
 
 Run it directly:
 
