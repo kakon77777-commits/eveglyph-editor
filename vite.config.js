@@ -15,7 +15,7 @@ export default defineConfig({
   root: '.',
   plugins: [
     delegationRuntime.vitePlugin(),
-    agentBridge(),
+    agentBridge({ delegationEndpoint: delegationRuntime.endpoint }),
     githubConnectorBridge({ broker: credentialRuntime.broker, delegationRuntime }),
     googleDriveConnectorBridge({ broker: credentialRuntime.broker, delegationRuntime }),
     googleDriveSettingsUi(),
