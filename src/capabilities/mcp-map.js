@@ -79,8 +79,14 @@ const TOOL_REQUEST_BUILDERS = Object.freeze({
 export const MCP_TOOL_CAPABILITY_NAMES = Object.freeze(Object.keys(TOOL_REQUEST_BUILDERS))
 
 export function resolveMcpToolCapabilityRequests(toolName, args = {}) {
+  // Object.hasOwn, not a bracket-access truthy check — same reasoning as
+  // capabilities/registry.js's getCapabilityDefinition(): a tool name equal
+  // to an Object.prototype member name (e.g. 'constructor') would otherwise
+  // resolve through the prototype chain instead of failing closed.
+  if (!Object.hasOwn(TOOL_REQUEST_BUILDERS, toolName)) {
+    throw codedError('unknown_mcp_tool', `unknown MCP tool: ${toolName}`)
+  }
   const builder = TOOL_REQUEST_BUILDERS[toolName]
-  if (!builder) throw codedError('unknown_mcp_tool', `unknown MCP tool: ${toolName}`)
   const delegated = DELEGATED_TOOL_SET.has(toolName)
   return Object.freeze(builder(args).map(([capability, resource]) => createCapabilityRequest({
     capability,

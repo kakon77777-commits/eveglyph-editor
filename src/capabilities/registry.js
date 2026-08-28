@@ -32,9 +32,19 @@ function codedError(code, message) {
 
 export function getCapabilityDefinition(id) {
   const key = typeof id === 'string' ? id.trim() : ''
-  const entry = CAPABILITY_REGISTRY[key]
-  if (!entry) throw codedError('unknown_capability', `unknown capability: ${key || String(id)}`)
-  return entry
+  // Object.hasOwn, not a bracket-access truthy check: CAPABILITY_REGISTRY is
+  // a plain object, so CAPABILITY_REGISTRY['constructor'] (or '__proto__',
+  // 'toString', 'hasOwnProperty', 'valueOf', ...) resolves through the
+  // Object.prototype chain to a real, truthy value even though no such
+  // capability was ever registered — Object.freeze locks down the object's
+  // OWN properties, it does not remove its prototype chain. A capability id
+  // equal to any Object.prototype member name would silently pass as
+  // "known" and return that prototype member as if it were a capability
+  // definition, defeating the "unknown capabilities fail closed" invariant.
+  if (!Object.hasOwn(CAPABILITY_REGISTRY, key)) {
+    throw codedError('unknown_capability', `unknown capability: ${key || String(id)}`)
+  }
+  return CAPABILITY_REGISTRY[key]
 }
 
 export function listCapabilityDefinitions() {

@@ -89,10 +89,24 @@ export function createGrant(input = {}) {
   return Object.freeze({ capability, resource, lifetime, source, grantedBy, expiresAt })
 }
 
+// A trailing-`*` grant prefix must end in a real segment delimiter (`:` or
+// `/`) — every resource string this codebase actually constructs already
+// does (`execution:*`, `workspace:/docs/*`, `github:repository:<owner>/<repo>
+// :contents:*`, `google:drive:files:*`). Demonstrated exploit without this
+// check: resourceMatches('github:repo:owner/repo*', 'github:repo:owner/
+// repo-evil:contents:x') returned true, because a bare startsWith has no
+// concept of a segment boundary — 'repo' is a string-prefix of 'repo-evil'
+// with nothing stopping the match. No grant PR #7 itself ships is affected
+// (they all happen to end in a delimiter), but the primitive should be safe
+// by construction, not just safe by every current caller's convention.
+const WILDCARD_PREFIX_BOUNDARY_RE = /[:/]$/
+
 export function resourceMatches(grantResource, requestedResource) {
   if (grantResource === requestedResource) return true
   if (typeof grantResource !== 'string' || !grantResource.endsWith('*')) return false
-  return requestedResource.startsWith(grantResource.slice(0, -1))
+  const prefix = grantResource.slice(0, -1)
+  if (!WILDCARD_PREFIX_BOUNDARY_RE.test(prefix)) return false
+  return requestedResource.startsWith(prefix)
 }
 
 export function grantIsExpired(grant, now = new Date()) {

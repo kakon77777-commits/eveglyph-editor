@@ -58,6 +58,46 @@ test('unknown capabilities fail closed', async () => {
   )
 })
 
+test('an Object.prototype member name is not a known capability (prototype-chain bypass)', async () => {
+  // Regression test for a real, demonstrated exploit: getCapabilityDefinition
+  // used to do `CAPABILITY_REGISTRY[key]` and check truthiness. Since
+  // CAPABILITY_REGISTRY is a plain (frozen, but still prototype-linked)
+  // object, `CAPABILITY_REGISTRY['constructor']` resolved to
+  // Object.prototype.constructor — the real Object function, a truthy
+  // value — so a capability id of 'constructor' (or '__proto__', 'toString',
+  // 'hasOwnProperty', 'valueOf') silently passed the "is this registered"
+  // check despite never being registered, falsifying the "unknown
+  // capabilities fail closed" invariant. Nothing currently maps one of
+  // these names to real authority, so this wasn't independently
+  // exploitable today, but it's exactly the kind of check that becomes
+  // dangerous the moment a capability id is ever derived from
+  // caller-controlled input elsewhere. Fixed with Object.hasOwn.
+  const { createCapabilitySession } = await requireModule(CAPABILITY_MODULE, 'capability foundation')
+  for (const name of ['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf']) {
+    assert.throws(
+      () => createCapabilitySession({ grants: [{
+        capability: name,
+        resource: 'anything:*',
+        lifetime: 'session',
+        source: 'user-explicit',
+        grantedBy: 'user:neo',
+      }] }),
+      error => error?.code === 'unknown_capability',
+      `capability id '${name}' must be rejected at grant creation, not silently accepted`
+    )
+  }
+  // Same check must hold for the request side, not just the grant side —
+  // an empty-grants session still must not resolve these names as "known."
+  const session = createCapabilitySession()
+  for (const name of ['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf']) {
+    assert.throws(
+      () => session.authorize({ capability: name, resource: 'anything:goes', lifetime: 'once' }),
+      error => error?.code === 'unknown_capability',
+      `authorize() must reject capability id '${name}' as unknown, not resolve it via the prototype chain`
+    )
+  }
+})
+
 test('exact read grant does not authorize another resource or write', async () => {
   const { createCapabilitySession } = await requireModule(CAPABILITY_MODULE, 'capability foundation')
   const session = createCapabilitySession({ grants: [{
@@ -99,6 +139,39 @@ test('trailing wildcard grant matches only its resource prefix', async () => {
 
   assert.equal(session.authorize({ capability: 'workspace.read', resource: 'workspace:/docs/a.md', lifetime: 'once' }).decision, 'allow')
   assert.equal(session.authorize({ capability: 'workspace.read', resource: 'workspace:/other/a.md', lifetime: 'once' }).decision, 'deny')
+})
+
+test('resourceMatches refuses a wildcard whose prefix has no segment-boundary delimiter', async () => {
+  // Regression test for a demonstrated exploit: resourceMatches() did a bare
+  // startsWith after stripping the trailing '*', with no requirement that
+  // the remaining prefix end at a real segment boundary. A grant resource
+  // like 'owner/repo*' (no ':' or '/' immediately before the star) would
+  // then also match 'owner/repo-evil...', purely because 'repo' is a string
+  // prefix of 'repo-evil' — the same class of bug as an unanchored regex or
+  // a path check that forgets to require a trailing separator. Every grant
+  // resource this codebase actually constructs already ends its wildcard
+  // prefix in ':' or '/' (github:...:contents:*, google:drive:files:*,
+  // execution:*, workspace:/docs/*), so this was latent, not independently
+  // exploitable through any shipped grant — but the primitive itself must
+  // be safe regardless of caller discipline.
+  const { resourceMatches } = await requireModule(CAPABILITY_MODULE, 'capability foundation')
+
+  // The exact exploit shape demonstrated during review.
+  assert.equal(resourceMatches('github:repo:owner/repo*', 'github:repo:owner/repo-evil:contents:x'), false)
+  assert.equal(resourceMatches('workspace:/docs*', 'workspace:/docs-secret/x.md'), false)
+
+  // A wildcard ending in an unsafe boundary must never match anything —
+  // not even what looks like "the same resource" absent the suffix, since
+  // there is no way to tell whether that similarity was intended.
+  assert.equal(resourceMatches('github:repo:owner/repo*', 'github:repo:owner/repo'), false)
+
+  // Every real, already-safe wildcard shape in this codebase must be
+  // unaffected — this fix must not become a new false-negative source.
+  assert.equal(resourceMatches('github:repository:owner/repo:contents:*', 'github:repository:owner/repo:contents:README.md'), true)
+  assert.equal(resourceMatches('google:drive:files:*', 'google:drive:files:list'), true)
+  assert.equal(resourceMatches('execution:*', 'execution:aimdc'), true)
+  assert.equal(resourceMatches('workspace:/docs/*', 'workspace:/docs/a.md'), true)
+  assert.equal(resourceMatches('workspace:/docs/*', 'workspace:/other/a.md'), false)
 })
 
 test('expired until grant denies and once grant is consumed', async () => {

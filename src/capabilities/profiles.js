@@ -31,9 +31,14 @@ function codedError(code, message) {
 
 export function getSandboxProfile(name = 'document-only') {
   const key = typeof name === 'string' ? name.trim() : ''
-  const profile = PROFILES[key]
-  if (!profile) throw codedError('unknown_profile', `unknown sandbox profile: ${key || String(name)}`)
-  return profile
+  // Object.hasOwn, not a bracket-access truthy check — same reasoning as
+  // registry.js's getCapabilityDefinition(): PROFILES['constructor'] (etc.)
+  // would otherwise resolve through Object.prototype instead of failing
+  // closed. See that function's comment for the full explanation.
+  if (!Object.hasOwn(PROFILES, key)) {
+    throw codedError('unknown_profile', `unknown sandbox profile: ${key || String(name)}`)
+  }
+  return PROFILES[key]
 }
 
 export function listSandboxProfiles() {
