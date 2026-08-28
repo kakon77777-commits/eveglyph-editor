@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "mcp": "node mcp-server.js",
     "mcp:remote": "node mcp-server-remote.js",
-    "test:credential-broker": "node --test test/persistent-credential-broker.test.mjs test/connector-persistent-restore.test.mjs test/delegation-broker.test.mjs test/delegation-ipc.test.mjs",
+    "test:credential-broker": "node --test test/persistent-credential-broker.test.mjs test/connector-persistent-restore.test.mjs test/delegation-broker.test.mjs test/delegation-ipc.test.mjs test/credential-vite-runtime.test.mjs",
     "test:github-connector": "node --test test/github-credential-broker.test.mjs test/github-connector.test.mjs test/github-connector-http.test.mjs test/github-connector-ui-contract.test.mjs",
     "test:google-connector": "node --test test/google-oauth-broker.test.mjs test/google-drive-connector.test.mjs test/google-drive-http.test.mjs test/google-drive-ui-contract.test.mjs",
     "test:capabilities": "node --test test/capability-foundation.test.mjs test/mcp-capability-sandbox.test.mjs",
