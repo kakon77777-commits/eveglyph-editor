@@ -142,6 +142,16 @@ Google Docs are exported through Drive v3 as `text/markdown`; other Google Works
 
 See [`docs/GOOGLE-DRIVE-CONNECTOR.md`](docs/GOOGLE-DRIVE-CONNECTOR.md) and [`SECURITY.md`](SECURITY.md) for the complete trust model.
 
+## Persistent credential vault and delegation
+
+Connector credentials now use a provider-neutral credential runtime. The default `EVEGLYPH_CREDENTIAL_STORE=system` stores GitHub/Google OAuth credential envelopes in the operating-system keyring through `@napi-rs/keyring`; `EVEGLYPH_CREDENTIAL_STORE=memory` is the only supported explicit non-persistent fallback. Keyring failure fails closed — EveGlyph does not silently write tokens to plaintext files, browser storage, the workspace, or `.eveglyph/`.
+
+Restart restoration brings back provider identity only. GitHub repository grants and Google Drive metadata/file grants remain session-only and must be explicitly granted again.
+
+PR-D also adds short-lived, exact provider/operation/capability/resource delegation tickets and a local `node:net` IPC operation boundary. Raw tickets are not stored (only SHA-256 hashes), default to one use / 60 seconds, and are capped at 10 uses / 300 seconds. **MCP is not connected to this delegation path yet**, so standalone MCP processes still receive no GitHub/Google credentials or persistent broker.
+
+See [`docs/CREDENTIAL-VAULT-AND-DELEGATION.md`](docs/CREDENTIAL-VAULT-AND-DELEGATION.md) and [`SECURITY.md`](SECURITY.md).
+
 ## How it works
 
 - **Frontend** — vanilla ES modules + CodeMirror, with all mutable state in a single `S` singleton (`src/`).
