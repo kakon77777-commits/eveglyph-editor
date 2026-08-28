@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/mcp-publication-runtime-mvp
+      - feat/github-connector-broker
   pull_request:
     branches:
       - main
@@ -27,6 +28,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: GitHub connector tests
+        run: npm run test:github-connector
 
       - name: Capability sandbox tests
         run: npm run test:capabilities
