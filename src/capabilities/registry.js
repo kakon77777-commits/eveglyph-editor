@@ -14,6 +14,7 @@ const entries = [
   ['host.env.read', 'high', 'Read an explicitly scoped host environment value.'],
   ['connector.github.repository.contents.read', 'medium', 'Read contents from an explicitly scoped GitHub repository.'],
   ['connector.github.repository.contents.write', 'high', 'Write contents in an explicitly scoped GitHub repository.'],
+  ['connector.google.drive.metadata.list', 'medium', 'List metadata for Google Drive files within an explicitly granted connector session.'],
   ['connector.google.drive.file.read', 'medium', 'Read an explicitly scoped Google Drive file.'],
   ['connector.google.drive.file.write', 'high', 'Create or modify an explicitly scoped Google Drive file.'],
 ]
