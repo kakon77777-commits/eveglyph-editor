@@ -36,6 +36,9 @@ jobs:
       - name: Wasmtime import-policy tests
         run: node --test test/wasmtime-import-policy.test.mjs
 
+      - name: Wasmtime runtime contract tests
+        run: node --test test/wasmtime-runtime-contract.test.mjs
+
       - name: MCP delegation tests
         run: npm run test:mcp-delegation
 
