@@ -20,7 +20,8 @@ It is the editor half of **EveGlyph-MD**, a semantic-first Markdown format/proto
 - **EveGlyph-MD frontmatter** — a lightweight `type` / `status` / `tags` classification with a status-bar chip and preview badges; the active document's class is handed to the agent as sanitized, non-instruction metadata.
 - **World Studio draft generation** — opt in with **Settings → Enable World Studio**. The **Studio** tab asks the configured cloud AI for a bounded state-machine draft containing states, variables, optional controlled random ranges, events, language instructions, responses, and transitions. State Machine Preview provides direct visual buffer editing for those records and Runtime mapping review. The result is parsed and validated locally before it can be applied to the editor; **Check with Runtime** can send it to the Runtime's read-only World IR importer, edit the returned mapping draft, and validate it again. It never writes Runtime State or saves a file automatically.
 - **Workspace memory (`.eveglyph/`)** — per-workspace `rules.md` / `glossary.md` / `memory/*` injected into every agent run; a back-stage **Monitor** tab reads the diagnostic stream.
-- **Capability sandbox foundation** — AIMD-C entry points run through a deny-by-default `document-only` authority profile. Document computation receives only current-document read, bounded compute, and ephemeral-output capability; workspace, network, process, host-environment, Google, GitHub, OAuth-token, and other connector authority are absent unless a future caller supplies an explicit resource-scoped grant. Allow/deny decisions carry actor-aware audit evidence.
+- **Capability sandbox foundation** — AIMD-C entry points run through a deny-by-default `document-only` authority profile. Document computation receives only current-document read, bounded compute, and ephemeral-output capability; workspace, network, process, host-environment, Google, GitHub, OAuth-token, and other connector authority are absent unless a caller supplies an explicit resource-scoped grant. Allow/deny decisions carry actor-aware audit evidence.
+- **GitHub Connector (read-only MVP)** — a GitHub App user-OAuth + PKCE flow keeps access/refresh credentials in Node process memory, binds the GitHub user as actor identity, and still requires a separate repository-scoped **Grant read for this session** before EveGlyph can read a GitHub Contents file. OAuth identity does not imply repository authority, and no GitHub write surface is exposed in this PR. See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md).
 - **MCP server** (`mcp-server.js`) — a standalone stdio [MCP](https://modelcontextprotocol.io) server so any MCP-capable client (Claude Desktop, Claude Code, etc.) can read/write a workspace and run AIMD-C/World-IR logic directly, no browser needed. See [below](#mcp-server-for-ai-clients).
 
 ## Quick start
@@ -49,14 +50,61 @@ Then open <http://localhost:5173>.
 - Local agent: choose the agent, set an **absolute workspace path** (the browser cannot expose the picked folder's real path to the agent), and an optional command override.
 - **Default encoding** — fallback used when auto-detection is uncertain, and the encoding applied to newly created files.
 - **Enable World Studio** — reveals the advanced Runtime, World, Studio, and editable World IR views. It is off by default so the normal surface remains an AI-native Markdown editor; source files remain plain YAML and disk Save is always explicit.
+- **GitHub Connector** — when the server-side GitHub App environment is configured, Settings can connect a GitHub identity, explicitly grant one repository read authority for the current session, and read one UTF-8 text file through the GitHub Contents API. Tokens/client secrets are never entered in Settings.
+
+## GitHub Connector quickstart
+
+This connector uses a **GitHub App** rather than a legacy OAuth App. For this MVP, configure the GitHub App with:
+
+```text
+Repository permissions
+  Contents: Read-only
+```
+
+Register the normal local callback URL:
+
+```text
+http://localhost:5173/api/connectors/github/callback
+```
+
+Set these environment variables before starting EveGlyph:
+
+```text
+EVEGLYPH_GITHUB_CLIENT_ID
+EVEGLYPH_GITHUB_CLIENT_SECRET
+```
+
+Optional callback override:
+
+```text
+EVEGLYPH_GITHUB_REDIRECT_URI
+```
+
+Then start/restart the dev server and open **Settings → GitHub Connector**.
+
+The user flow is deliberately two-stage:
+
+```text
+Connect GitHub
+→ identity established, zero repository grants
+→ enter owner/repo
+→ Grant read for this session
+→ enter path/ref
+→ Read file
+```
+
+The access/refresh token remains in the Node-side process-memory credential broker. Restarting the Vite dev server disconnects GitHub and requires authentication again. This first broker is not shared with the separate MCP server processes.
+
+See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md) and [`SECURITY.md`](SECURITY.md) for the complete trust model.
 
 ## How it works
 
 - **Frontend** — vanilla ES modules + CodeMirror, with all mutable state in a single `S` singleton (`src/`).
 - **Bridge** — a **dev-only** Vite plugin (`vite-agent-bridge.js`) exposing `/api/*` for filesystem I/O, encoding detection, git diff-review, and agent spawning. It runs only under `npm run dev` (`apply: 'serve'`), and every endpoint is gated to local requests.
+- **GitHub connector bridge** — `vite-github-connector.js` is a separate local Node/Vite plugin. It owns GitHub OAuth callback handling and the process-memory credential broker; browser Settings receives only redacted account/grant/read data.
 
-```
-browser frontend  ⇄  vite-agent-bridge (/api)  ⇄  filesystem · git · CLI agent
+```text
+browser frontend  ⇄  Vite local bridges  ⇄  filesystem · git · CLI agent · GitHub connector
 ```
 
 ## MCP server (for AI clients)
@@ -68,7 +116,9 @@ browser frontend  ⇄  vite-agent-bridge (/api)  ⇄  filesystem · git · CLI a
 - `evaluate_aimdc` — parse and evaluate a document's AIMD-C blocks through the `document-only` capability profile; the result includes sandbox/audit evidence
 - `validate_world_ir` — validate a World IR YAML document (state machine / entity / entity list)
 
-The capability control plane also defines transport-neutral mappings for these base tools and the publication tools. The mapping is groundwork for later identity-aware MCP authorization; **this PR does not silently put existing workspace MCP tools behind a new grant-acquisition flow**, and the remote HTTP transport still uses its existing bearer-token compatibility mode.
+The capability control plane also defines transport-neutral mappings for these base tools and the publication tools. The mapping is groundwork for later identity-aware MCP authorization; **the capability-foundation PR does not silently put existing workspace MCP tools behind a new grant-acquisition flow**, and the remote HTTP transport still uses its existing bearer-token compatibility mode.
+
+The GitHub connector's process-memory credentials are deliberately **not** shared into these MCP processes in PR-B. A later broker IPC/keychain or unified authenticated gateway must define that boundary explicitly rather than copying raw tokens between processes.
 
 Run it directly:
 
@@ -114,13 +164,15 @@ Settings ⚙ → **Enable remote MCP server** does the same `mcp-server-remote.j
 
 ## Security
 
-AIMD-C document computation in the live preview and MCP `evaluate_aimdc` enters through `src/capabilities/document-runtime.js`. Its default `document-only` profile grants only `document.read.self` on `document:self`, `document.compute` on `document:self`, and `ephemeral.output` on `execution:*`. It has no filesystem, network, process, host-environment, OAuth credential, Google, or GitHub object to call. Future external access must be represented as an explicit capability request and authorized against a resource-scoped grant before a connector broker performs the external action.
+AIMD-C document computation in the live preview and MCP `evaluate_aimdc` enters through `src/capabilities/document-runtime.js`. Its default `document-only` profile grants only `document.read.self` on `document:self`, `document.compute` on `document:self`, and `ephemeral.output` on `execution:*`. It has no filesystem, network, process, host-environment, OAuth credential, Google, or GitHub object to call. External access must be represented as an explicit capability request and authorized against a resource-scoped grant before a connector broker performs the action.
+
+The GitHub connector follows that rule directly: OAuth creates actor identity plus an opaque server-side credential handle, not repository authority. A matching `connector.github.repository.contents.read` grant is required before token access/network fetch, and the current service has no GitHub write method.
 
 Local-agent mode is a separate, intentionally broader trust boundary: it runs a CLI **with auto-approve** and lets it read, create, edit, and delete files in the workspace folder. Every file, git, and agent operation is confined server-side to the one folder you opened. You stay in control through a per-workspace confirmation and a git-snapshot **diff review** (Accept / Reject).
 
 If a workspace contains a **`.eveglyph/rules.md`**, EveGlyph Editor injects it into every agent run with elevated authority (plus `.eveglyph/glossary.md` and the `.eveglyph/memory/*` notes) — review it before running an agent in an unfamiliar workspace.
 
-Read **[SECURITY.md](SECURITY.md)** for the full trust model — capability boundaries, localhost gating, the `--host` caveat, plaintext API-key storage, and the `.eveglyph/` risk — before enabling local-agent mode or remote MCP.
+Read **[SECURITY.md](SECURITY.md)** for the full trust model — capability boundaries, GitHub credential custody, localhost gating, the `--host` caveat, plaintext AI-provider API-key storage, and the `.eveglyph/` risk — before enabling local-agent mode or remote MCP.
 
 ## Status
 
