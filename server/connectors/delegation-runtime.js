@@ -8,6 +8,27 @@ function codedError(code, message) {
   return error
 }
 
+// The GitHub/Google connector services build their actor.session field as
+// `${provider}:${credentialId}` — the credential broker's own internal
+// lookup handle, not the real OAuth secret itself, but still an internal
+// implementation detail with no reason to leave this process. That's fine
+// for the local browser-facing HTTP endpoints (same trust boundary, same
+// process, and Settings never displays it), but a delegated MCP result
+// reaches a channel this project's own docs already flag as something
+// third-party MCP hosts may log — so redact just that one field on the way
+// out through here, not on the readRepositoryFile/listDriveFiles/
+// readDriveFile functions themselves (those stay exactly as they are for
+// their existing local HTTP callers).
+function redactDelegatedResult(result) {
+  if (!result || typeof result !== 'object' || !result.capability_evidence?.actor) return result
+  const { actor, ...evidenceRest } = result.capability_evidence
+  const { session, ...actorRest } = actor
+  return {
+    ...result,
+    capability_evidence: { ...evidenceRest, actor: actorRest },
+  }
+}
+
 function requireMatch(delegation, operation) {
   if (!delegation ||
       delegation.provider !== operation.provider ||
@@ -32,23 +53,23 @@ export function createConnectorDelegationRuntime({
       const operation = resolveDelegatedOperation('github_read_file_delegated', input || {})
       requireMatch(delegation, operation)
       if (!githubService) throw codedError('delegation_service_unavailable', 'GitHub delegated connector service is unavailable')
-      return githubService.readRepositoryFile({
+      return redactDelegatedResult(await githubService.readRepositoryFile({
         repository: operation.input.repository,
         path: operation.input.path,
         ref: operation.input.ref ?? null,
-      })
+      }))
     },
     'google:list-files': async ({ delegation, input }) => {
       const operation = resolveDelegatedOperation('google_drive_list_files_delegated', input || {})
       requireMatch(delegation, operation)
       if (!googleService) throw codedError('delegation_service_unavailable', 'Google delegated connector service is unavailable')
-      return googleService.listDriveFiles({ pageToken: operation.input.page_token ?? null })
+      return redactDelegatedResult(await googleService.listDriveFiles({ pageToken: operation.input.page_token ?? null }))
     },
     'google:read-file': async ({ delegation, input }) => {
       const operation = resolveDelegatedOperation('google_drive_read_file_delegated', input || {})
       requireMatch(delegation, operation)
       if (!googleService) throw codedError('delegation_service_unavailable', 'Google delegated connector service is unavailable')
-      return googleService.readDriveFile({ fileId: operation.input.file_id })
+      return redactDelegatedResult(await googleService.readDriveFile({ fileId: operation.input.file_id }))
     },
   }
 

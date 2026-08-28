@@ -132,6 +132,48 @@ test('delegated execution re-checks live connector authority after ticket consum
   }
 })
 
+test('delegated result redacts the internal credential id, local HTTP result keeps it', async () => {
+  // Regression test for a real finding: readRepositoryFile()'s
+  // capability_evidence.actor.session field is built as
+  // `github:${credentialId}` — the credential broker's own internal
+  // lookup handle. That's fine for the existing local browser-facing HTTP
+  // endpoint (same trust boundary, same process), but this exact field
+  // reaches the delegated MCP result too, on a channel this project's own
+  // docs already flag as something third-party MCP hosts may log. No
+  // exploit path exists (no tool accepts a credential id as input), but
+  // there's no reason to hand it out on a channel that doesn't need it.
+  const { runtime, service } = await setupGitHubRuntime()
+  try {
+    // The local (non-delegated) path is untouched — same function, called
+    // directly, the way the browser HTTP endpoint calls it.
+    const direct = await service.readRepositoryFile({ repository: 'owner/repo', path: 'a.md' })
+    assert.equal(typeof direct.capability_evidence.actor.session, 'string')
+    assert.match(direct.capability_evidence.actor.session, /^github:/)
+
+    // The delegated path strips it.
+    const issued = service.issueRepositoryFileDelegation({ repository: 'owner/repo', path: 'a.md' })
+    const operation = resolveDelegatedOperation('github_read_file_delegated', { repository: 'owner/repo', path: 'a.md' })
+    const delegated = await invokeRaw(runtime.endpoint, {
+      method: 'invoke',
+      ticket: issued.ticket,
+      provider: operation.provider,
+      operation: operation.operation,
+      capability: operation.capability,
+      resource: operation.resource,
+      input: operation.input,
+    })
+    assert.equal(delegated.ok, true)
+    assert.equal('session' in delegated.result.capability_evidence.actor, false)
+    // Everything else about the actor/evidence survives — this is a
+    // targeted redaction, not a wholesale strip of audit information.
+    assert.equal(delegated.result.capability_evidence.actor.humanPrincipal, direct.capability_evidence.actor.humanPrincipal)
+    assert.equal(delegated.result.capability_evidence.decision, 'allow')
+    assert.equal(delegated.result.content, 'hello')
+  } finally {
+    await runtime.stop()
+  }
+})
+
 test('one-use delegated ticket cannot be replayed through the runtime', async () => {
   const { runtime, service, fetchCount } = await setupGitHubRuntime()
   try {
