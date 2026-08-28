@@ -41,6 +41,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify built GitHub connector client
+        run: node scripts/verify_github_connector_build.mjs
+
       - name: Dynamic logic regression
         run: npm run verify:dynamic-logic
 
