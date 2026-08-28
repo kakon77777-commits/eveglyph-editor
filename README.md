@@ -20,6 +20,7 @@ It is the editor half of **EveGlyph-MD**, a semantic-first Markdown format/proto
 - **EveGlyph-MD frontmatter** — a lightweight `type` / `status` / `tags` classification with a status-bar chip and preview badges; the active document's class is handed to the agent as sanitized, non-instruction metadata.
 - **World Studio draft generation** — opt in with **Settings → Enable World Studio**. The **Studio** tab asks the configured cloud AI for a bounded state-machine draft containing states, variables, optional controlled random ranges, events, language instructions, responses, and transitions. State Machine Preview provides direct visual buffer editing for those records and Runtime mapping review. The result is parsed and validated locally before it can be applied to the editor; **Check with Runtime** can send it to the Runtime's read-only World IR importer, edit the returned mapping draft, and validate it again. It never writes Runtime State or saves a file automatically.
 - **Workspace memory (`.eveglyph/`)** — per-workspace `rules.md` / `glossary.md` / `memory/*` injected into every agent run; a back-stage **Monitor** tab reads the diagnostic stream.
+- **Capability sandbox foundation** — AIMD-C entry points run through a deny-by-default `document-only` authority profile. Document computation receives only current-document read, bounded compute, and ephemeral-output capability; workspace, network, process, host-environment, Google, GitHub, OAuth-token, and other connector authority are absent unless a future caller supplies an explicit resource-scoped grant. Allow/deny decisions carry actor-aware audit evidence.
 - **MCP server** (`mcp-server.js`) — a standalone stdio [MCP](https://modelcontextprotocol.io) server so any MCP-capable client (Claude Desktop, Claude Code, etc.) can read/write a workspace and run AIMD-C/World-IR logic directly, no browser needed. See [below](#mcp-server-for-ai-clients).
 
 ## Quick start
@@ -64,8 +65,10 @@ browser frontend  ⇄  vite-agent-bridge (/api)  ⇄  filesystem · git · CLI a
 
 - `list_files` — every text file in the workspace
 - `read_file` / `write_file` — read/write a file by relative path (encoding-aware on read)
-- `evaluate_aimdc` — parse and evaluate a document's AIMD-C blocks (same engine as the live preview / PDF export)
+- `evaluate_aimdc` — parse and evaluate a document's AIMD-C blocks through the `document-only` capability profile; the result includes sandbox/audit evidence
 - `validate_world_ir` — validate a World IR YAML document (state machine / entity / entity list)
+
+The capability control plane also defines transport-neutral mappings for these base tools and the publication tools. The mapping is groundwork for later identity-aware MCP authorization; **this PR does not silently put existing workspace MCP tools behind a new grant-acquisition flow**, and the remote HTTP transport still uses its existing bearer-token compatibility mode.
 
 Run it directly:
 
@@ -111,11 +114,13 @@ Settings ⚙ → **Enable remote MCP server** does the same `mcp-server-remote.j
 
 ## Security
 
-Local-agent mode runs a CLI **with auto-approve** and lets it read, create, edit, and delete files in the workspace folder. Every file, git, and agent operation is confined server-side to the one folder you opened. You stay in control through a per-workspace confirmation and a git-snapshot **diff review** (Accept / Reject).
+AIMD-C document computation in the live preview and MCP `evaluate_aimdc` enters through `src/capabilities/document-runtime.js`. Its default `document-only` profile grants only `document.read.self` on `document:self`, `document.compute` on `document:self`, and `ephemeral.output` on `execution:*`. It has no filesystem, network, process, host-environment, OAuth credential, Google, or GitHub object to call. Future external access must be represented as an explicit capability request and authorized against a resource-scoped grant before a connector broker performs the external action.
+
+Local-agent mode is a separate, intentionally broader trust boundary: it runs a CLI **with auto-approve** and lets it read, create, edit, and delete files in the workspace folder. Every file, git, and agent operation is confined server-side to the one folder you opened. You stay in control through a per-workspace confirmation and a git-snapshot **diff review** (Accept / Reject).
 
 If a workspace contains a **`.eveglyph/rules.md`**, EveGlyph Editor injects it into every agent run with elevated authority (plus `.eveglyph/glossary.md` and the `.eveglyph/memory/*` notes) — review it before running an agent in an unfamiliar workspace.
 
-Read **[SECURITY.md](SECURITY.md)** for the full trust model — localhost gating, the `--host` caveat, plaintext API-key storage, and the `.eveglyph/` risk — before enabling local-agent mode.
+Read **[SECURITY.md](SECURITY.md)** for the full trust model — capability boundaries, localhost gating, the `--host` caveat, plaintext API-key storage, and the `.eveglyph/` risk — before enabling local-agent mode or remote MCP.
 
 ## Status
 
