@@ -66,6 +66,7 @@ export function createMemoryCredentialBroker({
   }
 
   function store({
+    credentialId = null,
     provider,
     account,
     accessToken,
@@ -73,7 +74,9 @@ export function createMemoryCredentialBroker({
     refreshToken = null,
     refreshExpiresAt = null,
   } = {}) {
-    const id = requiredString(String(idFactory()), 'credential id')
+    const id = credentialId == null || credentialId === ''
+      ? requiredString(String(idFactory()), 'credential id')
+      : requiredString(credentialId, 'credential id')
     if (records.has(id)) throw codedError('credential_id_collision', 'credential id already exists')
     const timestamp = normalizeNow(now).toISOString()
     const record = {
