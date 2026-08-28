@@ -8,6 +8,7 @@ on:
       - feat/google-drive-connector-broker
       - feat/persistent-credential-delegation-broker
       - feat/mcp-delegated-connector-operations
+      - feat/wasmtime-document-sandbox-runtime
   pull_request:
     branches:
       - main
@@ -31,6 +32,29 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Setup Wasmtime 48.0.0
+        uses: bytecodealliance/actions/wasmtime/setup@v1
+        with:
+          version: "48.0.0"
+
+      - name: Setup wasm-tools 1.254.0
+        uses: bytecodealliance/actions/wasm-tools/setup@v1
+        with:
+          version: "1.254.0"
+
+      - name: Verify sandbox toolchain
+        run: |
+          wasmtime --version
+          wasm-tools --version
+          test "$(wasmtime --version | awk '{print $2}')" = "48.0.0"
+          test "$(wasm-tools --version | awk '{print $2}')" = "1.254.0"
+
+      - name: Compile Wasmtime fixtures
+        run: node scripts/compile_wasmtime_fixtures.mjs
+
+      - name: Wasmtime sandbox tests
+        run: npm run test:wasmtime-sandbox
 
       - name: MCP delegation tests
         run: npm run test:mcp-delegation
@@ -68,6 +92,9 @@ jobs:
       - name: Verify MCP delegation boundary
         run: node scripts/verify_mcp_delegation_boundary.mjs
 
+      - name: Verify Wasmtime physical sandbox boundary
+        run: npm run verify:wasmtime-sandbox
+
       - name: Dynamic logic regression
         run: npm run verify:dynamic-logic
 
@@ -75,12 +102,12 @@ jobs:
         run: npm run verify:dynamic-rendering
 
       - name: Package verified PR source
-        run: git archive --format=zip --output=eveglyph-mcp-delegated-connector-operations.zip HEAD
+        run: git archive --format=zip --output=eveglyph-wasmtime-document-sandbox-runtime.zip HEAD
 
       - name: Upload verified PR source
         uses: actions/upload-artifact@v4
         with:
-          name: eveglyph-mcp-delegated-connector-operations
-          path: eveglyph-mcp-delegated-connector-operations.zip
+          name: eveglyph-wasmtime-document-sandbox-runtime
+          path: eveglyph-wasmtime-document-sandbox-runtime.zip
           if-no-files-found: error
           retention-days: 14
