@@ -6,20 +6,18 @@ import { googleDriveConnectorBridge } from './vite-google-drive-connector.js'
 import { googleDriveSettingsUi } from './vite-google-drive-settings-ui.js'
 import { githubSettingsUi } from './vite-github-settings-ui.js'
 import { createCredentialRuntime } from './server/credentials/runtime.js'
+import { createConnectorDelegationRuntime } from './server/connectors/delegation-runtime.js'
 
-// One provider-neutral credential runtime is shared by external-service
-// connectors. The default storage mode is the OS-backed system keyring;
-// EVEGLYPH_CREDENTIAL_STORE=memory is an explicit non-persistent fallback.
 const credentialRuntime = createCredentialRuntime({ EntryClass: Entry })
+const delegationRuntime = createConnectorDelegationRuntime()
 
-// EveGlyph Editor — Vite config
-// Dev server auto-opens the browser so the .bat launcher is one double-click.
 export default defineConfig({
   root: '.',
   plugins: [
+    delegationRuntime.vitePlugin(),
     agentBridge(),
-    githubConnectorBridge({ broker: credentialRuntime.broker }),
-    googleDriveConnectorBridge({ broker: credentialRuntime.broker }),
+    githubConnectorBridge({ broker: credentialRuntime.broker, delegationRuntime }),
+    googleDriveConnectorBridge({ broker: credentialRuntime.broker, delegationRuntime }),
     googleDriveSettingsUi(),
     githubSettingsUi(),
   ],
