@@ -24,7 +24,94 @@ Every allow/deny decision made by a capability session records actor-aware audit
 
 `src/capabilities/mcp-map.js` also records the authority requirements of the current base/publication MCP tools. That mapping is **control-plane groundwork**, not a silent behavior change to all existing MCP calls: PR-A does not yet provide a user-facing grant-acquisition/OAuth flow, so workspace tools retain their current transport-level behavior. Remote MCP still uses the bearer-token compatibility model described below. Later OAuth/connector middleware must consume this same capability model rather than introducing a second authorization vocabulary.
 
-This foundation is not itself an OS/process sandbox and does not claim to make arbitrary native code safe. Wasmtime/WASI, Deno permissions, Linux sandbox primitives, gVisor/Firecracker, credential brokerage, and Google/GitHub connectors are separate later layers that can be attached behind the capability boundary.
+This foundation is not itself an OS/process sandbox and does not claim to make arbitrary native code safe. Wasmtime/WASI, Deno permissions, Linux sandbox primitives, gVisor/Firecracker, credential brokerage, and Google/GitHub connectors are separate layers attached behind the capability boundary.
+
+## GitHub connector credential boundary
+
+The GitHub connector is the first external-service implementation attached to the capability control plane. Its central rule is:
+
+```text
+GitHub OAuth authentication
+!=
+EveGlyph repository authorization
+```
+
+A successful GitHub App user-OAuth callback establishes a GitHub user identity and stores the resulting credential in a Node-side broker. It grants **zero repository authority**. The user must separately choose **Grant read for this session** for a specific `owner/repo` before the connector can read a file from that repository.
+
+The connector uses the empty-baseline `connector-session` profile. Repository access is supplied only by explicit session grants such as:
+
+```text
+connector.github.repository.contents.read
+on github:repository:<owner>/<repo>:contents:*
+```
+
+A repository A grant cannot authorize repository B, and read never implies write.
+
+### Credential custody
+
+GitHub credentials are kept in a process-scoped in-memory Node broker. Raw access tokens, refresh tokens, the GitHub client secret, OAuth authorization codes, PKCE verifiers, and Authorization headers are not returned to the browser and are not persisted to:
+
+- `localStorage`;
+- `sessionStorage`;
+- workspace files;
+- `.eveglyph/` files;
+- Git history;
+- publication artifacts;
+- MCP payloads.
+
+The broker exposes redacted descriptions plus a server-side callback interface for trusted connector code; it does not expose a public `getToken()` API. Restarting the Vite dev process destroys the broker state and requires GitHub authentication again.
+
+The GitHub client id/secret are read from server-side environment variables:
+
+```text
+EVEGLYPH_GITHUB_CLIENT_ID
+EVEGLYPH_GITHUB_CLIENT_SECRET
+```
+
+An optional callback override may be set through:
+
+```text
+EVEGLYPH_GITHUB_REDIRECT_URI
+```
+
+There is deliberately no GitHub client-secret/access-token field in Settings.
+
+### OAuth replay protection and refresh
+
+Authentication start creates a cryptographically random `state` plus an S256 PKCE challenge. Pending state expires after 10 minutes and is consumed before token exchange, so the same state cannot be replayed even if exchange fails.
+
+If GitHub returns expiring user access tokens, EveGlyph refreshes them server-side when within 30 seconds of expiry. Missing/expired refresh authority fails closed as `github_reauthentication_required`; token values are never placed in public error messages.
+
+### Repository read boundary
+
+The current GitHub connector supports regular UTF-8 text files obtained through the GitHub Contents API only. Every read follows:
+
+```text
+validate owner/repo and path
+→ require connected GitHub identity
+→ require matching EveGlyph repository read grant
+→ refresh credential if necessary
+→ access credential inside broker callback
+→ perform GitHub Contents request
+→ validate file/base64 response
+→ enforce 1 MiB decoded limit
+→ strict UTF-8 decode
+→ return content + capability evidence
+```
+
+The capability decision occurs **before credential access and before network fetch**. A denied request therefore cannot use the GitHub credential to probe another repository.
+
+Paths reject leading `/`, empty segments, `.`/`..` traversal segments, and NUL characters. Directories, non-file resources, unsupported encodings, invalid UTF-8, and files larger than 1 MiB fail explicitly.
+
+PR-B exposes **no GitHub write/create/update/delete/commit/generic-authenticated-request surface**. Configure the GitHub App with **Contents: Read-only** for this implementation as defense in depth.
+
+### Local bridge and MCP separation
+
+The GitHub connector routes live in a separate local Vite plugin, `vite-github-connector.js`, rather than the filesystem/CLI agent bridge. They retain the same localhost Host/Origin posture and bounded JSON request bodies.
+
+The process-memory GitHub credential broker is **not shared with `mcp-server.js` or `mcp-server-remote.js`**. Those are separate processes. Raw credentials are not copied across that boundary merely to make MCP calls work. A later design may introduce deliberate broker IPC/keychain storage or place remote MCP behind the same authenticated gateway.
+
+See [`docs/GITHUB-CONNECTOR.md`](docs/GITHUB-CONNECTOR.md) for operator setup, callback configuration, and the complete read-only flow.
 
 ## The local bridge
 
