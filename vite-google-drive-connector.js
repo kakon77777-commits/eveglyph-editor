@@ -17,7 +17,6 @@ function isLocalRequest(req) {
   try { hostname = new URL(`http://${rawHost}`).hostname }
   catch { hostname = rawHost.split(':')[0] }
   if (!isLocalHost(hostname)) return false
-
   const origin = req.headers.origin
   if (!origin) return true
   try { return isLocalHost(new URL(origin).hostname) }
@@ -91,18 +90,20 @@ export function googleDriveConnectorBridge({
   clientSecret = process.env.EVEGLYPH_GOOGLE_CLIENT_SECRET || '',
   fetchImpl = globalThis.fetch,
   broker: injectedBroker = null,
+  delegationBroker = null,
+  delegationRuntime = null,
 } = {}) {
   const broker = injectedBroker || createMemoryCredentialBroker()
+  const activeDelegationBroker = delegationRuntime?.broker || delegationBroker
   const oauth = createGoogleOAuth({ clientId, clientSecret, fetchImpl })
-  const service = createGoogleDriveConnectorService({ broker, oauth, fetchImpl })
+  const service = createGoogleDriveConnectorService({ broker, delegationBroker: activeDelegationBroker, oauth, fetchImpl })
   const controller = createGoogleDriveConnectorHttpController({ service })
+  if (delegationRuntime?.attachGoogleService) delegationRuntime.attachGoogleService(service)
 
   return {
     name: 'eveglyph-google-drive-connector',
     apply: 'serve',
     configureServer(server) {
-      // Persistent identity restoration is provider-scoped and intentionally
-      // restores no metadata/file session grants.
       if (typeof broker.restoreActive === 'function') {
         try {
           const restored = broker.restoreActive('google')
@@ -116,7 +117,6 @@ export function googleDriveConnectorBridge({
       server.middlewares.use(async (req, res, next) => {
         const parsed = new URL(req.url || '/', 'http://localhost')
         if (!parsed.pathname.startsWith(ROUTE_PREFIX)) return next()
-
         if (!isLocalRequest(req)) {
           writeJson(res, 403, { error: { code: 'local_request_required', message: 'Google Drive connector API is local-only.' } })
           return
@@ -127,12 +127,10 @@ export function googleDriveConnectorBridge({
             if (req.method !== 'GET') return methodNotAllowed(res)
             return writeControllerResponse(res, controller.status())
           }
-
           if (parsed.pathname === '/api/connectors/google/auth/start') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             return writeControllerResponse(res, controller.startAuth({ redirectUri: requestRedirectUri(req) }))
           }
-
           if (parsed.pathname === '/api/connectors/google/callback') {
             if (req.method !== 'GET') return methodNotAllowed(res)
             return writeControllerResponse(res, await controller.callback({
@@ -140,36 +138,40 @@ export function googleDriveConnectorBridge({
               state: parsed.searchParams.get('state') || '',
             }))
           }
-
           if (parsed.pathname === '/api/connectors/google/disconnect') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             return writeControllerResponse(res, controller.disconnect())
           }
-
           if (parsed.pathname === '/api/connectors/google/grant-metadata') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             return writeControllerResponse(res, controller.grantMetadata())
           }
-
+          if (parsed.pathname === '/api/connectors/google/delegation/list-files') {
+            if (req.method !== 'POST') return methodNotAllowed(res)
+            const body = await readJsonBody(req)
+            return writeControllerResponse(res, controller.issueDelegatedList({ pageToken: body.page_token || null }))
+          }
           if (parsed.pathname === '/api/connectors/google/list-files') {
             if (req.method !== 'GET') return methodNotAllowed(res)
             return writeControllerResponse(res, await controller.listFiles({
               pageToken: parsed.searchParams.get('page_token') || null,
             }))
           }
-
           if (parsed.pathname === '/api/connectors/google/grant-file-read') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             const body = await readJsonBody(req)
             return writeControllerResponse(res, controller.grantFileRead({ fileId: body.file_id }))
           }
-
+          if (parsed.pathname === '/api/connectors/google/delegation/read-file') {
+            if (req.method !== 'POST') return methodNotAllowed(res)
+            const body = await readJsonBody(req)
+            return writeControllerResponse(res, controller.issueDelegatedFileRead({ fileId: body.file_id }))
+          }
           if (parsed.pathname === '/api/connectors/google/read-file') {
             if (req.method !== 'POST') return methodNotAllowed(res)
             const body = await readJsonBody(req)
             return writeControllerResponse(res, await controller.readFile({ fileId: body.file_id }))
           }
-
           writeJson(res, 404, { error: { code: 'not_found', message: 'Google Drive connector route not found.' } })
         } catch (error) {
           if (error?.code === 'request_body_too_large') {
