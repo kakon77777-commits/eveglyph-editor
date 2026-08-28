@@ -44,6 +44,9 @@ jobs:
       - name: MCP delegated connector tests
         run: node --test test/mcp-delegated-connectors.test.mjs
 
+      - name: MCP delegation endpoint and Settings tests
+        run: node --test test/mcp-delegation-endpoint-wiring.test.mjs
+
       - name: Credential broker tests
         run: npm run test:credential-broker
 
