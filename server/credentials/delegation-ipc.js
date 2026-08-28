@@ -19,25 +19,43 @@ function defaultEndpoint() {
   return path.join(os.tmpdir(), `eveglyph-credential-broker-${process.pid}.sock`)
 }
 
+const PUBLIC_MESSAGES = Object.freeze({
+  delegation_not_found: 'Delegation ticket not found.',
+  delegation_expired: 'Delegation ticket expired.',
+  delegation_mismatch: 'Delegation ticket does not authorize this operation.',
+  delegation_invalid: 'Delegation request is invalid.',
+  delegation_service_unavailable: 'Delegated connector service is unavailable.',
+  capability_denied: 'The delegated connector capability is not currently granted.',
+  github_not_connected: 'GitHub is not connected.',
+  github_reauthentication_required: 'GitHub must be authenticated again.',
+  github_invalid_repository: 'GitHub repository is invalid.',
+  github_invalid_path: 'GitHub path is invalid.',
+  github_invalid_ref: 'GitHub ref is invalid.',
+  github_api_error: 'GitHub API request failed.',
+  github_resource_not_file: 'GitHub resource is not a regular file.',
+  github_file_too_large: 'GitHub file exceeds the connector size limit.',
+  github_file_encoding_unsupported: 'GitHub file is not supported as UTF-8 text.',
+  google_drive_not_connected: 'Google Drive is not connected.',
+  google_reauthentication_required: 'Google must be authenticated again.',
+  google_drive_invalid_page_token: 'Google Drive page token is invalid.',
+  google_drive_invalid_file_id: 'Google Drive file id is invalid.',
+  google_drive_api_error: 'Google Drive API request failed.',
+  google_drive_file_too_large: 'Google Drive file exceeds the connector size limit.',
+  google_drive_file_encoding_unsupported: 'Google Drive file is not supported as UTF-8 text.',
+  google_drive_export_unsupported: 'Google Workspace file type is not supported by the read-only connector.',
+  ipc_invalid_json: 'IPC request must be valid JSON.',
+  ipc_request_too_large: 'IPC request exceeds the size limit.',
+  ipc_method_not_allowed: 'IPC method is not allowed.',
+  ipc_handler_not_found: 'Delegated operation handler is not registered.',
+  ipc_sensitive_result_blocked: 'Delegated operation attempted to return sensitive credential material.',
+  ipc_internal_error: 'Internal delegation IPC error.',
+})
+
 function stableError(error) {
-  const known = new Set([
-    'delegation_not_found', 'delegation_expired', 'delegation_mismatch', 'delegation_invalid',
-    'ipc_invalid_json', 'ipc_request_too_large', 'ipc_method_not_allowed', 'ipc_handler_not_found', 'ipc_sensitive_result_blocked',
-  ])
-  const code = known.has(error?.code) ? error.code : 'ipc_internal_error'
-  const messages = {
-    delegation_not_found: 'Delegation ticket not found.',
-    delegation_expired: 'Delegation ticket expired.',
-    delegation_mismatch: 'Delegation ticket does not authorize this operation.',
-    delegation_invalid: 'Delegation request is invalid.',
-    ipc_invalid_json: 'IPC request must be valid JSON.',
-    ipc_request_too_large: 'IPC request exceeds the size limit.',
-    ipc_method_not_allowed: 'IPC method is not allowed.',
-    ipc_handler_not_found: 'Delegated operation handler is not registered.',
-    ipc_sensitive_result_blocked: 'Delegated operation attempted to return sensitive credential material.',
-    ipc_internal_error: 'Internal delegation IPC error.',
-  }
-  return { ok: false, error: { code, message: messages[code] } }
+  const code = typeof error?.code === 'string' && error.code in PUBLIC_MESSAGES
+    ? error.code
+    : 'ipc_internal_error'
+  return { ok: false, error: { code, message: PUBLIC_MESSAGES[code] } }
 }
 
 function containsSensitiveKey(value, seen = new Set()) {
@@ -126,8 +144,6 @@ export function createDelegationIpcServer({
   async function start() {
     if (server) return endpoint
     removeStaleSocket()
-    // Keep the server's writable side open after a client half-closes its
-    // request stream. The protocol reads until client FIN, then replies.
     server = net.createServer({ allowHalfOpen: true }, onConnection)
     await new Promise((resolve, reject) => {
       server.once('error', reject)
