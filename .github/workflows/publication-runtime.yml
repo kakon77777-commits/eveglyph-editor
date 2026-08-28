@@ -35,6 +35,9 @@ jobs:
       - name: MCP delegated contract tests
         run: node --test test/mcp-delegated-contracts.test.mjs
 
+      - name: Connector delegation issuance tests
+        run: node --test test/connector-delegation-issuance.test.mjs
+
       - name: Credential broker tests
         run: npm run test:credential-broker
 
