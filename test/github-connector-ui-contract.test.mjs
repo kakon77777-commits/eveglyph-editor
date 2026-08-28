@@ -53,16 +53,30 @@ test('GitHub Settings module exports and implements the five connector actions',
   for (const name of REQUIRED_EXPORTS) {
     assert.match(githubSettings, new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\b`), `missing export ${name}`)
   }
-  assert.match(githubSettings, /\/api\/connectors\/github\/status/)
-  assert.match(githubSettings, /\/api\/connectors\/github\/auth\/start/)
-  assert.match(githubSettings, /\/api\/connectors\/github\/grant-read/)
-  assert.match(githubSettings, /\/api\/connectors\/github\/read-file/)
+
+  // The browser client deliberately centralizes the common connector prefix in
+  // one request helper. Verify that shared route construction and every required
+  // operation are present instead of requiring duplicated full URL literals.
+  assert.match(githubSettings, /fetch\(`\/api\/connectors\/github\/\$\{path\}`/)
+  for (const route of ['status', 'auth/start', 'grant-read', 'read-file']) {
+    assert.ok(
+      githubSettings.includes(`githubRequest('${route}'`) || githubSettings.includes(`githubRequest("${route}"`),
+      `missing GitHub connector operation ${route}`,
+    )
+  }
   assert.match(githubSettings, /textContent\s*=/, 'file preview must use textContent, not HTML injection')
 })
 
 test('GitHub Settings module wires every connector control and is loaded by Vite', () => {
+  // DOM lookup is intentionally centralized through the tiny `$()` helper.
+  // Verify the helper and each concrete control reference rather than forcing
+  // direct document.getElementById('<literal>') calls at every use site.
+  assert.match(githubSettings, /document\.getElementById\(id\)/)
   for (const id of ['btn-github-connect', 'btn-github-disconnect', 'btn-github-grant-read', 'btn-github-read']) {
-    assert.match(githubSettings, new RegExp(`getElementById\\(['"]${id}['"]\\)`), `GitHub Settings module does not wire ${id}`)
+    assert.ok(
+      githubSettings.includes(`$('${id}')`) || githubSettings.includes(`$("${id}")`),
+      `GitHub Settings module does not wire ${id}`,
+    )
   }
   assert.match(githubSettings, /githubRefreshStatus\(\)/)
   assert.match(uiPlugin, /src\/githubsettings\.js/)
