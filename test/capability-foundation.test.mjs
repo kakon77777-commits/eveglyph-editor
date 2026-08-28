@@ -156,6 +156,33 @@ test('document runtime rejects explicitly requested non-document authority', asy
   )
 })
 
+test('markdownToTypst (render_document/validate_document\'s AIMD-C path) is capability-gated, not a direct evaluator call', async () => {
+  // Regression test for a real finding: render_document/validate_document
+  // (mcp-publication.js, reachable over remote MCP with only the bearer
+  // token) used to import evaluateDocument from aimdc/graph.js directly,
+  // bypassing the capability sandbox entirely — zero authority check, zero
+  // audit evidence, unlike evaluate_aimdc which was already correctly
+  // routed. Fixed by switching to evaluateDocumentInSandbox (same function
+  // the test above exercises directly). This test proves the fix from the
+  // public markdownToTypst() surface those two MCP tools actually call
+  // through — not just that the right function is imported, but that an
+  // out-of-baseline capability request made through that exact surface is
+  // genuinely denied before evaluation, the same behavioral proof as the
+  // test above.
+  const { markdownToTypst } = await requireModule('../src/typstconvert.js', 'typst converter')
+  const source = '::: aimd-value {id="x" type="Number"}\n2\n:::\n'
+  assert.throws(
+    () => markdownToTypst(source, {
+      requestedCapabilities: [{ capability: 'network.connect', resource: 'https://example.com', lifetime: 'once' }],
+    }),
+    error => error?.code === 'capability_denied' && error?.decision?.request?.capability === 'network.connect'
+  )
+  // Baseline-only evaluation (what render_document/validate_document
+  // actually do today) still succeeds — this isn't a new restriction on
+  // normal use, only a real gate against authority the caller never had.
+  assert.doesNotThrow(() => markdownToTypst(source))
+})
+
 test('MCP map covers current base and publication tools and rejects unknown tools', async () => {
   const { resolveMcpToolCapabilityRequests } = await requireModule(MCP_MAP_MODULE, 'MCP capability map')
 

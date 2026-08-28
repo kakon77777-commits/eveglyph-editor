@@ -104,7 +104,12 @@ export function registerPublicationMcp(server, { workspaceRoot } = {}) {
     },
     annotations: toolAnnotations(),
   }, async ({ source, profile }) => {
-    try { return jsonResult(validateDocument(source, { profile })) }
+    try {
+      return jsonResult(validateDocument(source, {
+        profile,
+        actor: { client: 'eveglyph-mcp', document: 'inline:validate_document' },
+      }))
+    }
     catch (error) { return errorResult(error) }
   })
 
@@ -123,7 +128,10 @@ export function registerPublicationMcp(server, { workspaceRoot } = {}) {
     annotations: toolAnnotations({ idempotent: false }),
   }, async ({ source, profile, filename, theme, layout }) => {
     try {
-      const prepared = preparePublication(source, { profile, theme, layout })
+      const prepared = preparePublication(source, {
+        profile, theme, layout,
+        actor: { client: 'eveglyph-mcp', document: 'inline:render_document' },
+      })
       const rendered = await renderTypstToPdf(prepared.typstSource, { workspaceRoot })
       const metadata = publicationArtifactStore.put({
         bytes: rendered.bytes,

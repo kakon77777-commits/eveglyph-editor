@@ -45,7 +45,7 @@ function countUnescapedInlineDelimiters(source) {
   return count
 }
 
-export function validateDocument(source, { profile } = {}) {
+export function validateDocument(source, { profile, actor } = {}) {
   const errors = []
   const warnings = []
   const notices = []
@@ -81,7 +81,7 @@ export function validateDocument(source, { profile } = {}) {
 
   if (!errors.some(e => e.code === 'unclosed_code_fence' || e.code === 'unclosed_eveglyph_block')) {
     try {
-      markdownToTypst(source)
+      markdownToTypst(source, { actor })
     } catch (e) {
       errors.push(error('conversion_error', e?.message || String(e)))
     }
