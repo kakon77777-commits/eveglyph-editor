@@ -42,3 +42,14 @@ jobs:
 
       - name: Dynamic rendering regression
         run: npm run verify:dynamic-rendering
+
+      - name: Package verified PR source
+        run: git archive --format=zip --output=eveglyph-capability-sandbox-foundation.zip HEAD
+
+      - name: Upload verified PR source
+        uses: actions/upload-artifact@v4
+        with:
+          name: eveglyph-capability-sandbox-foundation
+          path: eveglyph-capability-sandbox-foundation.zip
+          if-no-files-found: error
+          retention-days: 14
