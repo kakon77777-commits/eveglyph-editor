@@ -1,4 +1,8 @@
 import { createCapabilityRequest } from './model.js'
+import {
+  DELEGATED_TOOL_NAMES,
+  resolveDelegatedOperation,
+} from '../../server/connectors/delegated-contracts.js'
 
 function codedError(code, message) {
   const error = new Error(message)
@@ -16,7 +20,7 @@ function artifactResource(artifactId) {
   return `artifact:${artifactId.trim()}`
 }
 
-const TOOL_REQUEST_BUILDERS = Object.freeze({
+const BASE_TOOL_REQUEST_BUILDERS = {
   list_files: () => [
     ['workspace.read', 'workspace:*'],
   ],
@@ -57,6 +61,19 @@ const TOOL_REQUEST_BUILDERS = Object.freeze({
   get_render_report: args => [
     ['ephemeral.output', artifactResource(args?.artifact_id)],
   ],
+}
+
+const DELEGATED_TOOL_SET = new Set(DELEGATED_TOOL_NAMES)
+const DELEGATED_REQUEST_BUILDERS = Object.fromEntries(
+  DELEGATED_TOOL_NAMES.map(toolName => [toolName, args => {
+    const operation = resolveDelegatedOperation(toolName, args)
+    return [[operation.capability, operation.resource]]
+  }]),
+)
+
+const TOOL_REQUEST_BUILDERS = Object.freeze({
+  ...BASE_TOOL_REQUEST_BUILDERS,
+  ...DELEGATED_REQUEST_BUILDERS,
 })
 
 export const MCP_TOOL_CAPABILITY_NAMES = Object.freeze(Object.keys(TOOL_REQUEST_BUILDERS))
@@ -64,11 +81,12 @@ export const MCP_TOOL_CAPABILITY_NAMES = Object.freeze(Object.keys(TOOL_REQUEST_
 export function resolveMcpToolCapabilityRequests(toolName, args = {}) {
   const builder = TOOL_REQUEST_BUILDERS[toolName]
   if (!builder) throw codedError('unknown_mcp_tool', `unknown MCP tool: ${toolName}`)
+  const delegated = DELEGATED_TOOL_SET.has(toolName)
   return Object.freeze(builder(args).map(([capability, resource]) => createCapabilityRequest({
     capability,
     resource,
     lifetime: 'once',
     reason: `MCP tool ${toolName}`,
-    context: { tool: toolName },
+    context: delegated ? { tool: toolName, delegated: true } : { tool: toolName },
   })))
 }
