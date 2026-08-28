@@ -1,0 +1,38 @@
+name: PR-E One-Shot Bridge Patch
+
+on:
+  push:
+    branches:
+      - feat/mcp-delegated-connector-operations
+
+permissions:
+  contents: write
+
+jobs:
+  patch-bridge:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Apply exact bridge patch
+        run: node scripts/apply_pre_task5_bridge_patch.mjs
+
+      - name: Commit bridge patch
+        run: |
+          if git diff --quiet -- vite-agent-bridge.js; then
+            echo "bridge already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vite-agent-bridge.js
+          git commit -m "chore: apply PR-E remote MCP endpoint patch"
+          git push origin HEAD:${GITHUB_REF_NAME}
