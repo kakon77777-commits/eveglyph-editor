@@ -93,8 +93,9 @@ export function githubConnectorBridge({
   clientId = process.env.EVEGLYPH_GITHUB_CLIENT_ID || '',
   clientSecret = process.env.EVEGLYPH_GITHUB_CLIENT_SECRET || '',
   fetchImpl = globalThis.fetch,
+  broker: injectedBroker = null,
 } = {}) {
-  const broker = createMemoryCredentialBroker()
+  const broker = injectedBroker || createMemoryCredentialBroker()
   const oauth = createGitHubAppOAuth({ clientId, clientSecret, fetchImpl })
   const service = createGitHubConnectorService({ broker, oauth, fetchImpl })
   const controller = createGitHubConnectorHttpController({ service })
@@ -103,6 +104,19 @@ export function githubConnectorBridge({
     name: 'eveglyph-github-connector',
     apply: 'serve',
     configureServer(server) {
+      // Persistent brokers can restore provider identity at process startup.
+      // Session capability grants are intentionally not persisted by the
+      // service, so restoreAuth always comes back with grants=[].
+      if (typeof broker.restoreActive === 'function') {
+        try {
+          const restored = broker.restoreActive('github')
+          if (restored?.credential_id) service.restoreAuth({ credentialId: restored.credential_id })
+        } catch (error) {
+          const code = typeof error?.code === 'string' ? error.code : 'credential_restore_failed'
+          console.warn(`[EveGlyph] GitHub credential restore unavailable (${code})`)
+        }
+      }
+
       server.middlewares.use(async (req, res, next) => {
         const parsed = new URL(req.url || '/', 'http://localhost')
         if (!parsed.pathname.startsWith(ROUTE_PREFIX)) return next()
