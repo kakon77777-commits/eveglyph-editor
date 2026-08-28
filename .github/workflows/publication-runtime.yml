@@ -33,12 +33,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Wasmtime import-policy tests
-        run: node --test test/wasmtime-import-policy.test.mjs
-
-      - name: Wasmtime runtime contract tests
-        run: node --test test/wasmtime-runtime-contract.test.mjs
-
       - name: Setup Wasmtime 48.0.0
         uses: bytecodealliance/actions/wasmtime/setup@v1
         with:
@@ -59,17 +53,8 @@ jobs:
       - name: Compile Wasmtime fixtures
         run: node scripts/compile_wasmtime_fixtures.mjs
 
-      - name: Wasmtime real runtime tests
-        run: node --test test/wasmtime-real-runtime.test.mjs
-
-      - name: Wasmtime resource-limit tests
-        run: node --test test/wasmtime-resource-limits.test.mjs
-
-      - name: Document Wasm service tests
-        run: node --test test/document-wasm-service.test.mjs
-
-      - name: MCP Wasmtime sandbox tests
-        run: node --test test/mcp-wasmtime-sandbox.test.mjs
+      - name: Wasmtime sandbox tests
+        run: npm run test:wasmtime-sandbox
 
       - name: MCP delegation tests
         run: npm run test:mcp-delegation
@@ -117,12 +102,12 @@ jobs:
         run: npm run verify:dynamic-rendering
 
       - name: Package verified PR source
-        run: git archive --format=zip --output=eveglyph-mcp-delegated-connector-operations.zip HEAD
+        run: git archive --format=zip --output=eveglyph-wasmtime-document-sandbox-runtime.zip HEAD
 
       - name: Upload verified PR source
         uses: actions/upload-artifact@v4
         with:
-          name: eveglyph-mcp-delegated-connector-operations
-          path: eveglyph-mcp-delegated-connector-operations.zip
+          name: eveglyph-wasmtime-document-sandbox-runtime
+          path: eveglyph-wasmtime-document-sandbox-runtime.zip
           if-no-files-found: error
           retention-days: 14
