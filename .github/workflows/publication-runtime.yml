@@ -39,6 +39,29 @@ jobs:
       - name: Wasmtime runtime contract tests
         run: node --test test/wasmtime-runtime-contract.test.mjs
 
+      - name: Setup Wasmtime 48.0.0
+        uses: bytecodealliance/actions/wasmtime/setup@v1
+        with:
+          version: "48.0.0"
+
+      - name: Setup wasm-tools 1.254.0
+        uses: bytecodealliance/actions/wasm-tools/setup@v1
+        with:
+          version: "1.254.0"
+
+      - name: Verify sandbox toolchain
+        run: |
+          wasmtime --version
+          wasm-tools --version
+          test "$(wasmtime --version | awk '{print $2}')" = "48.0.0"
+          test "$(wasm-tools --version | awk '{print $2}')" = "1.254.0"
+
+      - name: Compile Wasmtime fixtures
+        run: node scripts/compile_wasmtime_fixtures.mjs
+
+      - name: Wasmtime real runtime tests
+        run: node --test test/wasmtime-real-runtime.test.mjs
+
       - name: MCP delegation tests
         run: npm run test:mcp-delegation
 
