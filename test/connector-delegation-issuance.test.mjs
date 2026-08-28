@@ -1,10 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 
 import { createMemoryCredentialBroker } from '../server/credentials/memory-broker.js'
 import { createDelegationBroker } from '../server/credentials/delegation-broker.js'
 import { createGitHubConnectorService } from '../server/connectors/github-service.js'
 import { createGoogleDriveConnectorService } from '../server/connectors/google-drive-service.js'
+import { createGitHubConnectorHttpController } from '../server/connectors/github-http.js'
+import { createGoogleDriveConnectorHttpController } from '../server/connectors/google-drive-http.js'
 
 const NOW = () => new Date('2026-08-28T08:40:00.000Z')
 
@@ -67,7 +70,6 @@ function googleService() {
 test('GitHub cannot issue delegated read before matching repository grant', async () => {
   const { service } = githubService()
   await service.completeAuth({ code: 'c', state: 's' })
-
   assert.throws(
     () => service.issueRepositoryFileDelegation({ repository: 'owner/repo', path: 'README.md' }),
     { code: 'capability_denied' },
@@ -78,13 +80,7 @@ test('GitHub issues exact one-use delegation only inside granted repository scop
   const { service } = githubService()
   await service.completeAuth({ code: 'c', state: 's' })
   service.grantRepositoryRead({ repository: 'owner/repo' })
-
-  const issued = service.issueRepositoryFileDelegation({
-    repository: 'owner/repo',
-    path: 'docs/a.md',
-    ref: 'main',
-  })
-
+  const issued = service.issueRepositoryFileDelegation({ repository: 'owner/repo', path: 'docs/a.md', ref: 'main' })
   assert.match(issued.ticket, /^[A-Za-z0-9_-]{40,}$/)
   assert.equal(issued.delegation.provider, 'github')
   assert.equal(issued.delegation.operation, 'read-file')
@@ -93,7 +89,6 @@ test('GitHub issues exact one-use delegation only inside granted repository scop
   assert.equal(issued.delegation.actor, 'github:user:42')
   assert.equal(issued.delegation.max_uses, 1)
   assert.equal(JSON.stringify(issued.delegation).includes(issued.ticket), false)
-
   assert.throws(
     () => service.issueRepositoryFileDelegation({ repository: 'other/repo', path: 'docs/a.md' }),
     { code: 'capability_denied' },
@@ -103,54 +98,61 @@ test('GitHub issues exact one-use delegation only inside granted repository scop
 test('Google metadata and file delegation issuance require their independent live grants', async () => {
   const { service } = googleService()
   await service.completeAuth({ code: 'c', state: 's' })
-
   assert.throws(() => service.issueMetadataListDelegation(), { code: 'capability_denied' })
-  assert.throws(
-    () => service.issueFileReadDelegation({ fileId: '1AbCdEfGhIjK' }),
-    { code: 'capability_denied' },
-  )
-
+  assert.throws(() => service.issueFileReadDelegation({ fileId: '1AbCdEfGhIjK' }), { code: 'capability_denied' })
   service.grantMetadataList()
   const metadata = service.issueMetadataListDelegation({ pageToken: 'next-page' })
   assert.equal(metadata.delegation.provider, 'google')
   assert.equal(metadata.delegation.operation, 'list-files')
   assert.equal(metadata.delegation.resource, 'google:drive:files:list')
   assert.equal(metadata.delegation.actor, 'google:account:google-user-1')
-
   service.grantFileRead({ fileId: '1AbCdEfGhIjK' })
   const file = service.issueFileReadDelegation({ fileId: '1AbCdEfGhIjK' })
   assert.equal(file.delegation.operation, 'read-file')
   assert.equal(file.delegation.resource, 'google:drive:file:1AbCdEfGhIjK')
-
-  assert.throws(
-    () => service.issueFileReadDelegation({ fileId: '9ZyXwVuTsRqP' }),
-    { code: 'capability_denied' },
-  )
+  assert.throws(() => service.issueFileReadDelegation({ fileId: '9ZyXwVuTsRqP' }), { code: 'capability_denied' })
 })
 
 test('restored provider identity has zero authority to mint delegations until user grants again', () => {
   const github = githubService()
-  const githubCredentialId = github.broker.store({
-    provider: 'github',
-    account: { id: 99, login: 'restored' },
-    accessToken: 'restored-github-secret',
-  })
+  const githubCredentialId = github.broker.store({ provider: 'github', account: { id: 99, login: 'restored' }, accessToken: 'restored-github-secret' })
   github.service.restoreAuth({ credentialId: githubCredentialId })
-  assert.throws(
-    () => github.service.issueRepositoryFileDelegation({ repository: 'owner/repo', path: 'README.md' }),
-    { code: 'capability_denied' },
-  )
+  assert.throws(() => github.service.issueRepositoryFileDelegation({ repository: 'owner/repo', path: 'README.md' }), { code: 'capability_denied' })
 
   const google = googleService()
-  const googleCredentialId = google.broker.store({
-    provider: 'google',
-    account: { sub: 'restored-google' },
-    accessToken: 'restored-google-secret',
-  })
+  const googleCredentialId = google.broker.store({ provider: 'google', account: { sub: 'restored-google' }, accessToken: 'restored-google-secret' })
   google.service.restoreAuth({ credentialId: googleCredentialId })
   assert.throws(() => google.service.issueMetadataListDelegation(), { code: 'capability_denied' })
-  assert.throws(
-    () => google.service.issueFileReadDelegation({ fileId: '1AbCdEfGhIjK' }),
-    { code: 'capability_denied' },
-  )
+  assert.throws(() => google.service.issueFileReadDelegation({ fileId: '1AbCdEfGhIjK' }), { code: 'capability_denied' })
+})
+
+test('HTTP controllers expose only newly issued delegation payloads and no provider credential', () => {
+  const githubController = createGitHubConnectorHttpController({
+    service: {
+      issueRepositoryFileDelegation({ repository, path }) {
+        return { ticket: 'github-ticket', delegation: { provider: 'github', operation: 'read-file', resource: `github:repository:${repository}:contents:${path}` } }
+      },
+    },
+  })
+  const github = githubController.issueDelegatedRead({ repository: 'owner/repo', path: 'README.md' })
+  assert.equal(github.status, 200)
+  assert.equal(github.body.ticket, 'github-ticket')
+  assert.equal(JSON.stringify(github.body).includes('accessToken'), false)
+
+  const googleController = createGoogleDriveConnectorHttpController({
+    service: {
+      issueMetadataListDelegation() { return { ticket: 'google-list-ticket', delegation: { provider: 'google', operation: 'list-files' } } },
+      issueFileReadDelegation({ fileId }) { return { ticket: 'google-file-ticket', delegation: { provider: 'google', operation: 'read-file', resource: `google:drive:file:${fileId}` } } },
+    },
+  })
+  assert.equal(googleController.issueDelegatedList({}).body.ticket, 'google-list-ticket')
+  assert.equal(googleController.issueDelegatedFileRead({ fileId: '1AbCdEfGhIjK' }).body.ticket, 'google-file-ticket')
+})
+
+test('Vite connector bridges declare all three local delegation issuance routes', async () => {
+  const githubSource = await readFile(new URL('../vite-github-connector.js', import.meta.url), 'utf8')
+  const googleSource = await readFile(new URL('../vite-google-drive-connector.js', import.meta.url), 'utf8')
+  assert.match(githubSource, /\/api\/connectors\/github\/delegation\/read-file/)
+  assert.match(googleSource, /\/api\/connectors\/google\/delegation\/list-files/)
+  assert.match(googleSource, /\/api\/connectors\/google\/delegation\/read-file/)
 })
