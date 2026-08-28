@@ -30,17 +30,21 @@ const GITHUB_SETTINGS_HTML = `
 `
 
 const MODULE_SCRIPT = '<script type="module" src="/src/githubsettings.js"></script>'
+const MCP_SETTINGS_ANCHOR = '<div id="s-mcp-wrap"'
 
 export function githubSettingsUi() {
   return {
     name: 'eveglyph-github-settings-ui',
     transformIndexHtml(html) {
-      const mcpMarker = '            <!-- MCP server — separate from AI Provider above; this is how an EXTERNAL'
-      if (!html.includes(mcpMarker)) {
+      // Anchor to a semantic element id, not a comment. Vite (and other HTML
+      // transforms) may remove or rewrite comments before this hook runs, while
+      // the Settings container id is a runtime contract that must survive.
+      if (!html.includes(MCP_SETTINGS_ANCHOR)) {
         throw new Error('GitHub Settings insertion point not found')
       }
-      let next = html.replace(mcpMarker, `${GITHUB_SETTINGS_HTML}\n${mcpMarker}`)
+      let next = html.replace(MCP_SETTINGS_ANCHOR, `${GITHUB_SETTINGS_HTML}\n            ${MCP_SETTINGS_ANCHOR}`)
       if (!next.includes('/src/githubsettings.js')) {
+        if (!next.includes('</body>')) throw new Error('GitHub Settings module insertion point not found')
         next = next.replace('</body>', `${MODULE_SCRIPT}\n</body>`)
       }
       return next
