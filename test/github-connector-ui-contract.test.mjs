@@ -55,9 +55,6 @@ test('GitHub Settings module exports and implements the five connector actions',
     assert.match(githubSettings, new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\b`), `missing export ${name}`)
   }
 
-  // The browser client deliberately centralizes the common connector prefix in
-  // one request helper. Verify that shared route construction and every required
-  // operation are present instead of requiring duplicated full URL literals.
   assert.match(githubSettings, /fetch\(`\/api\/connectors\/github\/\$\{path\}`/)
   for (const route of ['status', 'auth/start', 'grant-read', 'read-file']) {
     assert.ok(
@@ -69,9 +66,6 @@ test('GitHub Settings module exports and implements the five connector actions',
 })
 
 test('GitHub Settings module wires every connector control and is loaded by Vite', () => {
-  // DOM lookup is intentionally centralized through the tiny `$()` helper.
-  // Verify the helper and each concrete control reference rather than forcing
-  // direct document.getElementById('<literal>') calls at every use site.
   assert.match(githubSettings, /document\.getElementById\(id\)/)
   for (const id of ['btn-github-connect', 'btn-github-disconnect', 'btn-github-grant-read', 'btn-github-read']) {
     assert.ok(
@@ -84,15 +78,20 @@ test('GitHub Settings module wires every connector control and is loaded by Vite
   assert.match(viteConfig, /githubSettingsUi/)
 })
 
-test('GitHub Settings HTML transform survives removal of non-structural MCP comments', async () => {
+test('GitHub Settings HTML transform survives comment stripping and runs before Vite core HTML processing', async () => {
   const { githubSettingsUi } = await import('../vite-github-settings-ui.js')
+  const plugin = githubSettingsUi()
+  assert.equal(plugin.transformIndexHtml?.order, 'pre')
+  assert.equal(typeof plugin.transformIndexHtml?.handler, 'function')
+
   const commentStripped = indexHtml.replace(/<!-- MCP server[\s\S]*?-->/, '')
   assert.match(commentStripped, /id="s-mcp-wrap"/)
 
-  const transformed = githubSettingsUi().transformIndexHtml(commentStripped)
+  const transformed = plugin.transformIndexHtml.handler(commentStripped)
   assert.match(transformed, /id="s-github-wrap"/)
   assert.ok(
     transformed.indexOf('id="s-github-wrap"') < transformed.indexOf('id="s-mcp-wrap"'),
     'GitHub Settings block must remain before the MCP Settings block',
   )
+  assert.match(transformed, /<script type="module" src="\/src\/githubsettings\.js"><\/script>/)
 })
