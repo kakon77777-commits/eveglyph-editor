@@ -20,6 +20,7 @@ export function buildWasmtimeArgs(moduleFile, limits) {
     '-W', `max-instances=${limits.instances}`,
     '-W', `max-memories=${limits.memories}`,
     '-W', `max-tables=${limits.tables}`,
+    '-W', 'trap-on-grow-failure=y',
     '-W', `timeout=${limits.timeout_ms}ms`,
     moduleFile,
   ]
@@ -84,6 +85,17 @@ function collectVersionOutput(child, timeoutMs = VERSION_TIMEOUT_MS) {
   })
 }
 
+function classifyWasmtime48Failure(stderrBytes) {
+  const text = Buffer.concat(stderrBytes).toString('utf8')
+  if (text.includes('wasm trap: all fuel consumed by WebAssembly')) {
+    return sandboxError('sandbox_fuel_exhausted')
+  }
+  if (/forcing trap when growing memory to \d+ bytes/.test(text)) {
+    return sandboxError('sandbox_memory_limit')
+  }
+  return sandboxError('sandbox_guest_exit_nonzero')
+}
+
 function collectExecution(child, { timeoutMs }) {
   return new Promise((resolve, reject) => {
     const stdout = []
@@ -137,7 +149,7 @@ function collectExecution(child, { timeoutMs }) {
         return
       }
       if (code !== 0) {
-        fail(sandboxError('sandbox_guest_exit_nonzero'))
+        fail(classifyWasmtime48Failure(stderr))
         return
       }
       done({
