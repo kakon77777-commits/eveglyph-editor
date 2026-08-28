@@ -6,14 +6,9 @@ const FILE_READ_CAPABILITY = 'connector.google.drive.file.read'
 let lastStatus = null
 let listedFiles = []
 
-function publicError(data, fallback = 'Google Drive connector request failed') {
-  return data?.error?.message || fallback
-}
+function publicError(data, fallback = 'Google Drive connector request failed') { return data?.error?.message || fallback }
 
-async function googleRequest(path, {
-  method = 'GET',
-  body,
-} = {}) {
+async function googleRequest(path, { method = 'GET', body } = {}) {
   const options = { method, headers: {} }
   if (body !== undefined) {
     options.headers['Content-Type'] = 'application/json'
@@ -34,24 +29,15 @@ async function googleRequest(path, {
   return data
 }
 
-function setStatusText(text) {
-  const el = $('s-google-status')
-  if (el) el.textContent = text
-}
-
-function setResultText(text) {
-  const el = $('s-google-read-result')
-  if (el) el.textContent = text
-}
+function setStatusText(text) { const el = $('s-google-status'); if (el) el.textContent = text }
+function setResultText(text) { const el = $('s-google-read-result'); if (el) el.textContent = text }
+function setDelegationText(text) { const el = $('s-google-delegation-result'); if (el) el.textContent = text }
 
 function hasGrant(status, capability, resource = null) {
-  return (status?.grants || []).some(grant =>
-    grant.capability === capability && (resource == null || grant.resource === resource))
+  return (status?.grants || []).some(grant => grant.capability === capability && (resource == null || grant.resource === resource))
 }
 
-function selectedFileId() {
-  return $('s-google-file-select')?.value || ''
-}
+function selectedFileId() { return $('s-google-file-select')?.value || '' }
 
 function setControlState(status) {
   lastStatus = status
@@ -61,27 +47,23 @@ function setControlState(status) {
   const fileId = selectedFileId()
   const fileGranted = fileId ? hasGrant(status, FILE_READ_CAPABILITY, `google:drive:file:${fileId}`) : false
 
-  const connect = $('btn-google-connect')
-  const disconnect = $('btn-google-disconnect')
-  const grantMetadata = $('btn-google-grant-metadata')
-  const list = $('btn-google-list-files')
+  const states = [
+    ['btn-google-connect', !configured || connected],
+    ['btn-google-disconnect', !connected],
+    ['btn-google-grant-metadata', !connected || metadataGranted],
+    ['btn-google-list-files', !connected || !metadataGranted],
+    ['btn-google-issue-mcp-list', !connected || !metadataGranted],
+    ['btn-google-grant-file-read', !connected || !fileId || fileGranted],
+    ['btn-google-read', !connected || !fileId || !fileGranted],
+    ['btn-google-issue-mcp-file-read', !connected || !fileId || !fileGranted],
+  ]
+  for (const [id, disabled] of states) { const el = $(id); if (el) el.disabled = disabled }
   const select = $('s-google-file-select')
-  const grantFile = $('btn-google-grant-file-read')
-  const read = $('btn-google-read')
-
-  if (connect) connect.disabled = !configured || connected
-  if (disconnect) disconnect.disabled = !connected
-  if (grantMetadata) grantMetadata.disabled = !connected || metadataGranted
-  if (list) list.disabled = !connected || !metadataGranted
   if (select) select.disabled = !connected || listedFiles.length === 0
-  if (grantFile) grantFile.disabled = !connected || !fileId || fileGranted
-  if (read) read.disabled = !connected || !fileId || !fileGranted
 }
 
 function statusLabel(status) {
-  if (!status?.configured) {
-    return 'Not configured — set EVEGLYPH_GOOGLE_CLIENT_ID and EVEGLYPH_GOOGLE_CLIENT_SECRET, then restart the dev server.'
-  }
+  if (!status?.configured) return 'Not configured — set EVEGLYPH_GOOGLE_CLIENT_ID and EVEGLYPH_GOOGLE_CLIENT_SECRET, then restart the dev server.'
   if (!status.connected) return 'Disconnected'
   const account = status.account || {}
   const label = account.email || account.name || account.sub || 'Google account'
@@ -94,13 +76,9 @@ function renderFiles(files) {
   listedFiles = Array.isArray(files) ? files : []
   const select = $('s-google-file-select')
   if (!select) return
-
   const options = []
   if (!listedFiles.length) {
-    const option = document.createElement('option')
-    option.value = ''
-    option.textContent = 'No Drive files returned'
-    options.push(option)
+    const option = document.createElement('option'); option.value = ''; option.textContent = 'No Drive files returned'; options.push(option)
   } else {
     for (const file of listedFiles) {
       const option = document.createElement('option')
@@ -115,15 +93,10 @@ function renderFiles(files) {
 }
 
 export async function googleRefreshStatus() {
-  try {
-    const status = await googleRequest('status')
-    setStatusText(statusLabel(status))
-    setControlState(status)
-    return status
-  } catch (error) {
+  try { const status = await googleRequest('status'); setStatusText(statusLabel(status)); setControlState(status); return status }
+  catch (error) {
     const status = { configured: false, connected: false, grants: [] }
-    setStatusText(error.message || 'Google Drive connector unavailable')
-    setControlState(status)
+    setStatusText(error.message || 'Google Drive connector unavailable'); setControlState(status)
     return { ...status, error: error.code || 'google_drive_connector_error' }
   }
 }
@@ -136,47 +109,27 @@ export async function googleConnect() {
     if (!started.authorize_url) throw new Error('Google authorization URL was not returned.')
     if (popup && !popup.closed) popup.location.href = started.authorize_url
     else window.location.href = started.authorize_url
-
-    // Only redacted public status is polled. OAuth code, verifier and credentials
-    // remain entirely in the local Node connector process.
     for (let attempt = 0; attempt < 120; attempt += 1) {
       await sleep(1000)
       const status = await googleRefreshStatus()
       if (status.connected) return status
       if (popup?.closed && attempt > 2) break
     }
-    const error = new Error('Google authentication did not complete in this session.')
-    error.code = 'google_auth_incomplete'
-    throw error
-  } catch (error) {
-    try { popup?.close() } catch { /* ignore */ }
-    setStatusText(error.message || 'Google authentication failed')
-    throw error
-  }
+    const error = new Error('Google authentication did not complete in this session.'); error.code = 'google_auth_incomplete'; throw error
+  } catch (error) { try { popup?.close() } catch {}; setStatusText(error.message || 'Google authentication failed'); throw error }
 }
 
 export async function googleDisconnect() {
   try {
     await googleRequest('disconnect', { method: 'POST' })
-    listedFiles = []
-    renderFiles([])
-    setResultText('')
+    listedFiles = []; renderFiles([]); setResultText(''); setDelegationText('')
     return await googleRefreshStatus()
-  } catch (error) {
-    setStatusText(error.message || 'Google disconnect failed')
-    throw error
-  }
+  } catch (error) { setStatusText(error.message || 'Google disconnect failed'); throw error }
 }
 
 export async function googleGrantMetadata() {
-  try {
-    const grant = await googleRequest('grant-metadata', { method: 'POST' })
-    await googleRefreshStatus()
-    return grant
-  } catch (error) {
-    setStatusText(error.message || 'Google Drive metadata grant failed')
-    throw error
-  }
+  try { const grant = await googleRequest('grant-metadata', { method: 'POST' }); await googleRefreshStatus(); return grant }
+  catch (error) { setStatusText(error.message || 'Google Drive metadata grant failed'); throw error }
 }
 
 export async function googleListFiles() {
@@ -186,82 +139,79 @@ export async function googleListFiles() {
     renderFiles(result.files || [])
     setResultText(`${result.files?.length || 0} Drive file(s) listed. Select one, grant read, then read it.`)
     return result
-  } catch (error) {
-    setResultText(error.message || 'Google Drive file listing failed')
-    throw error
-  }
+  } catch (error) { setResultText(error.message || 'Google Drive file listing failed'); throw error }
+}
+
+export async function googleIssueMcpListTicket() {
+  setDelegationText('Issuing one-use MCP metadata-list delegation…')
+  try {
+    const issued = await googleRequest('delegation/list-files', { method: 'POST', body: {} })
+    const delegation = issued.delegation || {}
+    setDelegationText([
+      'ONE-USE MCP DELEGATION — do not store as a reusable credential',
+      `ticket: ${String(issued.ticket || '')}`,
+      `expires: ${delegation.expires_at || 'unknown'}`,
+      `resource: ${delegation.resource || 'unknown'}`,
+      'This value exists only in the live page. A third-party MCP host may log tool arguments.',
+    ].join('\n'))
+    return issued
+  } catch (error) { setDelegationText(error.message || 'Google MCP list delegation failed'); throw error }
 }
 
 export async function googleGrantFileRead() {
   const fileId = selectedFileId()
-  if (!fileId) {
-    const error = new Error('Select a Drive file first.')
-    error.code = 'google_drive_invalid_file_id'
-    setStatusText(error.message)
-    throw error
-  }
+  if (!fileId) { const error = new Error('Select a Drive file first.'); error.code = 'google_drive_invalid_file_id'; setStatusText(error.message); throw error }
   try {
-    const grant = await googleRequest('grant-file-read', {
-      method: 'POST',
-      body: { file_id: fileId },
-    })
-    await googleRefreshStatus()
-    return grant
-  } catch (error) {
-    setStatusText(error.message || 'Google Drive file grant failed')
-    throw error
-  }
+    const grant = await googleRequest('grant-file-read', { method: 'POST', body: { file_id: fileId } })
+    await googleRefreshStatus(); return grant
+  } catch (error) { setStatusText(error.message || 'Google Drive file grant failed'); throw error }
 }
 
 export async function googleReadFile() {
   const fileId = selectedFileId()
-  if (!fileId) {
-    const error = new Error('Select a Drive file first.')
-    error.code = 'google_drive_invalid_file_id'
-    setResultText(error.message)
-    throw error
-  }
-
+  if (!fileId) { const error = new Error('Select a Drive file first.'); error.code = 'google_drive_invalid_file_id'; setResultText(error.message); throw error }
   setResultText('Reading Drive file…')
   try {
-    const result = await googleRequest('read-file', {
-      method: 'POST',
-      body: { file_id: fileId },
-    })
-    const file = result.file || {}
-    const exported = result.export_mime_type ? ` · exported ${result.export_mime_type}` : ''
+    const result = await googleRequest('read-file', { method: 'POST', body: { file_id: fileId } })
+    const file = result.file || {}; const exported = result.export_mime_type ? ` · exported ${result.export_mime_type}` : ''
     const header = `${file.name || file.id || fileId} · ${file.mime_type || 'unknown'}${exported}\n${result.size ?? 0} bytes\n\n`
-    setResultText(header + String(result.content ?? ''))
-    return result
-  } catch (error) {
-    setResultText(error.message || 'Google Drive file read failed')
-    throw error
-  }
+    setResultText(header + String(result.content ?? '')); return result
+  } catch (error) { setResultText(error.message || 'Google Drive file read failed'); throw error }
+}
+
+export async function googleIssueMcpFileReadTicket() {
+  const fileId = selectedFileId()
+  if (!fileId) { const error = new Error('Select a Drive file first.'); error.code = 'google_drive_invalid_file_id'; setDelegationText(error.message); throw error }
+  setDelegationText('Issuing one-use MCP file-read delegation…')
+  try {
+    const issued = await googleRequest('delegation/read-file', { method: 'POST', body: { file_id: fileId } })
+    const delegation = issued.delegation || {}
+    setDelegationText([
+      'ONE-USE MCP DELEGATION — do not store as a reusable credential',
+      `ticket: ${String(issued.ticket || '')}`,
+      `expires: ${delegation.expires_at || 'unknown'}`,
+      `resource: ${delegation.resource || 'unknown'}`,
+      'This value exists only in the live page. A third-party MCP host may log tool arguments.',
+    ].join('\n'))
+    return issued
+  } catch (error) { setDelegationText(error.message || 'Google MCP file delegation failed'); throw error }
 }
 
 function bindGoogleDriveSettings() {
-  const connect = $('btn-google-connect')
-  const disconnect = $('btn-google-disconnect')
-  const grantMetadata = $('btn-google-grant-metadata')
-  const list = $('btn-google-list-files')
-  const select = $('s-google-file-select')
-  const grantFile = $('btn-google-grant-file-read')
-  const read = $('btn-google-read')
-  if (!connect || !disconnect || !grantMetadata || !list || !select || !grantFile || !read) return false
-
-  connect.onclick = () => { googleConnect().catch(() => {}) }
-  disconnect.onclick = () => { googleDisconnect().catch(() => {}) }
-  grantMetadata.onclick = () => { googleGrantMetadata().catch(() => {}) }
-  list.onclick = () => { googleListFiles().catch(() => {}) }
-  select.onchange = () => { setControlState(lastStatus || { configured: true, connected: false, grants: [] }) }
-  grantFile.onclick = () => { googleGrantFileRead().catch(() => {}) }
-  read.onclick = () => { googleReadFile().catch(() => {}) }
+  const ids = ['btn-google-connect','btn-google-disconnect','btn-google-grant-metadata','btn-google-list-files','btn-google-issue-mcp-list','s-google-file-select','btn-google-grant-file-read','btn-google-read','btn-google-issue-mcp-file-read']
+  if (ids.some(id => !$(id))) return false
+  $('btn-google-connect').onclick = () => { googleConnect().catch(() => {}) }
+  $('btn-google-disconnect').onclick = () => { googleDisconnect().catch(() => {}) }
+  $('btn-google-grant-metadata').onclick = () => { googleGrantMetadata().catch(() => {}) }
+  $('btn-google-list-files').onclick = () => { googleListFiles().catch(() => {}) }
+  $('btn-google-issue-mcp-list').onclick = () => { googleIssueMcpListTicket().catch(() => {}) }
+  $('s-google-file-select').onchange = () => { setControlState(lastStatus || { configured: true, connected: false, grants: [] }) }
+  $('btn-google-grant-file-read').onclick = () => { googleGrantFileRead().catch(() => {}) }
+  $('btn-google-read').onclick = () => { googleReadFile().catch(() => {}) }
+  $('btn-google-issue-mcp-file-read').onclick = () => { googleIssueMcpFileReadTicket().catch(() => {}) }
   googleRefreshStatus().catch(() => {})
   return true
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bindGoogleDriveSettings, { once: true })
-} else {
-  bindGoogleDriveSettings()
-}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindGoogleDriveSettings, { once: true })
+else bindGoogleDriveSettings()
