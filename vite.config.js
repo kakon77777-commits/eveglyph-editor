@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite'
 import { agentBridge } from './vite-agent-bridge.js'
+import { githubConnectorBridge } from './vite-github-connector.js'
 
 // EveGlyph Editor — Vite config
 // Dev server auto-opens the browser so the .bat launcher is one double-click.
 export default defineConfig({
   root: '.',
-  plugins: [agentBridge()],
+  plugins: [agentBridge(), githubConnectorBridge()],
   server: {
     open: true,
     port: 5173
