@@ -1,5 +1,6 @@
 const ERROR_STATUS = Object.freeze({
   google_not_configured: 503,
+  credential_vault_unavailable: 503,
   google_invalid_oauth_state: 400,
   google_oauth_state_expired: 400,
   google_oauth_exchange_failed: 502,
@@ -19,6 +20,7 @@ const ERROR_STATUS = Object.freeze({
 
 const PUBLIC_MESSAGES = Object.freeze({
   google_not_configured: 'Google OAuth is not configured on this EveGlyph server.',
+  credential_vault_unavailable: 'Credential vault is unavailable. Unlock or restore the system credential store and try again.',
   google_invalid_oauth_state: 'Google OAuth state is invalid or was already used.',
   google_oauth_state_expired: 'Google OAuth state expired. Start authentication again.',
   google_oauth_exchange_failed: 'Google OAuth token exchange failed.',
