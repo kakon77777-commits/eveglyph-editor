@@ -68,6 +68,9 @@ jobs:
       - name: Document Wasm service tests
         run: node --test test/document-wasm-service.test.mjs
 
+      - name: MCP Wasmtime sandbox tests
+        run: node --test test/mcp-wasmtime-sandbox.test.mjs
+
       - name: MCP delegation tests
         run: npm run test:mcp-delegation
 
