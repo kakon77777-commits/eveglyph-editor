@@ -13,6 +13,14 @@ const PROFILES = Object.freeze({
     name: 'document-only',
     grants: Object.freeze(DOCUMENT_ONLY_GRANTS),
   }),
+  // Connector sessions start with no ambient authority. External-service
+  // capabilities are acquired only through explicit grants (for example, a
+  // user-approved GitHub repository read grant) so OAuth identity never
+  // becomes implicit resource authorization.
+  'connector-session': Object.freeze({
+    name: 'connector-session',
+    grants: Object.freeze([]),
+  }),
 })
 
 function codedError(code, message) {
