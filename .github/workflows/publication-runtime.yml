@@ -62,6 +62,9 @@ jobs:
       - name: Wasmtime real runtime tests
         run: node --test test/wasmtime-real-runtime.test.mjs
 
+      - name: Diagnose exact Wasmtime 48 traps
+        run: node scripts/diagnose_wasmtime_traps.mjs
+
       - name: Wasmtime resource-limit tests
         run: node --test test/wasmtime-resource-limits.test.mjs
 
