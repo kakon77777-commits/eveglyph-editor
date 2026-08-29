@@ -76,22 +76,62 @@ export function createSystemKeyringVault({ EntryClass, service = 'EveGlyph Edito
     return `credential:${safeKey(id, 'credential id')}`
   }
 
+  // Account profile, access token, and refresh token each get their own keyring
+  // entry, separate from the rest of the envelope: any one of them (a long
+  // provider account/profile object, or a token long enough on its own — observed
+  // with Google, once include_granted_scopes pulls in a large existing grant) can
+  // exceed the ~2560-char native credential blob limit on Windows if bundled
+  // together. Splitting keeps every entry comfortably under that cap regardless
+  // of how large any individual piece is.
+  function credentialAccountProfile(id) {
+    return `profile:${safeKey(id, 'credential id')}`
+  }
+
+  function credentialAccessAccount(id) {
+    return `access:${safeKey(id, 'credential id')}`
+  }
+
+  function credentialRefreshAccount(id) {
+    return `refresh:${safeKey(id, 'credential id')}`
+  }
+
   function activeAccount(provider) {
     return `active:${safeKey(provider, 'provider')}`
   }
 
   function putCredential(envelope) {
     const normalized = cloneEnvelope(envelope)
-    writePassword(credentialAccount(normalized.id), JSON.stringify(normalized))
+    const core = { id: normalized.id, provider: normalized.provider, refreshExpiresAt: normalized.refreshExpiresAt }
+    // picture is display-only (unused anywhere in the app today) and, for some
+    // accounts, large enough by itself to blow the per-entry budget below — drop
+    // it at the persistence boundary rather than carry it through unused.
+    const { picture: _picture, ...accountForStorage } = normalized.account
+    const profile = { account: accountForStorage }
+    const access = { accessToken: normalized.accessToken, accessExpiresAt: normalized.accessExpiresAt }
+    const refresh = { refreshToken: normalized.refreshToken }
+    const coreJson = JSON.stringify(core)
+    const profileJson = JSON.stringify(profile)
+    const accessJson = JSON.stringify(access)
+    const refreshJson = JSON.stringify(refresh)
+    writePassword(credentialAccount(normalized.id), coreJson)
+    writePassword(credentialAccountProfile(normalized.id), profileJson)
+    writePassword(credentialAccessAccount(normalized.id), accessJson)
+    writePassword(credentialRefreshAccount(normalized.id), refreshJson)
     return normalized.id
   }
 
   function getCredential(id) {
-    const text = readPassword(credentialAccount(id))
-    if (text == null || text === '') return null
+    const coreText = readPassword(credentialAccount(id))
+    const profileText = readPassword(credentialAccountProfile(id))
+    const accessText = readPassword(credentialAccessAccount(id))
+    const refreshText = readPassword(credentialRefreshAccount(id))
+    if ([coreText, profileText, accessText, refreshText].some(text => text == null || text === '')) return null
     try {
-      const parsed = JSON.parse(text)
-      const normalized = cloneEnvelope(parsed)
+      const core = JSON.parse(coreText)
+      const profile = JSON.parse(profileText)
+      const access = JSON.parse(accessText)
+      const refresh = JSON.parse(refreshText)
+      const normalized = cloneEnvelope({ ...core, ...profile, ...access, ...refresh })
       if (normalized.id !== safeKey(id, 'credential id')) throw new Error('id mismatch')
       return normalized
     } catch {
@@ -100,7 +140,11 @@ export function createSystemKeyringVault({ EntryClass, service = 'EveGlyph Edito
   }
 
   function deleteCredential(id) {
-    return deletePassword(credentialAccount(id))
+    const removedCore = deletePassword(credentialAccount(id))
+    const removedProfile = deletePassword(credentialAccountProfile(id))
+    const removedAccess = deletePassword(credentialAccessAccount(id))
+    const removedRefresh = deletePassword(credentialRefreshAccount(id))
+    return removedCore || removedProfile || removedAccess || removedRefresh
   }
 
   function setActiveCredential(provider, credentialId) {
