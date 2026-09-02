@@ -1,0 +1,106 @@
+{
+  "schema_version": "mko-v0.1",
+  "id": "mko-euclid-pythagorean-theorem",
+  "semantic_family_id": "sf-pythagorean-theorem",
+  "type": "theorem",
+  "version": "0.1.0",
+  "language": "zh-Hant",
+  "titles": {
+    "zh-Hant": "畢達哥拉斯定理",
+    "en": "Pythagorean theorem"
+  },
+  "summary": {
+    "zh-Hant": "直角三角形兩股長度的平方和，等於斜邊長度的平方。"
+  },
+  "statement": {
+    "zh-Hant": "在歐幾里得平面中的任一直角三角形，若兩股長為 a、b，斜邊長為 c，則 a 的平方加 b 的平方等於 c 的平方。"
+  },
+  "formula": {
+    "tex": "a^2+b^2=c^2",
+    "mathml": "<math><mrow><msup><mi>a</mi><mn>2</mn></msup><mo>+</mo><msup><mi>b</mi><mn>2</mn></msup><mo>=</mo><msup><mi>c</mi><mn>2</mn></msup></mrow></math>",
+    "semantic_ast": {
+      "type": "equation",
+      "lhs": {
+        "type": "addition",
+        "operands": [
+          { "type": "power", "base": { "type": "symbol", "name": "a" }, "exponent": 2 },
+          { "type": "power", "base": { "type": "symbol", "name": "b" }, "exponent": 2 }
+        ]
+      },
+      "rhs": { "type": "power", "base": { "type": "symbol", "name": "c" }, "exponent": 2 }
+    }
+  },
+  "assumptions": [
+    { "id": "a1", "zh-Hant": "幾何背景為歐幾里得平面。" },
+    { "id": "a2", "zh-Hant": "三角形具有一個直角。" },
+    { "id": "a3", "zh-Hant": "a 與 b 表示兩股長，c 表示斜邊長。" },
+    { "id": "a4", "zh-Hant": "邊長為非負實數。" }
+  ],
+  "symbols": [
+    { "token": "a", "role": "leg_length", "role_zh": "第一股長", "scope": "theorem" },
+    { "token": "b", "role": "leg_length", "role_zh": "第二股長", "scope": "theorem" },
+    { "token": "c", "role": "hypotenuse_length", "role_zh": "斜邊長", "scope": "theorem" }
+  ],
+  "dependencies": [
+    { "id": "mko-right-triangle", "title_zh": "直角三角形", "reason_zh": "定理的適用對象。" },
+    { "id": "mko-euclidean-length", "title_zh": "歐幾里得長度", "reason_zh": "平方關係依賴歐幾里得距離。" }
+  ],
+  "explanation": {
+    "paragraphs_zh": [
+      "這個定理不是對所有三角形成立，而是針對直角三角形。斜邊是直角所對的最長邊。",
+      "平方和可以視為以三條邊為邊長所建立的正方形面積關係：兩個股上正方形的面積總和，等於斜邊上正方形的面積。",
+      "程式可以檢查具體的數值三元組，也可以搜尋整數畢氏三元組；但有限檢查不能取代定理的普遍證明。"
+    ],
+    "common_misconception_zh": "把 a²+b²=c² 套用到任意三角形，或只因大量整數案例通過就宣稱完成證明。"
+  },
+  "proofs": [
+    {
+      "id": "proof-area-rearrangement-001",
+      "type": "geometric_rearrangement",
+      "status": "human_proof_available",
+      "summary_zh": "將四個全等直角三角形排列在邊長 a+b 的大正方形中；比較中央區域與分割區域的面積，可推出 a²+b²=c²。"
+    }
+  ],
+  "computational_companions": [
+    {
+      "id": "cc-python-pythagorean-001",
+      "language": "python",
+      "relation": "finite_instance_checker_and_triple_generator",
+      "status": "reference_only",
+      "path": "pythagorean.py",
+      "warning": "此程式只檢查具體數值與有限整數範圍，不等同於畢達哥拉斯定理本身，也不構成普遍證明。",
+      "source": "from math import isclose, sqrt\n\ndef is_right_triangle(a: float, b: float, c: float, *, tol: float = 1e-12) -> bool:\n    if min(a, b, c) <= 0:\n        return False\n    x, y, hyp = sorted((a, b, c))\n    return isclose(x*x + y*y, hyp*hyp, rel_tol=tol, abs_tol=tol)\n\ndef integer_triples(limit: int):\n    for a in range(1, limit + 1):\n        for b in range(a, limit + 1):\n            c = int(sqrt(a*a + b*b))\n            if c <= limit and a*a + b*b == c*c:\n                yield (a, b, c)",
+      "non_identity": {
+        "preserved": ["具體邊長的平方關係", "正邊長限制", "斜邊為最大邊的角色"],
+        "approximated": ["浮點輸入使用有限精度與容差"],
+        "omitted": ["全稱量詞的普遍證明", "幾何公理與面積重排證明"]
+      }
+    }
+  ],
+  "verification": {
+    "computational_status": "finite_cases_passed",
+    "warning_zh": "在宣告範圍內未發現反例，只代表有限計算證據；定理的成立仍依賴數學證明。",
+    "felra_project": "felra/project.yaml",
+    "evidence": {
+      "generated_at": "2026-07-25",
+      "tests": [
+        { "name_zh": "3-4-5 三角形", "method": "exact integer arithmetic", "result": "passed" },
+        { "name_zh": "5-12-13 三角形", "method": "exact integer arithmetic", "result": "passed" },
+        { "name_zh": "2-3-4 非直角三角形", "method": "exact integer arithmetic", "result": "correctly rejected" },
+        { "name_zh": "整數範圍 1..200 搜尋", "method": "finite exhaustive enumeration", "result": "127 triples found; every returned triple satisfies a²+b²=c²" }
+      ]
+    }
+  },
+  "formalization": {
+    "status": "not_formalized",
+    "target_systems": ["Lean 4", "SMT"],
+    "next_obligation_zh": "建立歐幾里得平面、直角與距離定義的機器可檢查映射，並連結現有 Mathlib 定理。"
+  },
+  "provenance": {
+    "origin": "evemisslab_original_mvp",
+    "note_zh": "此 MVP 物件為架構示範內容，不是從 Wikipedia 逐字複製；正式匯入器將另行保存來源修訂與授權血統。",
+    "content_license": "CC-BY-SA-4.0",
+    "code_license": "MIT",
+    "created_at": "2026-07-25"
+  }
+}

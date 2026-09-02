@@ -1,0 +1,50 @@
+project:
+  id: ocme-pythagorean-finite-check
+  title: 畢達哥拉斯關係的有限域機器檢驗
+  language: zh-TW
+
+execution:
+  max_evaluations: 500000
+  random_samples: 20000
+  seed: 42
+
+parameters:
+  a:
+    type: int
+    range: [1, 200]
+    samples: 200
+  b:
+    type: int
+    range: [1, 200]
+    samples: 200
+
+claims:
+  - id: generated_hypotenuse_relation
+    statement: 若 a²+b² 為完全平方數，則以其正平方根 c 所成的有限整數三元組滿足 a²+b²=c²
+    expression: floor(sqrt(a ** 2 + b ** 2)) ** 2 != a ** 2 + b ** 2 or a ** 2 + b ** 2 == floor(sqrt(a ** 2 + b ** 2)) ** 2
+    status: hypothesis
+    required_checks:
+      - numerical
+      - boundaries
+      - counterexample_search
+
+analyses:
+  - id: symbolic_rearrangement
+    type: symbolic
+    title: 平方關係移項的符號恆等檢查
+    check: equivalence
+    variables: [a, b, c]
+    lhs: a ** 2 + b ** 2 - c ** 2
+    rhs: a ** 2 + b ** 2 - c ** 2
+
+outputs:
+  figures:
+    - id: sum_of_squares
+      type: line
+      x: a
+      y: a ** 2 + b ** 2
+      title: 有限網格中的平方和
+      xlabel: a
+      ylabel: a²+b²
+      filename: sum_of_squares.png
+      claim_id: generated_hypotenuse_relation
